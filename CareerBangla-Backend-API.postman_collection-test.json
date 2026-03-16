@@ -26,9 +26,16 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/auth/register",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "auth", "register"]
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "register"
+              ]
             }
           },
           "response": []
@@ -50,9 +57,16 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/auth/login",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "auth", "login"]
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
             }
           },
           "response": []
@@ -74,9 +88,16 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/auth/login",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "auth", "login"]
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
             }
           },
           "response": []
@@ -98,9 +119,16 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/auth/login",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "auth", "login"]
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
             }
           },
           "response": []
@@ -113,9 +141,16 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/auth/me",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "auth", "me"]
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "me"
+              ]
             }
           },
           "response": []
@@ -123,15 +158,24 @@
         {
           "name": "Refresh Token",
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "POST",
             "header": [],
             "url": {
               "raw": "http://localhost:5000/api/v1/auth/refresh-token",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "auth", "refresh-token"]
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "refresh-token"
+              ]
             }
           },
           "response": []
@@ -153,9 +197,16 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/auth/change-password",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "auth", "change-password"]
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "change-password"
+              ]
             }
           },
           "response": []
@@ -168,9 +219,16 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/auth/logout",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "auth", "logout"]
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "logout"
+              ]
             }
           },
           "response": []
@@ -192,9 +250,16 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/auth/verify-email",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "auth", "verify-email"]
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "verify-email"
+              ]
             }
           },
           "response": []
@@ -216,9 +281,16 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/auth/forget-password",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "auth", "forget-password"]
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "forget-password"
+              ]
             }
           },
           "response": []
@@ -240,9 +312,16 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/auth/reset-password",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "auth", "reset-password"]
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "reset-password"
+              ]
             }
           },
           "response": []
@@ -255,9 +334,17 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/auth/login/google",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "auth", "login", "google"]
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login",
+                "google"
+              ]
             }
           },
           "response": []
@@ -284,9 +371,16 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/users/create-recruiter",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "users", "create-recruiter"]
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "create-recruiter"
+              ]
             }
           },
           "response": []
@@ -308,9 +402,16 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/users/create-admin",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "users", "create-admin"]
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "create-admin"
+              ]
             }
           },
           "response": []
@@ -328,15 +429,41 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/recruiters",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "recruiters"],
+              "path": [
+                "api",
+                "v1",
+                "recruiters"
+              ],
               "query": [
-                { "key": "page", "value": "1", "disabled": true },
-                { "key": "limit", "value": "10", "disabled": true },
-                { "key": "searchTerm", "value": "tech", "disabled": true },
-                { "key": "sortBy", "value": "name", "disabled": true },
-                { "key": "sortOrder", "value": "asc", "disabled": true }
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "disabled": true
+                },
+                {
+                  "key": "searchTerm",
+                  "value": "tech",
+                  "disabled": true
+                },
+                {
+                  "key": "sortBy",
+                  "value": "name",
+                  "disabled": true
+                },
+                {
+                  "key": "sortOrder",
+                  "value": "asc",
+                  "disabled": true
+                }
               ]
             }
           },
@@ -350,9 +477,16 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/recruiters/my-profile",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "recruiters", "my-profile"]
+              "path": [
+                "api",
+                "v1",
+                "recruiters",
+                "my-profile"
+              ]
             }
           },
           "response": []
@@ -365,11 +499,21 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/recruiters/:id",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "recruiters", ":id"],
+              "path": [
+                "api",
+                "v1",
+                "recruiters",
+                ":id"
+              ],
               "variable": [
-                { "key": "id", "value": "{{recruiterId}}" }
+                {
+                  "key": "id",
+                  "value": "{{recruiterId}}"
+                }
               ]
             }
           },
@@ -392,9 +536,16 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/recruiters/update-my-profile",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "recruiters", "update-my-profile"]
+              "path": [
+                "api",
+                "v1",
+                "recruiters",
+                "update-my-profile"
+              ]
             }
           },
           "response": []
@@ -416,11 +567,21 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/recruiters/:id",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "recruiters", ":id"],
+              "path": [
+                "api",
+                "v1",
+                "recruiters",
+                ":id"
+              ],
               "variable": [
-                { "key": "id", "value": "{{recruiterId}}" }
+                {
+                  "key": "id",
+                  "value": "{{recruiterId}}"
+                }
               ]
             }
           },
@@ -434,11 +595,21 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/recruiters/:id",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "recruiters", ":id"],
+              "path": [
+                "api",
+                "v1",
+                "recruiters",
+                ":id"
+              ],
               "variable": [
-                { "key": "id", "value": "{{recruiterId}}" }
+                {
+                  "key": "id",
+                  "value": "{{recruiterId}}"
+                }
               ]
             }
           },
@@ -452,11 +623,22 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/recruiters/approve/:id",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "recruiters", "approve", ":id"],
+              "path": [
+                "api",
+                "v1",
+                "recruiters",
+                "approve",
+                ":id"
+              ],
               "variable": [
-                { "key": "id", "value": "{{recruiterId}}" }
+                {
+                  "key": "id",
+                  "value": "{{recruiterId}}"
+                }
               ]
             }
           },
@@ -470,11 +652,51 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/recruiters/reject/:id",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "recruiters", "reject", ":id"],
+              "path": [
+                "api",
+                "v1",
+                "recruiters",
+                "reject",
+                ":id"
+              ],
               "variable": [
-                { "key": "id", "value": "{{recruiterId}}" }
+                {
+                  "key": "id",
+                  "value": "{{recruiterId}}"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "View Recruiter Email [User] (15 coins)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5000/api/v1/recruiters/view-email/:recruiterId",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "v1",
+                "recruiters",
+                "view-email",
+                ":recruiterId"
+              ],
+              "variable": [
+                {
+                  "key": "recruiterId",
+                  "value": "{{recruiterId}}"
+                }
               ]
             }
           },
@@ -502,9 +724,16 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/jobs/categories",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "jobs", "categories"]
+              "path": [
+                "api",
+                "v1",
+                "jobs",
+                "categories"
+              ]
             }
           },
           "response": []
@@ -517,9 +746,16 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/jobs/categories",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "jobs", "categories"]
+              "path": [
+                "api",
+                "v1",
+                "jobs",
+                "categories"
+              ]
             }
           },
           "response": []
@@ -532,11 +768,22 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/jobs/categories/:id",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "jobs", "categories", ":id"],
+              "path": [
+                "api",
+                "v1",
+                "jobs",
+                "categories",
+                ":id"
+              ],
               "variable": [
-                { "key": "id", "value": "{{categoryId}}" }
+                {
+                  "key": "id",
+                  "value": "{{categoryId}}"
+                }
               ]
             }
           },
@@ -559,9 +806,15 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/jobs",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "jobs"]
+              "path": [
+                "api",
+                "v1",
+                "jobs"
+              ]
             }
           },
           "response": []
@@ -574,20 +827,66 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/jobs",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "jobs"],
+              "path": [
+                "api",
+                "v1",
+                "jobs"
+              ],
               "query": [
-                { "key": "page", "value": "1", "disabled": true },
-                { "key": "limit", "value": "10", "disabled": true },
-                { "key": "searchTerm", "value": "developer", "disabled": true },
-                { "key": "jobType", "value": "FULL_TIME", "disabled": true },
-                { "key": "location", "value": "Dhaka", "disabled": true },
-                { "key": "categoryId", "value": "{{categoryId}}", "disabled": true },
-                { "key": "salaryMin[gte]", "value": "50000", "disabled": true },
-                { "key": "salaryMax[lte]", "value": "150000", "disabled": true },
-                { "key": "sortBy", "value": "createdAt", "disabled": true },
-                { "key": "sortOrder", "value": "desc", "disabled": true }
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "disabled": true
+                },
+                {
+                  "key": "searchTerm",
+                  "value": "developer",
+                  "disabled": true
+                },
+                {
+                  "key": "jobType",
+                  "value": "FULL_TIME",
+                  "disabled": true
+                },
+                {
+                  "key": "location",
+                  "value": "Dhaka",
+                  "disabled": true
+                },
+                {
+                  "key": "categoryId",
+                  "value": "{{categoryId}}",
+                  "disabled": true
+                },
+                {
+                  "key": "salaryMin[gte]",
+                  "value": "50000",
+                  "disabled": true
+                },
+                {
+                  "key": "salaryMax[lte]",
+                  "value": "150000",
+                  "disabled": true
+                },
+                {
+                  "key": "sortBy",
+                  "value": "createdAt",
+                  "disabled": true
+                },
+                {
+                  "key": "sortOrder",
+                  "value": "desc",
+                  "disabled": true
+                }
               ]
             }
           },
@@ -601,9 +900,16 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/jobs/my-jobs",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "jobs", "my-jobs"]
+              "path": [
+                "api",
+                "v1",
+                "jobs",
+                "my-jobs"
+              ]
             }
           },
           "response": []
@@ -616,11 +922,21 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/jobs/:id",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "jobs", ":id"],
+              "path": [
+                "api",
+                "v1",
+                "jobs",
+                ":id"
+              ],
               "variable": [
-                { "key": "id", "value": "{{jobId}}" }
+                {
+                  "key": "id",
+                  "value": "{{jobId}}"
+                }
               ]
             }
           },
@@ -643,11 +959,21 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/jobs/:id",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "jobs", ":id"],
+              "path": [
+                "api",
+                "v1",
+                "jobs",
+                ":id"
+              ],
               "variable": [
-                { "key": "id", "value": "{{jobId}}" }
+                {
+                  "key": "id",
+                  "value": "{{jobId}}"
+                }
               ]
             }
           },
@@ -661,11 +987,21 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/jobs/:id",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "jobs", ":id"],
+              "path": [
+                "api",
+                "v1",
+                "jobs",
+                ":id"
+              ],
               "variable": [
-                { "key": "id", "value": "{{jobId}}" }
+                {
+                  "key": "id",
+                  "value": "{{jobId}}"
+                }
               ]
             }
           },
@@ -693,9 +1029,16 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/applications/apply",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "applications", "apply"]
+              "path": [
+                "api",
+                "v1",
+                "applications",
+                "apply"
+              ]
             }
           },
           "response": []
@@ -708,9 +1051,16 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/applications/my-applications",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "applications", "my-applications"]
+              "path": [
+                "api",
+                "v1",
+                "applications",
+                "my-applications"
+              ]
             }
           },
           "response": []
@@ -723,9 +1073,16 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/applications/all",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "applications", "all"]
+              "path": [
+                "api",
+                "v1",
+                "applications",
+                "all"
+              ]
             }
           },
           "response": []
@@ -738,11 +1095,22 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/applications/job/:jobId",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "applications", "job", ":jobId"],
+              "path": [
+                "api",
+                "v1",
+                "applications",
+                "job",
+                ":jobId"
+              ],
               "variable": [
-                { "key": "jobId", "value": "{{jobId}}" }
+                {
+                  "key": "jobId",
+                  "value": "{{jobId}}"
+                }
               ]
             }
           },
@@ -765,11 +1133,22 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/applications/status/:id",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "applications", "status", ":id"],
+              "path": [
+                "api",
+                "v1",
+                "applications",
+                "status",
+                ":id"
+              ],
               "variable": [
-                { "key": "id", "value": "{{applicationId}}" }
+                {
+                  "key": "id",
+                  "value": "{{applicationId}}"
+                }
               ]
             }
           },
@@ -792,11 +1171,22 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/applications/status/:id",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "applications", "status", ":id"],
+              "path": [
+                "api",
+                "v1",
+                "applications",
+                "status",
+                ":id"
+              ],
               "variable": [
-                { "key": "id", "value": "{{applicationId}}" }
+                {
+                  "key": "id",
+                  "value": "{{applicationId}}"
+                }
               ]
             }
           },
@@ -819,11 +1209,22 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/applications/status/:id",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "applications", "status", ":id"],
+              "path": [
+                "api",
+                "v1",
+                "applications",
+                "status",
+                ":id"
+              ],
               "variable": [
-                { "key": "id", "value": "{{applicationId}}" }
+                {
+                  "key": "id",
+                  "value": "{{applicationId}}"
+                }
               ]
             }
           },
@@ -846,11 +1247,22 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/applications/status/:id",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "applications", "status", ":id"],
+              "path": [
+                "api",
+                "v1",
+                "applications",
+                "status",
+                ":id"
+              ],
               "variable": [
-                { "key": "id", "value": "{{applicationId}}" }
+                {
+                  "key": "id",
+                  "value": "{{applicationId}}"
+                }
               ]
             }
           },
@@ -869,9 +1281,16 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/resumes/my-resume",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "resumes", "my-resume"]
+              "path": [
+                "api",
+                "v1",
+                "resumes",
+                "my-resume"
+              ]
             }
           },
           "response": []
@@ -893,9 +1312,16 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/resumes/my-resume",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "resumes", "my-resume"]
+              "path": [
+                "api",
+                "v1",
+                "resumes",
+                "my-resume"
+              ]
             }
           },
           "response": []
@@ -908,17 +1334,52 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/resumes/search-candidates",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "resumes", "search-candidates"],
+              "path": [
+                "api",
+                "v1",
+                "resumes",
+                "search-candidates"
+              ],
               "query": [
-                { "key": "searchTerm", "value": "react", "disabled": true },
-                { "key": "skills", "value": "React,Node.js", "disabled": true },
-                { "key": "location", "value": "Dhaka", "disabled": true },
-                { "key": "experience", "value": "true", "disabled": true },
-                { "key": "education", "value": "true", "disabled": true },
-                { "key": "page", "value": "1", "disabled": true },
-                { "key": "limit", "value": "10", "disabled": true }
+                {
+                  "key": "searchTerm",
+                  "value": "react",
+                  "disabled": true
+                },
+                {
+                  "key": "skills",
+                  "value": "React,Node.js",
+                  "disabled": true
+                },
+                {
+                  "key": "location",
+                  "value": "Dhaka",
+                  "disabled": true
+                },
+                {
+                  "key": "experience",
+                  "value": "true",
+                  "disabled": true
+                },
+                {
+                  "key": "education",
+                  "value": "true",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "disabled": true
+                }
               ]
             }
           },
@@ -932,29 +1393,53 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/resumes/user/:userId",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "resumes", "user", ":userId"],
+              "path": [
+                "api",
+                "v1",
+                "resumes",
+                "user",
+                ":userId"
+              ],
               "variable": [
-                { "key": "userId", "value": "{{candidateUserId}}" }
+                {
+                  "key": "userId",
+                  "value": "{{candidateUserId}}"
+                }
               ]
             }
           },
           "response": []
         },
         {
-          "name": "View Recruiter Email [User] (15 coins)",
+          "name": "ATS Score Check [User]",
           "request": {
-            "method": "GET",
+            "method": "POST",
             "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"jobId\": \"{{jobId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
             "url": {
-              "raw": "http://localhost:5000/api/v1/resumes/view-recruiter-email/:recruiterId",
+              "raw": "http://localhost:5000/api/v1/resumes/ats-score",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "resumes", "view-recruiter-email", ":recruiterId"],
-              "variable": [
-                { "key": "recruiterId", "value": "{{recruiterId}}" }
+              "path": [
+                "api",
+                "v1",
+                "resumes",
+                "ats-score"
               ]
             }
           },
@@ -973,9 +1458,15 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/wallet",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "wallet"]
+              "path": [
+                "api",
+                "v1",
+                "wallet"
+              ]
             }
           },
           "response": []
@@ -988,9 +1479,16 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/wallet/transactions",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "wallet", "transactions"]
+              "path": [
+                "api",
+                "v1",
+                "wallet",
+                "transactions"
+              ]
             }
           },
           "response": []
@@ -1008,9 +1506,16 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/subscriptions/plans",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "subscriptions", "plans"]
+              "path": [
+                "api",
+                "v1",
+                "subscriptions",
+                "plans"
+              ]
             }
           },
           "response": []
@@ -1032,9 +1537,16 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/subscriptions/purchase",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "subscriptions", "purchase"]
+              "path": [
+                "api",
+                "v1",
+                "subscriptions",
+                "purchase"
+              ]
             }
           },
           "response": []
@@ -1047,9 +1559,45 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/subscriptions/my-subscriptions",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "subscriptions", "my-subscriptions"]
+              "path": [
+                "api",
+                "v1",
+                "subscriptions",
+                "my-subscriptions"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Cancel Subscription",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5000/api/v1/subscriptions/cancel/:subscriptionId",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "v1",
+                "subscriptions",
+                "cancel",
+                ":subscriptionId"
+              ],
+              "variable": [
+                {
+                  "key": "subscriptionId",
+                  "value": "{{subscriptionId}}"
+                }
+              ]
             }
           },
           "response": []
@@ -1076,9 +1624,15 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/coupons",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "coupons"]
+              "path": [
+                "api",
+                "v1",
+                "coupons"
+              ]
             }
           },
           "response": []
@@ -1091,9 +1645,15 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/coupons",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "coupons"]
+              "path": [
+                "api",
+                "v1",
+                "coupons"
+              ]
             }
           },
           "response": []
@@ -1106,11 +1666,21 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/coupons/:id",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "coupons", ":id"],
+              "path": [
+                "api",
+                "v1",
+                "coupons",
+                ":id"
+              ],
               "variable": [
-                { "key": "id", "value": "{{couponId}}" }
+                {
+                  "key": "id",
+                  "value": "{{couponId}}"
+                }
               ]
             }
           },
@@ -1133,9 +1703,16 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/coupons/redeem",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "coupons", "redeem"]
+              "path": [
+                "api",
+                "v1",
+                "coupons",
+                "redeem"
+              ]
             }
           },
           "response": []
@@ -1157,9 +1734,16 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/coupons/gift-voucher",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "coupons", "gift-voucher"]
+              "path": [
+                "api",
+                "v1",
+                "coupons",
+                "gift-voucher"
+              ]
             }
           },
           "response": []
@@ -1172,9 +1756,16 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/coupons/gift-vouchers",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "coupons", "gift-vouchers"]
+              "path": [
+                "api",
+                "v1",
+                "coupons",
+                "gift-vouchers"
+              ]
             }
           },
           "response": []
@@ -1187,11 +1778,22 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/coupons/gift-voucher/:id",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "coupons", "gift-voucher", ":id"],
+              "path": [
+                "api",
+                "v1",
+                "coupons",
+                "gift-voucher",
+                ":id"
+              ],
               "variable": [
-                { "key": "id", "value": "{{giftVoucherId}}" }
+                {
+                  "key": "id",
+                  "value": "{{giftVoucherId}}"
+                }
               ]
             }
           },
@@ -1214,9 +1816,16 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/coupons/redeem-gift-voucher",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "coupons", "redeem-gift-voucher"]
+              "path": [
+                "api",
+                "v1",
+                "coupons",
+                "redeem-gift-voucher"
+              ]
             }
           },
           "response": []
@@ -1234,9 +1843,15 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/notifications",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "notifications"]
+              "path": [
+                "api",
+                "v1",
+                "notifications"
+              ]
             }
           },
           "response": []
@@ -1249,9 +1864,16 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/notifications/unread-count",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "notifications", "unread-count"]
+              "path": [
+                "api",
+                "v1",
+                "notifications",
+                "unread-count"
+              ]
             }
           },
           "response": []
@@ -1264,11 +1886,22 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/notifications/read/:id",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "notifications", "read", ":id"],
+              "path": [
+                "api",
+                "v1",
+                "notifications",
+                "read",
+                ":id"
+              ],
               "variable": [
-                { "key": "id", "value": "{{notificationId}}" }
+                {
+                  "key": "id",
+                  "value": "{{notificationId}}"
+                }
               ]
             }
           },
@@ -1282,9 +1915,16 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/notifications/read-all",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "notifications", "read-all"]
+              "path": [
+                "api",
+                "v1",
+                "notifications",
+                "read-all"
+              ]
             }
           },
           "response": []
@@ -1297,11 +1937,21 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/notifications/:id",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "notifications", ":id"],
+              "path": [
+                "api",
+                "v1",
+                "notifications",
+                ":id"
+              ],
               "variable": [
-                { "key": "id", "value": "{{notificationId}}" }
+                {
+                  "key": "id",
+                  "value": "{{notificationId}}"
+                }
               ]
             }
           },
@@ -1320,9 +1970,15 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/admins",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "admins"]
+              "path": [
+                "api",
+                "v1",
+                "admins"
+              ]
             }
           },
           "response": []
@@ -1335,9 +1991,16 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/admins/jobs",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "admins", "jobs"]
+              "path": [
+                "api",
+                "v1",
+                "admins",
+                "jobs"
+              ]
             }
           },
           "response": []
@@ -1350,11 +2013,21 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/admins/:id",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "admins", ":id"],
+              "path": [
+                "api",
+                "v1",
+                "admins",
+                ":id"
+              ],
               "variable": [
-                { "key": "id", "value": "{{adminId}}" }
+                {
+                  "key": "id",
+                  "value": "{{adminId}}"
+                }
               ]
             }
           },
@@ -1377,11 +2050,21 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/admins/:id",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "admins", ":id"],
+              "path": [
+                "api",
+                "v1",
+                "admins",
+                ":id"
+              ],
               "variable": [
-                { "key": "id", "value": "{{adminId}}" }
+                {
+                  "key": "id",
+                  "value": "{{adminId}}"
+                }
               ]
             }
           },
@@ -1395,11 +2078,21 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/admins/:id",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "admins", ":id"],
+              "path": [
+                "api",
+                "v1",
+                "admins",
+                ":id"
+              ],
               "variable": [
-                { "key": "id", "value": "{{adminId}}" }
+                {
+                  "key": "id",
+                  "value": "{{adminId}}"
+                }
               ]
             }
           },
@@ -1422,9 +2115,16 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/admins/change-user-status",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "admins", "change-user-status"]
+              "path": [
+                "api",
+                "v1",
+                "admins",
+                "change-user-status"
+              ]
             }
           },
           "response": []
@@ -1446,9 +2146,16 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/admins/change-user-role",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "admins", "change-user-role"]
+              "path": [
+                "api",
+                "v1",
+                "admins",
+                "change-user-role"
+              ]
             }
           },
           "response": []
@@ -1466,9 +2173,15 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/stats",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["api", "v1", "stats"]
+              "path": [
+                "api",
+                "v1",
+                "stats"
+              ]
             }
           },
           "response": []
@@ -1501,9 +2214,13 @@
             "url": {
               "raw": "http://localhost:5000/webhook",
               "protocol": "http",
-              "host": ["localhost"],
+              "host": [
+                "localhost"
+              ],
               "port": "5000",
-              "path": ["webhook"]
+              "path": [
+                "webhook"
+              ]
             }
           },
           "response": []

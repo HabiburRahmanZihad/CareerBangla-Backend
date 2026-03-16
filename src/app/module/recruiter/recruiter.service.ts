@@ -192,8 +192,8 @@ const approveRecruiter = async (id: string) => {
                 message: "Your recruiter account has been approved! You can now post jobs and search for candidates on CareerBangla.",
             }
         })
-    } catch (error) {
-        console.error("Error sending recruiter approval email:", error);
+    } catch {
+        /* email delivery is best-effort */
     }
 
     return updatedRecruiter;
@@ -238,8 +238,8 @@ const rejectRecruiter = async (id: string) => {
                 message: "Your recruiter account application has been rejected. Please contact support for more information.",
             }
         })
-    } catch (error) {
-        console.error("Error sending recruiter rejection email:", error);
+    } catch {
+        /* email delivery is best-effort */
     }
 
     return updatedRecruiter;

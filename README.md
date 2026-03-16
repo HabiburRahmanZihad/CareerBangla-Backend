@@ -11,11 +11,12 @@ The backend of **CareerBangla** is a job portal platform built with **Node.js, E
 - **Framework:** Express.js (v5)
 - **ORM:** Prisma (v7)
 - **Database:** PostgreSQL
-- **Authentication:** Better-Auth + JWT
+- **Authentication:** Better-Auth + JWT (session-based)
 - **Payments:** Stripe
 - **Email:** Nodemailer + EJS templates
 - **File Uploads:** Cloudinary + Multer
 - **Validation:** Zod
+- **Rate Limiting:** express-rate-limit
 
 ---
 
@@ -49,7 +50,7 @@ src/
 │   ├── errorHelpers/        # AppError, Prisma/Zod error handlers
 │   ├── interfaces/          # Shared TypeScript interfaces
 │   ├── lib/                 # Prisma client, Better-Auth setup
-│   ├── middleware/           # checkAuth, validateRequest, globalErrorHandler
+│   ├── middleware/           # checkAuth, validateRequest, globalErrorHandler, rateLimiter
 │   ├── module/              # Feature modules (controller/service/route/validation)
 │   │   ├── admin/
 │   │   ├── application/
@@ -67,7 +68,7 @@ src/
 │   ├── routes/              # Central route aggregation
 │   ├── shared/              # catchAsync, sendResponse
 │   ├── templates/           # EJS email templates
-│   └── utils/               # QueryBuilder, email, jwt, cookie
+│   └── utils/               # QueryBuilder, email, jwt, cookie, profileCompletion
 ├── generated/               # Prisma generated client
 ├── app.ts                   # Express app setup
 └── server.ts                # Server entry point
@@ -80,21 +81,28 @@ src/
 ### 1. Recruiter Approval Workflow
 
 ```
-Register as Recruiter → Status: PENDING → Admin reviews → APPROVED / REJECTED
+Register as Recruiter → Status: PENDING → Complete profile (100%) → Admin reviews → APPROVED / REJECTED
 ```
 
 - Recruiters register and start in `PENDING` status
 - Admin can approve (`PATCH /recruiters/approve/:id`) or reject (`PATCH /recruiters/reject/:id`)
-- **Only APPROVED recruiters can post jobs** — attempting to post with PENDING/REJECTED status returns 403
+- **Only APPROVED recruiters with 100% profile completion can post jobs** — attempting to post with incomplete profile or PENDING/REJECTED status returns 400/403
 - Email + in-app notifications are sent on approval/rejection
 
 ### 2. Profile Completion Requirement
 
-- Users **must complete their ATS resume** before applying to any job
-- The system checks for resume existence and that `skills` array is non-empty
-- Without a completed resume, the apply endpoint returns 400 with a descriptive message
+- Users **must have 100% profile completion** before applying to any job
+- Profile completion is calculated from resume fields: title, summary, skills, experience, education, contact number, address, gender, date of birth, and LinkedIn/portfolio URL
+- Recruiters must also have 100% profile completion (name, email, contact, company details, etc.) before posting jobs
+- The `GET /resumes/my-resume` endpoint returns `profileCompletion` percentage
 
-### 3. Application Status Lifecycle
+### 3. ATS Score
+
+- `POST /resumes/ats-score` calculates resume completeness score
+- Optionally accepts a `jobId` to compute skill-match percentage against job requirements
+- Returns `atsScore`, `profileCompletion`, `suggestions`, and job-specific match data
+
+### 4. Application Status Lifecycle
 
 ```
 PENDING → SHORTLISTED → INTERVIEW → HIRED
@@ -107,7 +115,7 @@ PENDING → SHORTLISTED → INTERVIEW → HIRED
   - Email notification with status-specific message
   - Interview date/note tracking for INTERVIEW status
 
-### 4. Coin-Based Credit System
+### 5. Coin-Based Credit System
 
 | Action | Coins | Role |
 |--------|-------|------|
@@ -117,10 +125,11 @@ PENDING → SHORTLISTED → INTERVIEW → HIRED
 | View Candidate Resume | 10 | Recruiter |
 
 - All coin deductions happen inside **database transactions** (atomic with the action)
+- Coin deductions occur **after** all validation checks pass (no coins lost on validation failure)
 - Each deduction creates a `CoinTransaction` record and an in-app `COIN_DEBITED` notification
 - Insufficient balance returns 400 before the action is attempted
 
-### 5. Candidate Search (Recruiter)
+### 6. Candidate Search (Recruiter)
 
 `GET /api/v1/resumes/search-candidates`
 
@@ -133,7 +142,7 @@ PENDING → SHORTLISTED → INTERVIEW → HIRED
 | `education` | Filter for candidates with education entries |
 | `page`, `limit` | Pagination |
 
-### 6. Gift Voucher & Coupon Rules
+### 7. Gift Voucher & Coupon Rules
 
 - **maxUsage** — configurable usage limit per voucher/coupon (default: 1, supports multi-use)
 - **usageCount** — tracks how many times redeemed; auto-marks as `USED` when limit reached
@@ -141,7 +150,7 @@ PENDING → SHORTLISTED → INTERVIEW → HIRED
 - **recipientEmail** — gift vouchers can be targeted to specific users
 - Redemption credits coins to wallet within a transaction
 
-### 7. Job Search Filters
+### 8. Job Search Filters
 
 `GET /api/v1/jobs`
 
@@ -158,15 +167,17 @@ PENDING → SHORTLISTED → INTERVIEW → HIRED
 | `sortBy`, `sortOrder` | Sorting |
 | `page`, `limit` | Pagination |
 
-### 8. Notification System (Email + In-App)
+### 9. Notification System (Email + In-App)
 
 **In-app notifications** are created for:
+- User registration (welcome notification with 50 coins)
 - Application submitted (to recruiter)
 - Application status changes (to applicant)
 - Coin credited/debited
 - Recruiter approved/rejected
 - Job posted
-- Subscription purchase
+- Subscription activated
+- Subscription cancelled
 
 **Email notifications** are sent for:
 - Application submitted
@@ -174,6 +185,14 @@ PENDING → SHORTLISTED → INTERVIEW → HIRED
 - Recruiter account approved/rejected
 - Email verification OTP
 - Password reset OTP
+
+### 10. Security
+
+- **Rate limiting** on auth endpoints (register, login, forgot-password, reset-password, verify-email) — 20 requests per 15 minutes
+- **Session-based authentication** via Better-Auth with httpOnly secure cookies
+- **Role-based access control** enforced via `checkAuth` middleware
+- **Zod validation** on all mutation endpoints
+- **SameSite cookie policy** — `lax` in development, `none` in production (for cross-origin)
 
 ---
 
@@ -183,15 +202,15 @@ PENDING → SHORTLISTED → INTERVIEW → HIRED
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/register` | Register a new user |
-| POST | `/login` | Login |
+| POST | `/register` | Register a new user (rate limited) |
+| POST | `/login` | Login (rate limited) |
 | GET | `/me` | Get current user profile |
 | POST | `/refresh-token` | Refresh access token |
 | POST | `/change-password` | Change password |
 | POST | `/logout` | Logout |
-| POST | `/verify-email` | Verify email with OTP |
-| POST | `/forget-password` | Request password reset OTP |
-| POST | `/reset-password` | Reset password with OTP |
+| POST | `/verify-email` | Verify email with OTP (rate limited) |
+| POST | `/forget-password` | Request password reset OTP (rate limited) |
+| POST | `/reset-password` | Reset password with OTP (rate limited) |
 | GET | `/login/google` | Google OAuth login |
 
 ### Users — `/api/v1/users`
@@ -213,12 +232,13 @@ PENDING → SHORTLISTED → INTERVIEW → HIRED
 | DELETE | `/:id` | Delete recruiter (Admin) |
 | PATCH | `/approve/:id` | Approve recruiter (Admin) |
 | PATCH | `/reject/:id` | Reject recruiter (Admin) |
+| GET | `/view-email/:recruiterId` | View recruiter email (costs 15 coins, User only) |
 
 ### Jobs — `/api/v1/jobs`
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/` | Create job (Recruiter, requires APPROVED status) |
+| POST | `/` | Create job (Recruiter, requires APPROVED + 100% profile) |
 | GET | `/` | Get all active jobs (public, with filters) |
 | GET | `/my-jobs` | Get my posted jobs (Recruiter) |
 | GET | `/categories` | Get all job categories |
@@ -232,7 +252,7 @@ PENDING → SHORTLISTED → INTERVIEW → HIRED
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/apply` | Apply for job (requires completed resume) |
+| POST | `/apply` | Apply for job (requires 100% profile completion) |
 | GET | `/my-applications` | Get my applications |
 | GET | `/all` | Get all applications (Admin) |
 | GET | `/job/:jobId` | Get applications for a job (Recruiter) |
@@ -242,11 +262,11 @@ PENDING → SHORTLISTED → INTERVIEW → HIRED
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/my-resume` | Get my resume |
-| PATCH | `/my-resume` | Create/update my resume |
+| GET | `/my-resume` | Get my resume (includes profileCompletion %) |
+| PATCH | `/my-resume` | Create/update my resume (Zod validated) |
+| POST | `/ats-score` | Calculate ATS score (optional jobId for skill matching) |
 | GET | `/search-candidates` | Search candidates with filters (Recruiter) |
 | GET | `/user/:userId` | View candidate resume (costs 10 coins for Recruiter) |
-| GET | `/view-recruiter-email/:recruiterId` | View recruiter email (costs 15 coins) |
 
 ### Wallet — `/api/v1/wallet`
 
@@ -261,6 +281,7 @@ PENDING → SHORTLISTED → INTERVIEW → HIRED
 |--------|----------|-------------|
 | GET | `/plans` | Get subscription plans and coin costs |
 | POST | `/purchase` | Purchase a subscription (Stripe checkout) |
+| POST | `/cancel/:subscriptionId` | Cancel a paid subscription |
 | GET | `/my-subscriptions` | Get my subscription history |
 
 ### Coupons — `/api/v1/coupons`
@@ -304,11 +325,11 @@ PENDING → SHORTLISTED → INTERVIEW → HIRED
 |--------|----------|-------------|
 | GET | `/` | Get role-based dashboard statistics |
 
-### Payments — `/api/v1/payments`
+### Payments
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/webhook` | Stripe webhook handler |
+| POST | `/webhook` | Stripe webhook handler (mounted at root) |
 
 ---
 
@@ -349,28 +370,3 @@ PENDING → SHORTLISTED → INTERVIEW → HIRED
 - Set all environment variables (see `.env.example`)
 - Run `npx prisma migrate deploy` before deployment
 - Seed initial data: `npx prisma db seed`
-
----
-
-## Audit Notes & Known Gaps
-
-The following items were identified during a code audit and are not yet implemented:
-
-### Missing Features
-- **Profile completion percentage check** — Users should not be able to apply for jobs until `profileCompletion === 100%`. Currently only resume existence and skills presence are validated.
-- **Recruiter profile completion check** — Recruiters should not be able to post jobs until `profileCompletion === 100%` AND admin verification. Currently only admin verification (`APPROVED` status) is checked.
-- **ATS score endpoint** — No ATS score calculation or endpoint exists (`POST /resumes/ats-score`).
-- **Subscription cancellation** — No cancel endpoint exists.
-- **Welcome notification on registration** — `registerUser()` does not create a welcome notification.
-
-### Logic Issues
-- **Coin deduction before data validation** in `getResumeByUserId` — Recruiter coins are deducted before verifying the resume exists. If resume is not found, coins are lost.
-- **checkAuth middleware redundancy** — Dead code at lines 71-78 where access token is checked inside the session block but never used.
-- **Potential session/JWT identity mismatch** — `req.user` is set from session data, but role is also checked from JWT. Stale JWT tokens may cause inconsistencies.
-
-### Security Recommendations
-- Add rate limiting on auth endpoints (login, register, forgot-password)
-- Add CSRF protection or use `sameSite: "strict"` cookies
-- Add Zod validation schema for resume update endpoint
-- Remove `console.log` / `console.error` from production code
-- Add proper logging library (e.g., winston, pino)
