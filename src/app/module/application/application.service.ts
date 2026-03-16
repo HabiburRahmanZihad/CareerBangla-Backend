@@ -8,6 +8,19 @@ import { sendEmail } from "../../utils/email";
 const applyJob = async (user: IRequestUser, payload: { jobId: string; coverLetter?: string }) => {
     const { jobId, coverLetter } = payload;
 
+    // Check if user has completed their resume/ATS profile before applying
+    const resume = await prisma.resume.findUnique({
+        where: { userId: user.userId }
+    })
+
+    if (!resume) {
+        throw new AppError(status.BAD_REQUEST, "You must complete your ATS resume profile before applying for jobs. Go to your profile and fill in your resume.");
+    }
+
+    if (!resume.skills || resume.skills.length === 0) {
+        throw new AppError(status.BAD_REQUEST, "Your resume is incomplete. Please add at least your skills before applying.");
+    }
+
     const job = await prisma.job.findUnique({
         where: { id: jobId, isDeleted: false, status: "ACTIVE" },
         include: { recruiter: true }
@@ -87,6 +100,17 @@ const applyJob = async (user: IRequestUser, payload: { jobId: string; coverLette
                 title: "New Application Received",
                 message: `${user.email} applied for "${job.title}"`,
                 metadata: { applicationId: application.id, jobId: job.id },
+            }
+        })
+
+        // Create coin deduction notification for applicant
+        await tx.notification.create({
+            data: {
+                userId: user.userId,
+                type: "COIN_DEBITED",
+                title: "Coins Deducted",
+                message: `10 coins deducted for applying to "${job.title}"`,
+                metadata: { jobId: job.id, coins: 10 },
             }
         })
 
@@ -193,6 +217,23 @@ const updateApplicationStatus = async (
 
     if (application.job.recruiter.userId !== user.userId && user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") {
         throw new AppError(status.FORBIDDEN, "You are not authorized to update this application");
+    }
+
+    // Validate application status lifecycle transitions
+    const validTransitions: Record<string, ApplicationStatus[]> = {
+        PENDING: [ApplicationStatus.SHORTLISTED, ApplicationStatus.REJECTED],
+        SHORTLISTED: [ApplicationStatus.INTERVIEW, ApplicationStatus.REJECTED],
+        INTERVIEW: [ApplicationStatus.HIRED, ApplicationStatus.REJECTED],
+        HIRED: [],
+        REJECTED: [],
+    };
+
+    const allowedNextStatuses = validTransitions[application.status];
+    if (!allowedNextStatuses || !allowedNextStatuses.includes(payload.status)) {
+        throw new AppError(
+            status.BAD_REQUEST,
+            `Cannot transition from ${application.status} to ${payload.status}. Allowed transitions: ${allowedNextStatuses?.join(", ") || "none (terminal state)"}`
+        );
     }
 
     const updateData: { status: ApplicationStatus; interviewDate?: Date; interviewNote?: string } = {

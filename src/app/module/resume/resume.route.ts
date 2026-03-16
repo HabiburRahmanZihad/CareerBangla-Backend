@@ -16,6 +16,10 @@ router.patch("/my-resume",
     validateRequest(updateResumeZodSchema),
     ResumeController.updateMyResume);
 
+router.get("/search-candidates",
+    checkAuth(Role.RECRUITER, Role.ADMIN, Role.SUPER_ADMIN),
+    ResumeController.searchCandidates);
+
 router.get("/user/:userId",
     checkAuth(Role.RECRUITER, Role.ADMIN, Role.SUPER_ADMIN),
     ResumeController.getResumeByUserId);

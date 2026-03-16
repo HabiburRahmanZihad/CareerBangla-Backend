@@ -1,6 +1,8 @@
 import status from "http-status";
+import { Prisma } from "../../../generated/prisma/client";
 import AppError from "../../errorHelpers/AppError";
 import { IRequestUser } from "../../interfaces/requestUser.interface";
+import { IQueryParams } from "../../interfaces/query.interface";
 import { prisma } from "../../lib/prisma";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -85,6 +87,16 @@ const getResumeByUserId = async (userId: string, requestUser: IRequestUser) => {
                     details: `Viewed candidate resume: ${userId}`,
                 }
             })
+
+            await tx.notification.create({
+                data: {
+                    userId: requestUser.userId,
+                    type: "COIN_DEBITED",
+                    title: "Coins Deducted",
+                    message: `10 coins deducted for viewing candidate profile`,
+                    metadata: { coins: 10, candidateUserId: userId },
+                }
+            })
         })
     }
 
@@ -138,9 +150,103 @@ const viewRecruiterEmail = async (user: IRequestUser, recruiterId: string) => {
                 details: `Viewed recruiter email: ${recruiter.companyName}`,
             }
         })
+
+        await tx.notification.create({
+            data: {
+                userId: user.userId,
+                type: "COIN_DEBITED",
+                title: "Coins Deducted",
+                message: `15 coins deducted for viewing recruiter email: ${recruiter.companyName}`,
+                metadata: { coins: 15, recruiterId },
+            }
+        })
     })
 
     return { email: recruiter.email, companyName: recruiter.companyName };
+}
+
+const searchCandidates = async (user: IRequestUser, query: IQueryParams) => {
+    if (user.role !== "RECRUITER" && user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") {
+        throw new AppError(status.FORBIDDEN, "Only recruiters and admins can search candidates");
+    }
+
+    const { searchTerm, skills, experience, location, education, page = "1", limit = "10" } = query;
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    const where: Prisma.ResumeWhereInput = {};
+    const conditions: Prisma.ResumeWhereInput[] = [];
+
+    // Search by skills (array contains)
+    if (skills) {
+        const skillList = skills.split(",").map(s => s.trim());
+        conditions.push({
+            skills: { hasSome: skillList }
+        });
+    }
+
+    // Search by location (address field)
+    if (location) {
+        conditions.push({
+            address: { contains: location, mode: "insensitive" }
+        });
+    }
+
+    // Free text search across title, summary, address
+    if (searchTerm) {
+        conditions.push({
+            OR: [
+                { title: { contains: searchTerm, mode: "insensitive" } },
+                { summary: { contains: searchTerm, mode: "insensitive" } },
+                { address: { contains: searchTerm, mode: "insensitive" } },
+                { skills: { hasSome: [searchTerm] } },
+            ]
+        });
+    }
+
+    // Search by experience (JSON array path search via raw filter)
+    if (experience) {
+        conditions.push({
+            experience: { isEmpty: false }
+        });
+    }
+
+    // Search by education (JSON array path search)
+    if (education) {
+        conditions.push({
+            education: { isEmpty: false }
+        });
+    }
+
+    if (conditions.length > 0) {
+        where.AND = conditions;
+    }
+
+    const [candidates, total] = await Promise.all([
+        prisma.resume.findMany({
+            where,
+            include: {
+                user: {
+                    select: { id: true, name: true, image: true }
+                }
+            },
+            skip,
+            take: limitNum,
+            orderBy: { updatedAt: "desc" },
+        }),
+        prisma.resume.count({ where }),
+    ]);
+
+    return {
+        data: candidates,
+        meta: {
+            page: pageNum,
+            limit: limitNum,
+            total,
+            totalPages: Math.ceil(total / limitNum),
+        }
+    };
 }
 
 export const ResumeService = {
@@ -148,4 +254,5 @@ export const ResumeService = {
     updateMyResume,
     getResumeByUserId,
     viewRecruiterEmail,
+    searchCandidates,
 }

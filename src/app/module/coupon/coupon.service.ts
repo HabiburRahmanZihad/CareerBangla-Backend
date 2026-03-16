@@ -4,9 +4,9 @@ import AppError from "../../errorHelpers/AppError";
 import { IRequestUser } from "../../interfaces/requestUser.interface";
 import { prisma } from "../../lib/prisma";
 
-const createCoupon = async (payload: { code: string; coins: number; expiresAt?: string }) => {
+const createCoupon = async (payload: { code: string; coins: number; maxUsage?: number; expiresAt?: string }) => {
     const existingCoupon = await prisma.coupon.findUnique({
-        where: { code: payload.code }
+        where: { code: payload.code.toUpperCase() }
     })
 
     if (existingCoupon) {
@@ -17,6 +17,7 @@ const createCoupon = async (payload: { code: string; coins: number; expiresAt?: 
         data: {
             code: payload.code.toUpperCase(),
             coins: payload.coins,
+            maxUsage: payload.maxUsage || 1,
             expiresAt: payload.expiresAt ? new Date(payload.expiresAt) : null,
         }
     })
@@ -24,9 +25,9 @@ const createCoupon = async (payload: { code: string; coins: number; expiresAt?: 
     return coupon;
 }
 
-const createGiftVoucher = async (payload: { code: string; coins: number; recipientEmail?: string; expiresAt?: string }) => {
+const createGiftVoucher = async (payload: { code: string; coins: number; maxUsage?: number; recipientEmail?: string; expiresAt?: string }) => {
     const existingVoucher = await prisma.giftVoucher.findUnique({
-        where: { code: payload.code }
+        where: { code: payload.code.toUpperCase() }
     })
 
     if (existingVoucher) {
@@ -37,6 +38,7 @@ const createGiftVoucher = async (payload: { code: string; coins: number; recipie
         data: {
             code: payload.code.toUpperCase(),
             coins: payload.coins,
+            maxUsage: payload.maxUsage || 1,
             recipientEmail: payload.recipientEmail,
             expiresAt: payload.expiresAt ? new Date(payload.expiresAt) : null,
         }
@@ -59,15 +61,26 @@ const redeemCoupon = async (user: IRequestUser, code: string) => {
     }
 
     if (coupon.expiresAt && new Date(coupon.expiresAt) < new Date()) {
+        // Auto-expire the coupon
+        await prisma.coupon.update({
+            where: { id: coupon.id },
+            data: { status: CouponStatus.EXPIRED }
+        })
         throw new AppError(status.BAD_REQUEST, "Coupon has expired");
     }
 
+    if (coupon.usageCount >= coupon.maxUsage) {
+        throw new AppError(status.BAD_REQUEST, "Coupon usage limit has been reached");
+    }
+
     const result = await prisma.$transaction(async (tx) => {
-        // Mark coupon as used
+        const newUsageCount = coupon.usageCount + 1;
+        // Update coupon usage; mark as USED if limit reached
         await tx.coupon.update({
             where: { id: coupon.id },
             data: {
-                status: CouponStatus.USED,
+                usageCount: { increment: 1 },
+                status: newUsageCount >= coupon.maxUsage ? CouponStatus.USED : CouponStatus.ACTIVE,
                 usedBy: user.userId,
                 usedAt: new Date(),
             }
@@ -130,7 +143,16 @@ const redeemGiftVoucher = async (user: IRequestUser, code: string) => {
     }
 
     if (voucher.expiresAt && new Date(voucher.expiresAt) < new Date()) {
+        // Auto-expire the voucher
+        await prisma.giftVoucher.update({
+            where: { id: voucher.id },
+            data: { status: CouponStatus.EXPIRED }
+        })
         throw new AppError(status.BAD_REQUEST, "Gift voucher has expired");
+    }
+
+    if (voucher.usageCount >= voucher.maxUsage) {
+        throw new AppError(status.BAD_REQUEST, "Gift voucher usage limit has been reached");
     }
 
     if (voucher.recipientEmail && voucher.recipientEmail !== user.email) {
@@ -138,10 +160,12 @@ const redeemGiftVoucher = async (user: IRequestUser, code: string) => {
     }
 
     const result = await prisma.$transaction(async (tx) => {
+        const newUsageCount = voucher.usageCount + 1;
         await tx.giftVoucher.update({
             where: { id: voucher.id },
             data: {
-                status: CouponStatus.USED,
+                usageCount: { increment: 1 },
+                status: newUsageCount >= voucher.maxUsage ? CouponStatus.USED : CouponStatus.ACTIVE,
                 usedBy: user.userId,
                 usedAt: new Date(),
             }

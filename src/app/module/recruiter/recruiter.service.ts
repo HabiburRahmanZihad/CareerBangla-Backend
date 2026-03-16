@@ -6,6 +6,7 @@ import { IRequestUser } from "../../interfaces/requestUser.interface";
 import { IQueryParams } from "../../interfaces/query.interface";
 import { prisma } from "../../lib/prisma";
 import { QueryBuilder } from "../../utils/QueryBuilder";
+import { sendEmail } from "../../utils/email";
 import { recruiterFilterableFields, recruiterSearchableFields } from "./recruiter.constant";
 import { IUpdateRecruiterPayload } from "./recruiter.interface";
 
@@ -177,6 +178,24 @@ const approveRecruiter = async (id: string) => {
         }
     })
 
+    // Send email notification
+    try {
+        await sendEmail({
+            to: recruiter.email,
+            subject: "CareerBangla - Recruiter Account Approved",
+            templateName: "applicationStatus",
+            templateData: {
+                name: recruiter.name,
+                jobTitle: "Recruiter Account",
+                companyName: "CareerBangla",
+                status: "approved",
+                message: "Your recruiter account has been approved! You can now post jobs and search for candidates on CareerBangla.",
+            }
+        })
+    } catch (error) {
+        console.error("Error sending recruiter approval email:", error);
+    }
+
     return updatedRecruiter;
 }
 
@@ -204,6 +223,24 @@ const rejectRecruiter = async (id: string) => {
             message: "Your recruiter account application has been rejected. Please contact support for more information.",
         }
     })
+
+    // Send email notification
+    try {
+        await sendEmail({
+            to: recruiter.email,
+            subject: "CareerBangla - Recruiter Account Update",
+            templateName: "applicationStatus",
+            templateData: {
+                name: recruiter.name,
+                jobTitle: "Recruiter Account",
+                companyName: "CareerBangla",
+                status: "rejected",
+                message: "Your recruiter account application has been rejected. Please contact support for more information.",
+            }
+        })
+    } catch (error) {
+        console.error("Error sending recruiter rejection email:", error);
+    }
 
     return updatedRecruiter;
 }

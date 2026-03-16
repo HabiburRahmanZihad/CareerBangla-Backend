@@ -48,6 +48,27 @@ const createJob = async (user: IRequestUser, payload: ICreateJobPayload) => {
             }
         })
 
+        // Coin deduction notification
+        await tx.notification.create({
+            data: {
+                userId: user.userId,
+                type: "COIN_DEBITED",
+                title: "Coins Deducted",
+                message: `15 coins deducted for posting job: "${payload.title}"`,
+                metadata: { coins: 15 },
+            }
+        })
+
+        // Job posted notification
+        await tx.notification.create({
+            data: {
+                userId: user.userId,
+                type: "JOB_POSTED",
+                title: "Job Posted",
+                message: `Your job "${payload.title}" has been posted successfully.`,
+            }
+        })
+
         const job = await tx.job.create({
             data: {
                 ...payload,

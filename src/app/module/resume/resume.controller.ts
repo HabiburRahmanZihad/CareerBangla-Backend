@@ -63,9 +63,25 @@ const viewRecruiterEmail = catchAsync(
     }
 )
 
+const searchCandidates = catchAsync(
+    async (req: Request, res: Response) => {
+        const user = req.user;
+        const result = await ResumeService.searchCandidates(user, req.query);
+
+        sendResponse(res, {
+            httpStatusCode: status.OK,
+            success: true,
+            message: "Candidates fetched successfully",
+            data: result.data,
+            meta: result.meta,
+        })
+    }
+)
+
 export const ResumeController = {
     getMyResume,
     updateMyResume,
     getResumeByUserId,
     viewRecruiterEmail,
+    searchCandidates,
 }

@@ -1,310 +1,350 @@
-# CareerBangla Backend Documentation
+# CareerBangla Backend
 
-## Project Overview
-
-The backend of **CareerBangla** is built with **Node.js, Express.js, Prisma ORM, and PostgreSQL**.
-It provides REST APIs for authentication, user & recruiter management, job posting, application management, resume/ATS profiles, a coin-based credit system, subscription plans, coupons/gift vouchers, and admin control.
+The backend of **CareerBangla** is a job portal platform built with **Node.js, Express.js, Prisma ORM, and PostgreSQL**. It provides REST APIs for authentication, job management, application management, resume/ATS profiles, a coin-based credit system, subscription plans, coupons/gift vouchers, and admin control.
 
 ---
 
 ## Tech Stack
 
 - **Runtime:** Node.js
-- **Framework:** Express.js
 - **Language:** TypeScript
-- **ORM:** Prisma
+- **Framework:** Express.js (v5)
+- **ORM:** Prisma (v7)
 - **Database:** PostgreSQL
-- **Authentication:** JWT (access + refresh tokens)
-- **Password Hashing:** bcrypt
+- **Authentication:** Better-Auth + JWT
 - **Payments:** Stripe
-- **Email Service:** Nodemailer
-- **Deployment:** Render / Railway
+- **Email:** Nodemailer + EJS templates
+- **File Uploads:** Cloudinary + Multer
+- **Validation:** Zod
+
+---
+
+## Getting Started
+
+```bash
+# Install dependencies
+pnpm install
+
+# Set up environment variables
+cp .env.example .env
+
+# Run Prisma migrations
+npx prisma migrate deploy
+
+# Seed initial data (super admin)
+npx prisma db seed
+
+# Start development server
+pnpm dev
+```
 
 ---
 
 ## Folder Structure
 
-The project follows a **modular folder structure** (same architecture as the previous healthcare project, adapted for job portal modules).
-
 ```
 src/
 ├── app/
-│   ├── modules/
-│   │   ├── auth/
-│   │   │   ├── auth.controller.ts
-│   │   │   ├── auth.service.ts
-│   │   │   ├── auth.routes.ts
-│   │   │   └── auth.validation.ts
-│   │   ├── user/
-│   │   ├── recruiter/
-│   │   ├── job/
-│   │   ├── jobCategory/
+│   ├── config/              # env, auth, stripe, multer, cloudinary
+│   ├── errorHelpers/        # AppError, Prisma/Zod error handlers
+│   ├── interfaces/          # Shared TypeScript interfaces
+│   ├── lib/                 # Prisma client, Better-Auth setup
+│   ├── middleware/           # checkAuth, validateRequest, globalErrorHandler
+│   ├── module/              # Feature modules (controller/service/route/validation)
+│   │   ├── admin/
 │   │   ├── application/
-│   │   ├── resume/
-│   │   ├── wallet/
-│   │   ├── subscription/
+│   │   ├── auth/
 │   │   ├── coupon/
-│   │   ├── giftVoucher/
+│   │   ├── job/
 │   │   ├── notification/
-│   │   └── admin/
-│   ├── middlewares/
-│   │   ├── auth.ts
-│   │   ├── globalErrorHandler.ts
-│   │   └── validateRequest.ts
-│   ├── errors/
-│   ├── helpers/
-│   ├── interfaces/
-│   └── shared/
-├── config/
-│   └── index.ts
-├── app.ts
-└── server.ts
+│   │   ├── payment/
+│   │   ├── recruiter/
+│   │   ├── resume/
+│   │   ├── stats/
+│   │   ├── subscription/
+│   │   ├── user/
+│   │   └── wallet/
+│   ├── routes/              # Central route aggregation
+│   ├── shared/              # catchAsync, sendResponse
+│   ├── templates/           # EJS email templates
+│   └── utils/               # QueryBuilder, email, jwt, cookie
+├── generated/               # Prisma generated client
+├── app.ts                   # Express app setup
+└── server.ts                # Server entry point
 ```
 
-Each module contains its own **controller, service, routes, and validation** files for clean separation of concerns.
-
 ---
 
-## Database Main Models
+## Key Features & Workflows
 
-| Model        | Description                                                            |
-| ------------ | ---------------------------------------------------------------------- |
-| User         | Job seekers who register and apply for jobs                            |
-| Recruiter    | Company representatives who post jobs and manage applicants            |
-| Job          | Job listings posted by recruiters                                      |
-| JobCategory  | Categories for organizing jobs (e.g., Software Engineering, Marketing) |
-| Application  | Job applications submitted by users                                    |
-| Resume       | User resumes / ATS profiles with skills, education, and experience     |
-| CoinWallet   | Coin balance and transaction history for the credit system             |
-| Subscription | Subscription plans and user subscriptions                              |
-| Coupon       | Discount coupons for subscription purchases                            |
-| GiftVoucher  | Redeemable vouchers that add coins to user wallets                     |
-| Notification | Email and in-app notifications for application status updates          |
+### 1. Recruiter Approval Workflow
 
----
+```
+Register as Recruiter → Status: PENDING → Admin reviews → APPROVED / REJECTED
+```
 
-## Authentication Flow
+- Recruiters register and start in `PENDING` status
+- Admin can approve (`PATCH /recruiters/approve/:id`) or reject (`PATCH /recruiters/reject/:id`)
+- **Only APPROVED recruiters can post jobs** — attempting to post with PENDING/REJECTED status returns 403
+- Email + in-app notifications are sent on approval/rejection
 
-1. User registers with email, name, and password
-2. Email verification via OTP
-3. Password is hashed using **bcrypt** before storing
-4. JWT **access token** and **refresh token** generated on login
-5. Access token sent in Authorization header; refresh token stored in HTTP-only cookie
-6. Protected routes require authentication middleware
-7. Forgot password flow: request OTP → verify OTP → reset password
+### 2. Profile Completion Requirement
 
----
+- Users **must complete their ATS resume** before applying to any job
+- The system checks for resume existence and that `skills` array is non-empty
+- Without a completed resume, the apply endpoint returns 400 with a descriptive message
 
-## Role Based Access Control (RBAC)
+### 3. Application Status Lifecycle
 
-| Role            | Permissions                                                                                             |
-| --------------- | ------------------------------------------------------------------------------------------------------- |
-| **User**        | Register, login, apply for jobs, manage resume, view wallet, redeem vouchers                            |
-| **Recruiter**   | Post jobs, view applicants, change application status, manage job listings                              |
-| **Admin**       | Full system control — manage users, recruiters, job categories, coupons, subscriptions, dashboard stats |
-| **Super Admin** | All admin permissions plus system-level configuration                                                   |
+```
+PENDING → SHORTLISTED → INTERVIEW → HIRED
+   └─────────┴──────────────┴─────→ REJECTED
+```
+
+- Status transitions are **strictly validated** — invalid transitions (e.g., HIRED → PENDING) are rejected
+- Each transition triggers:
+  - In-app notification to the applicant
+  - Email notification with status-specific message
+  - Interview date/note tracking for INTERVIEW status
+
+### 4. Coin-Based Credit System
+
+| Action | Coins | Role |
+|--------|-------|------|
+| Apply for a Job | 10 | User |
+| View Recruiter Email | 15 | User |
+| Post a Job | 15 | Recruiter |
+| View Candidate Resume | 10 | Recruiter |
+
+- All coin deductions happen inside **database transactions** (atomic with the action)
+- Each deduction creates a `CoinTransaction` record and an in-app `COIN_DEBITED` notification
+- Insufficient balance returns 400 before the action is attempted
+
+### 5. Candidate Search (Recruiter)
+
+`GET /api/v1/resumes/search-candidates`
+
+| Query Param | Description |
+|-------------|-------------|
+| `searchTerm` | Free text search across title, summary, address, skills |
+| `skills` | Comma-separated skill filter (e.g., `React,Node.js`) |
+| `location` | Address-based location filter |
+| `experience` | Filter for candidates with work experience |
+| `education` | Filter for candidates with education entries |
+| `page`, `limit` | Pagination |
+
+### 6. Gift Voucher & Coupon Rules
+
+- **maxUsage** — configurable usage limit per voucher/coupon (default: 1, supports multi-use)
+- **usageCount** — tracks how many times redeemed; auto-marks as `USED` when limit reached
+- **expiresAt** — expiry date; auto-marks as `EXPIRED` when redeemed after expiry
+- **recipientEmail** — gift vouchers can be targeted to specific users
+- Redemption credits coins to wallet within a transaction
+
+### 7. Job Search Filters
+
+`GET /api/v1/jobs`
+
+| Query Param | Description |
+|-------------|-------------|
+| `searchTerm` | Search across title, description, location, company, category |
+| `jobType` | FULL_TIME, PART_TIME, CONTRACT, INTERNSHIP, REMOTE |
+| `location` | Filter by location |
+| `categoryId` | Filter by job category |
+| `experience` | Filter by experience level |
+| `education` | Filter by education requirement |
+| `salaryMin[gte]` | Minimum salary filter |
+| `salaryMax[lte]` | Maximum salary filter |
+| `sortBy`, `sortOrder` | Sorting |
+| `page`, `limit` | Pagination |
+
+### 8. Notification System (Email + In-App)
+
+**In-app notifications** are created for:
+- Application submitted (to recruiter)
+- Application status changes (to applicant)
+- Coin credited/debited
+- Recruiter approved/rejected
+- Job posted
+- Subscription purchase
+
+**Email notifications** are sent for:
+- Application submitted
+- Application status changes (shortlisted, interview, hired, rejected)
+- Recruiter account approved/rejected
+- Email verification OTP
+- Password reset OTP
 
 ---
 
 ## API Endpoints
 
-### Authentication
+### Authentication — `/api/v1/auth`
 
-| Method | Endpoint                       | Description                                 |
-| ------ | ------------------------------ | ------------------------------------------- |
-| POST   | `/api/v1/auth/register`        | Register a new user                         |
-| POST   | `/api/v1/auth/login`           | Login (returns access + refresh tokens)     |
-| GET    | `/api/v1/auth/me`              | Get current logged-in user profile          |
-| POST   | `/api/v1/auth/refresh-token`   | Refresh the access token                    |
-| POST   | `/api/v1/auth/change-password` | Change password (requires current password) |
-| POST   | `/api/v1/auth/logout`          | Logout and invalidate refresh token         |
-| POST   | `/api/v1/auth/verify-email`    | Verify email with OTP                       |
-| POST   | `/api/v1/auth/forget-password` | Request password reset OTP                  |
-| POST   | `/api/v1/auth/reset-password`  | Reset password with OTP                     |
-| GET    | `/api/v1/auth/login/google`    | Google OAuth login                          |
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/register` | Register a new user |
+| POST | `/login` | Login |
+| GET | `/me` | Get current user profile |
+| POST | `/refresh-token` | Refresh access token |
+| POST | `/change-password` | Change password |
+| POST | `/logout` | Logout |
+| POST | `/verify-email` | Verify email with OTP |
+| POST | `/forget-password` | Request password reset OTP |
+| POST | `/reset-password` | Reset password with OTP |
+| GET | `/login/google` | Google OAuth login |
 
-### Users
+### Users — `/api/v1/users`
 
-| Method | Endpoint                         | Description                            |
-| ------ | -------------------------------- | -------------------------------------- |
-| POST   | `/api/v1/users/create-recruiter` | Create a new recruiter account (Admin) |
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/create-recruiter` | Create recruiter account (Admin) |
 
-### Recruiters
+### Recruiters — `/api/v1/recruiters`
 
-| Method | Endpoint             | Description                                              |
-| ------ | -------------------- | -------------------------------------------------------- |
-| GET    | `/api/v1/recruiters` | Get all recruiters (with filtering, pagination, sorting) |
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/` | Get all recruiters |
+| GET | `/my-profile` | Get my recruiter profile |
+| GET | `/:id` | Get recruiter by ID |
+| PATCH | `/update-my-profile` | Update my profile |
+| PATCH | `/:id` | Update recruiter (Admin) |
+| DELETE | `/:id` | Delete recruiter (Admin) |
+| PATCH | `/approve/:id` | Approve recruiter (Admin) |
+| PATCH | `/reject/:id` | Reject recruiter (Admin) |
 
-### Job Categories
+### Jobs — `/api/v1/jobs`
 
-| Method | Endpoint                     | Description                   |
-| ------ | ---------------------------- | ----------------------------- |
-| POST   | `/api/v1/job-categories`     | Create a job category (Admin) |
-| GET    | `/api/v1/job-categories`     | Get all job categories        |
-| DELETE | `/api/v1/job-categories/:id` | Delete a job category (Admin) |
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/` | Create job (Recruiter, requires APPROVED status) |
+| GET | `/` | Get all active jobs (public, with filters) |
+| GET | `/my-jobs` | Get my posted jobs (Recruiter) |
+| GET | `/categories` | Get all job categories |
+| POST | `/categories` | Create category (Admin) |
+| DELETE | `/categories/:id` | Delete category (Admin) |
+| GET | `/:id` | Get job by ID |
+| PATCH | `/:id` | Update job |
+| DELETE | `/:id` | Delete job |
 
-### Jobs
+### Applications — `/api/v1/applications`
 
-| Method | Endpoint               | Description                                    |
-| ------ | ---------------------- | ---------------------------------------------- |
-| POST   | `/api/v1/jobs`         | Create a new job posting (Recruiter)           |
-| GET    | `/api/v1/jobs`         | Get all jobs (with search, filter, pagination) |
-| GET    | `/api/v1/jobs/:id`     | Get a single job by ID                         |
-| PATCH  | `/api/v1/jobs/:id`     | Update a job posting (Recruiter)               |
-| DELETE | `/api/v1/jobs/:id`     | Delete a job posting (Recruiter/Admin)         |
-| GET    | `/api/v1/jobs/my-jobs` | Get jobs posted by the logged-in recruiter     |
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/apply` | Apply for job (requires completed resume) |
+| GET | `/my-applications` | Get my applications |
+| GET | `/all` | Get all applications (Admin) |
+| GET | `/job/:jobId` | Get applications for a job (Recruiter) |
+| PATCH | `/status/:id` | Update application status (validated lifecycle) |
 
-### Applications
+### Resumes — `/api/v1/resumes`
 
-| Method | Endpoint                                             | Description                                         |
-| ------ | ---------------------------------------------------- | --------------------------------------------------- |
-| POST   | `/api/v1/applications/submit-application`            | Submit a job application (User)                     |
-| GET    | `/api/v1/applications/my-applications`               | Get logged-in user's applications                   |
-| GET    | `/api/v1/applications/my-single-application/:id`     | Get a single application detail                     |
-| GET    | `/api/v1/applications/all-applications`              | Get all applications (Admin)                        |
-| PATCH  | `/api/v1/applications/change-application-status/:id` | Change application status (Recruiter)               |
-| GET    | `/api/v1/applications/job/:jobId`                    | Get all applications for a specific job (Recruiter) |
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/my-resume` | Get my resume |
+| PATCH | `/my-resume` | Create/update my resume |
+| GET | `/search-candidates` | Search candidates with filters (Recruiter) |
+| GET | `/user/:userId` | View candidate resume (costs 10 coins for Recruiter) |
+| GET | `/view-recruiter-email/:recruiterId` | View recruiter email (costs 15 coins) |
 
-### Resume / ATS Profile
+### Wallet — `/api/v1/wallet`
 
-| Method | Endpoint                    | Description                                 |
-| ------ | --------------------------- | ------------------------------------------- |
-| POST   | `/api/v1/resumes`           | Create a resume                             |
-| GET    | `/api/v1/resumes/my-resume` | Get logged-in user's resume                 |
-| PATCH  | `/api/v1/resumes/my-resume` | Update resume                               |
-| DELETE | `/api/v1/resumes/my-resume` | Delete resume                               |
-| POST   | `/api/v1/resumes/ats-score` | Check ATS compatibility score against a job |
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/` | Get my wallet |
+| GET | `/transactions` | Get transaction history |
 
-### Wallet / Coins
+### Subscriptions — `/api/v1/subscriptions`
 
-| Method | Endpoint                              | Description                       |
-| ------ | ------------------------------------- | --------------------------------- |
-| GET    | `/api/v1/wallet/my-wallet`            | Get wallet balance                |
-| POST   | `/api/v1/wallet/add-coins`            | Add coins to wallet (via payment) |
-| GET    | `/api/v1/wallet/transactions`         | Get transaction history           |
-| POST   | `/api/v1/wallet/initiate-payment/:id` | Initiate a payment transaction    |
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/plans` | Get subscription plans and coin costs |
+| POST | `/purchase` | Purchase a subscription (Stripe checkout) |
+| GET | `/my-subscriptions` | Get my subscription history |
 
-### Subscriptions
+### Coupons — `/api/v1/coupons`
 
-| Method | Endpoint                                | Description                        |
-| ------ | --------------------------------------- | ---------------------------------- |
-| GET    | `/api/v1/subscriptions/plans`           | Get all subscription plans         |
-| POST   | `/api/v1/subscriptions/plans`           | Create a subscription plan (Admin) |
-| POST   | `/api/v1/subscriptions/subscribe`       | Subscribe to a plan                |
-| GET    | `/api/v1/subscriptions/my-subscription` | Get current subscription status    |
-| POST   | `/api/v1/subscriptions/cancel`          | Cancel active subscription         |
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/` | Create coupon with maxUsage (Admin) |
+| GET | `/` | Get all coupons (Admin) |
+| DELETE | `/:id` | Delete coupon (Admin) |
+| POST | `/gift-voucher` | Create gift voucher with maxUsage (Admin) |
+| GET | `/gift-vouchers` | Get all gift vouchers (Admin) |
+| DELETE | `/gift-voucher/:id` | Delete gift voucher (Admin) |
+| POST | `/redeem` | Redeem coupon code |
+| POST | `/redeem-gift-voucher` | Redeem gift voucher code |
 
-### Coupons / Gift Vouchers
+### Notifications — `/api/v1/notifications`
 
-| Method | Endpoint                       | Description                   |
-| ------ | ------------------------------ | ----------------------------- |
-| POST   | `/api/v1/coupons`              | Create a coupon (Admin)       |
-| GET    | `/api/v1/coupons`              | Get all coupons               |
-| POST   | `/api/v1/coupons/apply`        | Apply a coupon code           |
-| DELETE | `/api/v1/coupons/:id`          | Delete a coupon (Admin)       |
-| POST   | `/api/v1/gift-vouchers`        | Create a gift voucher (Admin) |
-| POST   | `/api/v1/gift-vouchers/redeem` | Redeem a gift voucher         |
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/` | Get my notifications |
+| GET | `/unread-count` | Get unread notification count |
+| PATCH | `/read/:id` | Mark notification as read |
+| PATCH | `/read-all` | Mark all as read |
+| DELETE | `/:id` | Delete notification |
 
-### Admin
+### Admin — `/api/v1/admins`
 
-| Method | Endpoint                              | Description                    |
-| ------ | ------------------------------------- | ------------------------------ |
-| GET    | `/api/v1/admin/users`                 | Get all users (with filtering) |
-| PATCH  | `/api/v1/admin/users/:id/status`      | Block/unblock a user           |
-| DELETE | `/api/v1/admin/users/:id`             | Delete a user                  |
-| PATCH  | `/api/v1/admin/recruiters/:id/verify` | Verify a recruiter             |
-| GET    | `/api/v1/admin/dashboard`             | Get dashboard statistics       |
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/` | Get all admins |
+| GET | `/jobs` | Get all jobs (including deleted) |
+| GET | `/:id` | Get admin by ID |
+| PATCH | `/:id` | Update admin (Super Admin) |
+| DELETE | `/:id` | Delete admin (Super Admin) |
+| PATCH | `/change-user-status` | Block/unblock user |
+| PATCH | `/change-user-role` | Change user role (Super Admin) |
 
----
+### Stats — `/api/v1/stats`
 
-## Credit System
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/dashboard` | Get role-based dashboard statistics |
 
-| Action                          | Coins Required |
-| ------------------------------- | -------------- |
-| Apply for a Job                 | 10             |
-| View Recruiter Email            | 15             |
-| Post a Job (Recruiter)          | 15             |
-| View Candidate Profile Manually | 10             |
+### Payments — `/api/v1/payments`
 
-- Every new user receives a **welcome bonus** of coins upon registration
-- Coins can be purchased via the Wallet system or earned through gift vouchers
-- Coin transactions are logged in the wallet transaction history
-
----
-
-## Subscription System
-
-- **Plans** are created by Admin with name, price, duration, and feature list
-- Users and recruiters can subscribe to plans for premium features
-- Payments are handled via **Stripe**
-- Coupons can be applied for discounts during subscription purchase
-- Subscription status can be checked and cancelled at any time
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/webhook` | Stripe webhook handler |
 
 ---
 
-## Email Notifications
+## Database Schema
 
-Users receive email notifications (via **Nodemailer**) when:
+### Enums
 
-- Account registration (welcome email)
-- Email verification OTP sent
-- Password reset OTP sent
-- Application submitted successfully
-- Application shortlisted by recruiter
-- Interview invitation sent
-- Application status changed to hired
-- Subscription activated/cancelled
+- **Role:** SUPER_ADMIN, ADMIN, RECRUITER, USER
+- **RecruiterStatus:** PENDING, APPROVED, REJECTED
+- **JobStatus:** ACTIVE, CLOSED, DRAFT
+- **JobType:** FULL_TIME, PART_TIME, CONTRACT, INTERNSHIP, REMOTE
+- **ApplicationStatus:** PENDING, SHORTLISTED, INTERVIEW, HIRED, REJECTED
+- **TransactionPurpose:** APPLY_JOB, VIEW_RECRUITER_EMAIL, POST_JOB, VIEW_CANDIDATE, SUBSCRIPTION_PURCHASE, COUPON_REDEEM, GIFT_VOUCHER_REDEEM, ADMIN_ADJUSTMENT
+- **NotificationType:** APPLICATION_SUBMITTED, APPLICATION_SHORTLISTED, APPLICATION_INTERVIEW, APPLICATION_HIRED, APPLICATION_REJECTED, RECRUITER_APPROVED, RECRUITER_REJECTED, JOB_POSTED, COIN_CREDITED, COIN_DEBITED, GENERAL
 
 ---
 
 ## Error Handling
 
-- **Global error handler middleware** catches all unhandled errors
-- Input validation using **Zod** schemas before database operations
-- Consistent error response format:
+- **Global error handler** catches all unhandled errors
+- Prisma errors mapped to meaningful HTTP responses
+- Zod validation errors formatted with field-level details
+- Custom `AppError` class for business logic errors
+- Response format:
   ```json
   {
     "success": false,
     "message": "Error description",
-    "errorDetails": {}
+    "errorSources": [{ "path": "field", "message": "detail" }]
   }
   ```
-- Custom error classes for `AppError`, `ValidationError`, `NotFoundError`, `UnauthorizedError`
-
----
-
-## Environment Variables
-
-```env
-NODE_ENV=development
-PORT=5000
-DATABASE_URL=postgresql://user:password@localhost:5432/careerbangla
-JWT_ACCESS_SECRET=your_access_secret
-JWT_REFRESH_SECRET=your_refresh_secret
-JWT_ACCESS_EXPIRES_IN=15m
-JWT_REFRESH_EXPIRES_IN=7d
-BCRYPT_SALT_ROUNDS=12
-STRIPE_SECRET_KEY=sk_test_xxx
-STRIPE_WEBHOOK_SECRET=whsec_xxx
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=your_email@gmail.com
-SMTP_PASS=your_app_password
-GOOGLE_CLIENT_ID=your_google_client_id
-GOOGLE_CLIENT_SECRET=your_google_client_secret
-```
 
 ---
 
 ## Deployment
 
-- Host backend using **Render** or **Railway**
-- Use environment variables for all secrets and configuration
-- Ensure **Prisma database migrations** are applied before deployment:
-  ```bash
-  npx prisma migrate deploy
-  ```
-- Seed initial data (admin user, default subscription plans) if needed:
-  ```bash
-  npx prisma db seed
-  ```
+- Host on **Render** or **Railway**
+- Set all environment variables (see `.env.example`)
+- Run `npx prisma migrate deploy` before deployment
+- Seed initial data: `npx prisma db seed`
