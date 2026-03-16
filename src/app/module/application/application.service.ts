@@ -4,6 +4,7 @@ import AppError from "../../errorHelpers/AppError";
 import { IRequestUser } from "../../interfaces/requestUser.interface";
 import { prisma } from "../../lib/prisma";
 import { sendEmail } from "../../utils/email";
+import { getUserProfileCompletion } from "../../utils/profileCompletion";
 
 const applyJob = async (user: IRequestUser, payload: { jobId: string; coverLetter?: string }) => {
     const { jobId, coverLetter } = payload;
@@ -19,6 +20,12 @@ const applyJob = async (user: IRequestUser, payload: { jobId: string; coverLette
 
     if (!resume.skills || resume.skills.length === 0) {
         throw new AppError(status.BAD_REQUEST, "Your resume is incomplete. Please add at least your skills before applying.");
+    }
+
+    // Check profile completion === 100%
+    const profileCompletion = getUserProfileCompletion(resume);
+    if (profileCompletion < 100) {
+        throw new AppError(status.BAD_REQUEST, `Your profile is ${profileCompletion}% complete. You must complete 100% of your profile before applying for jobs.`);
     }
 
     const job = await prisma.job.findUnique({
@@ -57,6 +64,7 @@ const applyJob = async (user: IRequestUser, payload: { jobId: string; coverLette
         throw new AppError(status.BAD_REQUEST, "Insufficient coins. Applying for a job costs 10 coins.");
     }
 
+    // All validations passed — now deduct coins and create application atomically
     const result = await prisma.$transaction(async (tx) => {
         // Deduct coins
         await tx.wallet.update({
@@ -117,23 +125,19 @@ const applyJob = async (user: IRequestUser, payload: { jobId: string; coverLette
         return application;
     })
 
-    // Send email notification to applicant
-    try {
-        await sendEmail({
-            to: user.email,
-            subject: `Application Submitted - ${job.title}`,
-            templateName: "applicationStatus",
-            templateData: {
-                name: result.user.name,
-                jobTitle: job.title,
-                companyName: job.recruiter.companyName,
-                status: "submitted",
-                message: "Your application has been submitted successfully. We will notify you of any updates.",
-            }
-        })
-    } catch (error) {
-        console.error("Error sending application email:", error);
-    }
+    // Send email notification to applicant (fire-and-forget with error suppression)
+    sendEmail({
+        to: user.email,
+        subject: `Application Submitted - ${job.title}`,
+        templateName: "applicationStatus",
+        templateData: {
+            name: result.user.name,
+            jobTitle: job.title,
+            companyName: job.recruiter.companyName,
+            status: "submitted",
+            message: "Your application has been submitted successfully. We will notify you of any updates.",
+        }
+    }).catch(() => { /* email delivery is best-effort */ });
 
     return result;
 }
@@ -281,30 +285,26 @@ const updateApplicationStatus = async (
         return updated;
     })
 
-    // Send email notification
-    try {
-        const statusMessages: Record<string, string> = {
-            SHORTLISTED: "Congratulations! You have been shortlisted.",
-            INTERVIEW: `You have been scheduled for an interview${payload.interviewDate ? ` on ${new Date(payload.interviewDate).toLocaleDateString()}` : ""}.`,
-            HIRED: "Congratulations! You have been hired!",
-            REJECTED: "Unfortunately, your application was not selected at this time.",
-        };
+    // Send email notification (best-effort)
+    const statusMessages: Record<string, string> = {
+        SHORTLISTED: "Congratulations! You have been shortlisted.",
+        INTERVIEW: `You have been scheduled for an interview${payload.interviewDate ? ` on ${new Date(payload.interviewDate).toLocaleDateString()}` : ""}.`,
+        HIRED: "Congratulations! You have been hired!",
+        REJECTED: "Unfortunately, your application was not selected at this time.",
+    };
 
-        await sendEmail({
-            to: application.user.email,
-            subject: `Application Update - ${application.job.title}`,
-            templateName: "applicationStatus",
-            templateData: {
-                name: application.user.name,
-                jobTitle: application.job.title,
-                companyName: application.job.recruiter.companyName,
-                status: payload.status.toLowerCase(),
-                message: statusMessages[payload.status] || "Your application status has been updated.",
-            }
-        })
-    } catch (error) {
-        console.error("Error sending status update email:", error);
-    }
+    sendEmail({
+        to: application.user.email,
+        subject: `Application Update - ${application.job.title}`,
+        templateName: "applicationStatus",
+        templateData: {
+            name: application.user.name,
+            jobTitle: application.job.title,
+            companyName: application.job.recruiter.companyName,
+            status: payload.status.toLowerCase(),
+            message: statusMessages[payload.status] || "Your application status has been updated.",
+        }
+    }).catch(() => { /* email delivery is best-effort */ });
 
     return updatedApplication;
 }
