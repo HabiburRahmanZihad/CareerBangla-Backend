@@ -1,5 +1,5 @@
 import status from "http-status";
-import { Prisma } from "../../../generated/prisma/client";
+import { Job, Prisma } from "../../../generated/prisma/client";
 import { RecruiterStatus } from "../../../generated/prisma/enums";
 import AppError from "../../errorHelpers/AppError";
 import { IRequestUser } from "../../interfaces/requestUser.interface";
@@ -67,7 +67,7 @@ const createJob = async (user: IRequestUser, payload: ICreateJobPayload) => {
 }
 
 const getAllJobs = async (query: IQueryParams) => {
-    const queryBuilder = new QueryBuilder<Prisma.JobWhereInput>(
+    const queryBuilder = new QueryBuilder<Job>(
         prisma.job,
         query,
         {
@@ -143,7 +143,7 @@ const getMyJobs = async (user: IRequestUser, query: IQueryParams) => {
         throw new AppError(status.NOT_FOUND, "Recruiter profile not found");
     }
 
-    const queryBuilder = new QueryBuilder<Prisma.JobWhereInput>(
+    const queryBuilder = new QueryBuilder<Job>(
         prisma.job,
         query,
         {

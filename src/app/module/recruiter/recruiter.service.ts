@@ -1,16 +1,16 @@
 import status from "http-status";
-import { Prisma } from "../../../generated/prisma/client";
+import { Recruiter } from "../../../generated/prisma/client";
 import { RecruiterStatus, UserStatus } from "../../../generated/prisma/enums";
 import AppError from "../../errorHelpers/AppError";
 import { IRequestUser } from "../../interfaces/requestUser.interface";
-import { prisma } from "../../lib/prisma";
 import { IQueryParams } from "../../interfaces/query.interface";
+import { prisma } from "../../lib/prisma";
 import { QueryBuilder } from "../../utils/QueryBuilder";
 import { recruiterFilterableFields, recruiterSearchableFields } from "./recruiter.constant";
 import { IUpdateRecruiterPayload } from "./recruiter.interface";
 
 const getAllRecruiters = async (query: IQueryParams) => {
-    const queryBuilder = new QueryBuilder<Prisma.RecruiterWhereInput>(
+    const queryBuilder = new QueryBuilder<Recruiter>(
         prisma.recruiter,
         query,
         {
