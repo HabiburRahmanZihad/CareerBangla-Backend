@@ -19,6 +19,21 @@ const purchaseSubscription = catchAsync(
     }
 )
 
+const cancelSubscription = catchAsync(
+    async (req: Request, res: Response) => {
+        const user = req.user;
+        const { subscriptionId } = req.params;
+        const result = await SubscriptionService.cancelSubscription(user, subscriptionId as string);
+
+        sendResponse(res, {
+            httpStatusCode: status.OK,
+            success: true,
+            message: "Subscription cancelled successfully",
+            data: result,
+        })
+    }
+)
+
 const getSubscriptionPlans = catchAsync(
     async (req: Request, res: Response) => {
         const result = await SubscriptionService.getSubscriptionPlans();
@@ -48,6 +63,7 @@ const getMySubscriptions = catchAsync(
 
 export const SubscriptionController = {
     purchaseSubscription,
+    cancelSubscription,
     getSubscriptionPlans,
     getMySubscriptions,
 }

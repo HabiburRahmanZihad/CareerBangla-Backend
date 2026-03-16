@@ -12,6 +12,10 @@ router.post("/purchase",
     checkAuth(Role.USER, Role.RECRUITER),
     SubscriptionController.purchaseSubscription);
 
+router.post("/cancel/:subscriptionId",
+    checkAuth(Role.USER, Role.RECRUITER),
+    SubscriptionController.cancelSubscription);
+
 router.get("/my-subscriptions",
     checkAuth(Role.USER, Role.RECRUITER),
     SubscriptionController.getMySubscriptions);

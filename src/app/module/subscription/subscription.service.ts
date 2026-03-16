@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import Stripe from "stripe";
 import status from "http-status";
 import { SubscriptionPlan, PaymentStatus } from "../../../generated/prisma/enums";
@@ -75,20 +74,18 @@ const handleStripeWebhookEvent = async (event: Stripe.Event) => {
     })
 
     if (existingSubscription) {
-        console.log(`Event ${event.id} already processed. Skipping`);
         return { message: `Event ${event.id} already processed. Skipping` }
     }
 
     switch (event.type) {
         case "checkout.session.completed": {
-            const session = event.data.object as any;
+            const session = event.data.object as Stripe.Checkout.Session;
 
             const subscriptionId = session.metadata?.subscriptionId;
             const userId = session.metadata?.userId;
             const coins = parseInt(session.metadata?.coins || "0");
 
             if (!subscriptionId || !userId) {
-                console.error("Missing metadata in webhook event");
                 return { message: "Missing metadata" };
             }
 
@@ -98,7 +95,7 @@ const handleStripeWebhookEvent = async (event: Stripe.Event) => {
                     where: { id: subscriptionId },
                     data: {
                         status: PaymentStatus.PAID,
-                        paymentGatewayData: session,
+                        paymentGatewayData: session as unknown as Prisma.InputJsonValue,
                         stripeEventId: event.id,
                     }
                 })
@@ -145,43 +142,65 @@ const handleStripeWebhookEvent = async (event: Stripe.Event) => {
                     data: {
                         userId,
                         type: "COIN_CREDITED",
-                        title: "Coins Credited",
-                        message: `${coins} coins have been added to your wallet.`,
+                        title: "Subscription Activated",
+                        message: `Your subscription has been activated. ${coins} coins have been added to your wallet.`,
                         metadata: { subscriptionId, coins },
                     }
                 })
             })
 
-            console.log(`Payment ${session.payment_status} for subscription ${subscriptionId}`);
             break;
         }
 
-        case "checkout.session.expired": {
-            const session = event.data.object;
-            console.log(`Checkout session ${session.id} expired.`);
+        case "checkout.session.expired":
+        case "payment_intent.payment_failed":
             break;
-        }
-
-        case "payment_intent.payment_failed": {
-            const session = event.data.object;
-            console.log(`Payment intent ${session.id} failed.`);
-            break;
-        }
 
         default:
-            console.log(`Unhandled event type ${event.type}`);
+            break;
     }
 
     return { message: `Webhook Event ${event.id} processed successfully` }
+}
+
+const cancelSubscription = async (user: IRequestUser, subscriptionId: string) => {
+    const subscription = await prisma.subscription.findFirst({
+        where: { id: subscriptionId, userId: user.userId }
+    })
+
+    if (!subscription) {
+        throw new AppError(status.NOT_FOUND, "Subscription not found");
+    }
+
+    if (subscription.status !== PaymentStatus.PAID) {
+        throw new AppError(status.BAD_REQUEST, "Only paid subscriptions can be cancelled.");
+    }
+
+    const updated = await prisma.subscription.update({
+        where: { id: subscriptionId },
+        data: { status: PaymentStatus.FAILED },
+    })
+
+    await prisma.notification.create({
+        data: {
+            userId: user.userId,
+            type: "GENERAL",
+            title: "Subscription Cancelled",
+            message: `Your ${subscription.plan} subscription has been cancelled.`,
+            metadata: { subscriptionId },
+        }
+    })
+
+    return updated;
 }
 
 const getSubscriptionPlans = async () => {
     return {
         plans: [
             { name: "Free", coins: 50, amount: 0, description: "Welcome bonus for new users" },
-            { name: "Starter", coins: 100, amount: 300, description: "100 coins for $300" },
-            { name: "Professional", coins: 200, amount: 600, description: "200 coins for $600" },
-            { name: "Enterprise", coins: 300, amount: 900, description: "300 coins for $900" },
+            { name: "Starter", coins: 100, amount: 300, description: "100 coins for $3.00" },
+            { name: "Professional", coins: 200, amount: 600, description: "200 coins for $6.00" },
+            { name: "Enterprise", coins: 300, amount: 900, description: "300 coins for $9.00" },
         ],
         coinCosts: {
             user: {
@@ -204,9 +223,13 @@ const getMySubscriptions = async (user: IRequestUser) => {
     return subscriptions;
 }
 
+// Need to import Prisma for InputJsonValue type
+import { Prisma } from "../../../generated/prisma/client";
+
 export const SubscriptionService = {
     purchaseSubscription,
     handleStripeWebhookEvent,
+    cancelSubscription,
     getSubscriptionPlans,
     getMySubscriptions,
 }

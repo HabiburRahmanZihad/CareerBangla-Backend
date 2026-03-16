@@ -30,7 +30,7 @@ const setAccessTokenCookie = (res: Response, token: string) => {
     CookieUtils.setCookie(res, 'accessToken', token, {
         httpOnly: true,
         secure: true,
-        sameSite: "none",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
         path: '/',
         //1 day
         maxAge: 60 * 60 * 24 * 1000,
@@ -41,7 +41,7 @@ const setRefreshTokenCookie = (res: Response, token: string) => {
     CookieUtils.setCookie(res, 'refreshToken', token, {
         httpOnly: true,
         secure: true,
-        sameSite: "none",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
         path: '/',
         //7d
         maxAge: 60 * 60 * 24 * 1000 * 7,
@@ -52,7 +52,7 @@ const setBetterAuthSessionCookie = (res: Response, token: string) => {
     CookieUtils.setCookie(res, "better-auth.session_token", token, {
         httpOnly: true,
         secure: true,
-        sameSite: "none",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
         path: '/',
         //1 day
         maxAge: 60 * 60 * 24 * 1000,
