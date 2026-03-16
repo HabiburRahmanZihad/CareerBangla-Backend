@@ -6,6 +6,7 @@ import { IRequestUser } from "../../interfaces/requestUser.interface";
 import { IQueryParams } from "../../interfaces/query.interface";
 import { prisma } from "../../lib/prisma";
 import { QueryBuilder } from "../../utils/QueryBuilder";
+import { getRecruiterProfileCompletion } from "../../utils/profileCompletion";
 import { jobFilterableFields, jobSearchableFields } from "./job.constant";
 import { ICreateJobPayload, IUpdateJobPayload } from "./job.interface";
 
@@ -20,6 +21,12 @@ const createJob = async (user: IRequestUser, payload: ICreateJobPayload) => {
 
     if (recruiter.status !== RecruiterStatus.APPROVED) {
         throw new AppError(status.FORBIDDEN, "Your recruiter account is not yet approved. Please wait for admin approval.");
+    }
+
+    // Check recruiter profile completion === 100%
+    const profileCompletion = getRecruiterProfileCompletion(recruiter);
+    if (profileCompletion < 100) {
+        throw new AppError(status.BAD_REQUEST, `Your recruiter profile is ${profileCompletion}% complete. You must complete 100% of your profile before posting jobs.`);
     }
 
     // Check wallet balance for posting job (15 coins)

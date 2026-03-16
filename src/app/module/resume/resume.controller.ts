@@ -48,16 +48,16 @@ const getResumeByUserId = catchAsync(
     }
 )
 
-const viewRecruiterEmail = catchAsync(
+const getAtsScore = catchAsync(
     async (req: Request, res: Response) => {
         const user = req.user;
-        const { recruiterId } = req.params;
-        const result = await ResumeService.viewRecruiterEmail(user, recruiterId as string);
+        const { jobId } = req.body;
+        const result = await ResumeService.getAtsScore(user, jobId);
 
         sendResponse(res, {
             httpStatusCode: status.OK,
             success: true,
-            message: "Recruiter email fetched successfully",
+            message: "ATS score calculated successfully",
             data: result,
         })
     }
@@ -82,6 +82,6 @@ export const ResumeController = {
     getMyResume,
     updateMyResume,
     getResumeByUserId,
-    viewRecruiterEmail,
+    getAtsScore,
     searchCandidates,
 }

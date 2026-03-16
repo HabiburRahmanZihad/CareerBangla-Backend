@@ -4,8 +4,8 @@ import AppError from "../../errorHelpers/AppError";
 import { IRequestUser } from "../../interfaces/requestUser.interface";
 import { IQueryParams } from "../../interfaces/query.interface";
 import { prisma } from "../../lib/prisma";
+import { getUserProfileCompletion } from "../../utils/profileCompletion";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 const getMyResume = async (user: IRequestUser) => {
     const resume = await prisma.resume.findUnique({
         where: { userId: user.userId },
@@ -16,16 +16,21 @@ const getMyResume = async (user: IRequestUser) => {
         }
     })
 
-    return resume;
+    const profileCompletion = getUserProfileCompletion(resume);
+
+    return {
+        ...resume,
+        profileCompletion,
+    };
 }
 
-const updateMyResume = async (user: IRequestUser, payload: any) => {
+const updateMyResume = async (user: IRequestUser, payload: Prisma.ResumeUpdateInput) => {
     const existingResume = await prisma.resume.findUnique({
         where: { userId: user.userId }
     })
 
     if (payload.dateOfBirth) {
-        payload.dateOfBirth = new Date(payload.dateOfBirth);
+        payload.dateOfBirth = new Date(payload.dateOfBirth as string);
     }
 
     let resume;
@@ -44,7 +49,7 @@ const updateMyResume = async (user: IRequestUser, payload: any) => {
             data: {
                 userId: user.userId,
                 ...payload,
-            },
+            } as Prisma.ResumeUncheckedCreateInput,
             include: {
                 user: {
                     select: { id: true, name: true, email: true, image: true }
@@ -53,13 +58,32 @@ const updateMyResume = async (user: IRequestUser, payload: any) => {
         })
     }
 
-    return resume;
+    const profileCompletion = getUserProfileCompletion(resume);
+
+    return {
+        ...resume,
+        profileCompletion,
+    };
 }
 
 const getResumeByUserId = async (userId: string, requestUser: IRequestUser) => {
     // Only recruiters and admins can view other users' resumes
     if (requestUser.role !== "RECRUITER" && requestUser.role !== "ADMIN" && requestUser.role !== "SUPER_ADMIN") {
         throw new AppError(status.FORBIDDEN, "You are not authorized to view this resume");
+    }
+
+    // Validate resume exists BEFORE charging coins
+    const resume = await prisma.resume.findUnique({
+        where: { userId },
+        include: {
+            user: {
+                select: { id: true, name: true, email: true, image: true }
+            }
+        }
+    })
+
+    if (!resume) {
+        throw new AppError(status.NOT_FOUND, "Resume not found");
     }
 
     // If recruiter, charge 10 coins to view candidate
@@ -100,69 +124,68 @@ const getResumeByUserId = async (userId: string, requestUser: IRequestUser) => {
         })
     }
 
-    const resume = await prisma.resume.findUnique({
-        where: { userId },
-        include: {
-            user: {
-                select: { id: true, name: true, email: true, image: true }
-            }
-        }
-    })
-
-    if (!resume) {
-        throw new AppError(status.NOT_FOUND, "Resume not found");
-    }
-
     return resume;
 }
 
-const viewRecruiterEmail = async (user: IRequestUser, recruiterId: string) => {
-    // Charge user 15 coins to view recruiter email
-    const wallet = await prisma.wallet.findUnique({
+const getAtsScore = async (user: IRequestUser, jobId?: string) => {
+    const resume = await prisma.resume.findUnique({
         where: { userId: user.userId }
     })
 
-    if (!wallet || wallet.balance < 15) {
-        throw new AppError(status.BAD_REQUEST, "Insufficient coins. Viewing recruiter email costs 15 coins.");
+    if (!resume) {
+        throw new AppError(status.BAD_REQUEST, "You must create a resume before checking your ATS score.");
     }
 
-    const recruiter = await prisma.recruiter.findUnique({
-        where: { id: recruiterId },
-        include: { user: true }
-    })
+    const profileCompletion = getUserProfileCompletion(resume);
 
-    if (!recruiter) {
-        throw new AppError(status.NOT_FOUND, "Recruiter not found");
+    // Base score from profile completion
+    let score = profileCompletion;
+    const suggestions: string[] = [];
+
+    // Evaluate resume sections
+    if (!resume.title) suggestions.push("Add a professional title to your resume.");
+    if (!resume.summary) suggestions.push("Write a professional summary.");
+    if (!resume.skills || resume.skills.length === 0) suggestions.push("Add your skills.");
+    if (!resume.skills || resume.skills.length < 5) suggestions.push("Add at least 5 skills for better matching.");
+    if (!resume.experience || (resume.experience as unknown[]).length === 0) suggestions.push("Add your work experience.");
+    if (!resume.education || (resume.education as unknown[]).length === 0) suggestions.push("Add your education details.");
+    if (!resume.contactNumber) suggestions.push("Add your contact number.");
+    if (!resume.address) suggestions.push("Add your address.");
+    if (!resume.linkedinUrl) suggestions.push("Add your LinkedIn profile URL.");
+
+    // If jobId provided, match against job requirements
+    let jobMatchScore: number | null = null;
+    let matchedSkills: string[] = [];
+    let missingSkills: string[] = [];
+
+    if (jobId) {
+        const job = await prisma.job.findUnique({
+            where: { id: jobId, isDeleted: false }
+        })
+
+        if (job && job.skills && resume.skills) {
+            const jobSkillsLower = job.skills.map(s => s.toLowerCase());
+            const resumeSkillsLower = resume.skills.map(s => s.toLowerCase());
+
+            matchedSkills = resume.skills.filter(s => jobSkillsLower.includes(s.toLowerCase()));
+            missingSkills = job.skills.filter(s => !resumeSkillsLower.includes(s.toLowerCase()));
+
+            jobMatchScore = jobSkillsLower.length > 0
+                ? Math.round((matchedSkills.length / jobSkillsLower.length) * 100)
+                : 100;
+
+            if (missingSkills.length > 0) {
+                suggestions.push(`Consider adding these skills to match the job: ${missingSkills.join(", ")}`);
+            }
+        }
     }
 
-    await prisma.$transaction(async (tx) => {
-        await tx.wallet.update({
-            where: { id: wallet.id },
-            data: { balance: { decrement: 15 } }
-        })
-
-        await tx.coinTransaction.create({
-            data: {
-                walletId: wallet.id,
-                amount: 15,
-                type: "DEBIT",
-                purpose: "VIEW_RECRUITER_EMAIL",
-                details: `Viewed recruiter email: ${recruiter.companyName}`,
-            }
-        })
-
-        await tx.notification.create({
-            data: {
-                userId: user.userId,
-                type: "COIN_DEBITED",
-                title: "Coins Deducted",
-                message: `15 coins deducted for viewing recruiter email: ${recruiter.companyName}`,
-                metadata: { coins: 15, recruiterId },
-            }
-        })
-    })
-
-    return { email: recruiter.email, companyName: recruiter.companyName };
+    return {
+        atsScore: score,
+        profileCompletion,
+        suggestions,
+        ...(jobId ? { jobMatchScore, matchedSkills, missingSkills } : {}),
+    };
 }
 
 const searchCandidates = async (user: IRequestUser, query: IQueryParams) => {
@@ -253,6 +276,6 @@ export const ResumeService = {
     getMyResume,
     updateMyResume,
     getResumeByUserId,
-    viewRecruiterEmail,
+    getAtsScore,
     searchCandidates,
 }

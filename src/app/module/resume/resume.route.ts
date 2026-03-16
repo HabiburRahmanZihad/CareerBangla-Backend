@@ -16,6 +16,10 @@ router.patch("/my-resume",
     validateRequest(updateResumeZodSchema),
     ResumeController.updateMyResume);
 
+router.post("/ats-score",
+    checkAuth(Role.USER),
+    ResumeController.getAtsScore);
+
 router.get("/search-candidates",
     checkAuth(Role.RECRUITER, Role.ADMIN, Role.SUPER_ADMIN),
     ResumeController.searchCandidates);
@@ -23,9 +27,5 @@ router.get("/search-candidates",
 router.get("/user/:userId",
     checkAuth(Role.RECRUITER, Role.ADMIN, Role.SUPER_ADMIN),
     ResumeController.getResumeByUserId);
-
-router.get("/view-recruiter-email/:recruiterId",
-    checkAuth(Role.USER),
-    ResumeController.viewRecruiterEmail);
 
 export const ResumeRoutes = router;

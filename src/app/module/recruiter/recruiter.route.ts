@@ -39,4 +39,8 @@ router.patch("/reject/:id",
     checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
     RecruiterController.rejectRecruiter);
 
+router.get("/view-email/:recruiterId",
+    checkAuth(Role.USER),
+    RecruiterController.viewRecruiterEmail);
+
 export const RecruiterRoutes = router;

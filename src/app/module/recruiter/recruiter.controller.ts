@@ -118,6 +118,21 @@ const rejectRecruiter = catchAsync(
     }
 )
 
+const viewRecruiterEmail = catchAsync(
+    async (req: Request, res: Response) => {
+        const user = req.user;
+        const { recruiterId } = req.params;
+        const result = await RecruiterService.viewRecruiterEmail(user, recruiterId as string);
+
+        sendResponse(res, {
+            httpStatusCode: status.OK,
+            success: true,
+            message: "Recruiter email fetched successfully",
+            data: result,
+        })
+    }
+)
+
 export const RecruiterController = {
     getAllRecruiters,
     getRecruiterById,
@@ -127,4 +142,5 @@ export const RecruiterController = {
     deleteRecruiter,
     approveRecruiter,
     rejectRecruiter,
+    viewRecruiterEmail,
 }
