@@ -1,0 +1,49 @@
+model Job {
+  id              String    @id @default(uuid(7))
+  title           String
+  description     String
+  requirements    String[]
+  responsibilities String[]
+  location        String
+  jobType         JobType   @default(FULL_TIME)
+  salaryMin       Float?
+  salaryMax       Float?
+  experience      String?
+  education       String?
+  skills          String[]
+  benefits        String[]
+  deadline        DateTime
+  vacancies       Int       @default(1)
+  status          JobStatus @default(ACTIVE)
+  isDeleted       Boolean   @default(false)
+  deletedAt       DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  recruiterId String
+  recruiter   Recruiter @relation(fields: [recruiterId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  categoryId String?
+  category   JobCategory? @relation(fields: [categoryId], references: [id])
+
+  applications Application[]
+
+  @@index([recruiterId], name: "idx_job_recruiterId")
+  @@index([status], name: "idx_job_status")
+  @@index([isDeleted], name: "idx_job_isDeleted")
+  @@index([jobType], name: "idx_job_jobType")
+  @@index([categoryId], name: "idx_job_categoryId")
+  @@map("job")
+}
+
+model JobCategory {
+  id    String @id @default(uuid(7))
+  title String @unique
+  icon  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  jobs Job[]
+
+  @@map("job_category")
+}

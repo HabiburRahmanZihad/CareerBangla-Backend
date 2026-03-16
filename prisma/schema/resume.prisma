@@ -1,0 +1,24 @@
+model Resume {
+  id               String   @id @default(uuid(7))
+  title            String?
+  summary          String?
+  skills           String[]
+  experience       Json[]
+  education        Json[]
+  certifications   Json[]
+  languages        String[]
+  linkedinUrl      String?
+  portfolioUrl     String?
+  resumeFileUrl    String?
+  gender           Gender?
+  dateOfBirth      DateTime?
+  contactNumber    String?
+  address          String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@map("resume")
+}

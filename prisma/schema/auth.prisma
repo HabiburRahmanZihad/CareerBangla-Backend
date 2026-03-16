@@ -3,7 +3,7 @@ model User {
   name               String
   email              String
   emailVerified      Boolean    @default(false)
-  role               Role       @default(PATIENT)
+  role               Role       @default(USER)
   status             UserStatus @default(ACTIVE)
   needPasswordChange Boolean    @default(false)
   isDeleted          Boolean    @default(false)
@@ -13,9 +13,13 @@ model User {
   updatedAt          DateTime   @updatedAt
   sessions           Session[]
   accounts           Account[]
-  patient            Patient?
-  doctor             Doctor?
+  recruiter          Recruiter?
   admin              Admin?
+  resume             Resume?
+  wallet             Wallet?
+  applications       Application[]
+  notifications      Notification[]
+  subscriptions      Subscription[]
 
   @@unique([email])
   @@map("user")
