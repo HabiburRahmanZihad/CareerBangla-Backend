@@ -1,22 +1,21 @@
-import { Gender } from "../../../generated/prisma/enums";
-export interface ICreateDoctorPayload {
+export interface ICreateRecruiterPayload {
     password: string;
-    doctor: {
+    recruiter: {
         name: string;
         email: string;
         profilePhoto?: string;
         contactNumber?: string;
-        address?: string;
-        registrationNumber: string;
-        experience?: number;
-        gender: Gender;
-        appointmentFee: number;
-        qualification: string;
-        currentWorkingPlace: string;
-        designation: string;
+        companyName: string;
+        companyLogo?: string;
+        companyWebsite?: string;
+        companyAddress?: string;
+        designation?: string;
+        industry?: string;
+        companySize?: string;
+        description?: string;
     }
-    specialties: string[];
 }
+
 export interface ICreateAdminPayload {
     password: string;
     admin: {

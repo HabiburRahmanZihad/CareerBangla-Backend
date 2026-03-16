@@ -1,33 +1,33 @@
 import { Router } from "express";
 import { AdminRoutes } from "../module/admin/admin.route";
-import { AppointmentRoutes } from "../module/appointment/appointment.route";
+import { ApplicationRoutes } from "../module/application/application.route";
 import { AuthRoutes } from "../module/auth/auth.route";
-import { DoctorRoutes } from "../module/doctor/doctor.route";
-import { DoctorScheduleRoutes } from "../module/doctorSchedule/doctorSchedule.route";
-import { PatientRoutes } from "../module/patient/patient.route";
+import { CouponRoutes } from "../module/coupon/coupon.route";
+import { JobRoutes } from "../module/job/job.route";
+import { NotificationRoutes } from "../module/notification/notification.route";
 import { PaymentRoutes } from "../module/payment/payment.route";
-import { PrescriptionRoutes } from "../module/prescription/prescription.route";
-import { ReviewRoutes } from "../module/review/review.route";
-import { scheduleRoutes } from "../module/schedule/schedule.route";
-import { SpecialtyRoutes } from "../module/specialty/specialty.route";
+import { RecruiterRoutes } from "../module/recruiter/recruiter.route";
+import { ResumeRoutes } from "../module/resume/resume.route";
 import { StatsRoutes } from "../module/stats/stats.route";
+import { SubscriptionRoutes } from "../module/subscription/subscription.route";
 import { UserRoutes } from "../module/user/user.route";
+import { WalletRoutes } from "../module/wallet/wallet.route";
 
 const router = Router();
 
 router.use("/auth", AuthRoutes);
-router.use("/specialties", SpecialtyRoutes)
-router.use("/users", UserRoutes)
-router.use("/patients", PatientRoutes)
-router.use("/doctors", DoctorRoutes)
-router.use("/admins", AdminRoutes)
-router.use("/schedules", scheduleRoutes)
-router.use("/doctor-schedules", DoctorScheduleRoutes)
-router.use("/appointments", AppointmentRoutes)
-router.use("/prescriptions", PrescriptionRoutes)
-router.use("/reviews", ReviewRoutes)
-router.use("/stats", StatsRoutes)
-router.use("/payments", PaymentRoutes)
+router.use("/users", UserRoutes);
+router.use("/admins", AdminRoutes);
+router.use("/recruiters", RecruiterRoutes);
+router.use("/jobs", JobRoutes);
+router.use("/applications", ApplicationRoutes);
+router.use("/resumes", ResumeRoutes);
+router.use("/wallet", WalletRoutes);
+router.use("/subscriptions", SubscriptionRoutes);
+router.use("/coupons", CouponRoutes);
+router.use("/notifications", NotificationRoutes);
+router.use("/stats", StatsRoutes);
+router.use("/payments", PaymentRoutes);
 
 
 export const IndexRoutes = router;

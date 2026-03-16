@@ -4,21 +4,21 @@ import AppError from "../../errorHelpers/AppError";
 import { IRequestUser } from "../../interfaces/requestUser.interface";
 import { prisma } from "../../lib/prisma";
 
-const getDashboardStatsData = async (user : IRequestUser) => {
+const getDashboardStatsData = async (user: IRequestUser) => {
     let statsData;
 
-    switch(user.role){
+    switch (user.role) {
         case Role.SUPER_ADMIN:
             statsData = getSuperAdminStatsData();
             break;
         case Role.ADMIN:
             statsData = getAdminStatsData();
             break;
-        case Role.DOCTOR:
-            statsData = getDoctorStatsData(user);
+        case Role.RECRUITER:
+            statsData = getRecruiterStatsData(user);
             break;
-        case Role.PATIENT:
-            statsData = getPatientStatsData(user);
+        case Role.USER:
+            statsData = getUserStatsData(user);
             break;
         default:
             throw new AppError(status.BAD_REQUEST, "Invalid user role");
@@ -28,38 +28,28 @@ const getDashboardStatsData = async (user : IRequestUser) => {
 }
 
 const getSuperAdminStatsData = async () => {
-    const appointmentCount = await prisma.appointment.count();
-    const doctorCount = await prisma.doctor.count();
-    const patientCount = await prisma.patient.count();
-    const superAdminCount = await prisma.admin.count({
-        where: {
-            user: {
-                role: Role.SUPER_ADMIN
-            }
-        }
-    });
-    const adminCount = await prisma.admin.count();
-    const paymentCount = await prisma.payment.count();
+    const jobCount = await prisma.job.count({ where: { isDeleted: false } });
+    const applicationCount = await prisma.application.count();
+    const recruiterCount = await prisma.recruiter.count({ where: { isDeleted: false } });
     const userCount = await prisma.user.count();
+    const adminCount = await prisma.admin.count();
+    const activeJobCount = await prisma.job.count({ where: { status: "ACTIVE", isDeleted: false } });
 
-    const totalRevenue = await prisma.payment.aggregate({
-        _sum: { amount: true},
-        where:{
-            status: PaymentStatus.PAID
-        }
+    const totalRevenue = await prisma.subscription.aggregate({
+        _sum: { amount: true },
+        where: { status: PaymentStatus.PAID }
     });
 
-    const pieChartData = await getPieChartData();
-    const barChartData = await getBarChartData();
+    const pieChartData = await getApplicationStatusDistribution();
+    const barChartData = await getApplicationsByMonth();
 
     return {
-        appointmentCount,
-        doctorCount,
-        patientCount, 
-        superAdminCount,  
-        adminCount,
-        paymentCount,
+        jobCount,
+        applicationCount,
+        recruiterCount,
         userCount,
+        adminCount,
+        activeJobCount,
         totalRevenue: totalRevenue._sum.amount || 0,
         pieChartData,
         barChartData
@@ -67,175 +57,135 @@ const getSuperAdminStatsData = async () => {
 }
 
 const getAdminStatsData = async () => {
-        const appointmentCount = await prisma.appointment.count();
-        const doctorCount = await prisma.doctor.count();
-        const patientCount = await prisma.patient.count();
-        const paymentCount = await prisma.payment.count();
-        const userCount = await prisma.user.count();
-        const adminCount = await prisma.admin.count();
+    const jobCount = await prisma.job.count({ where: { isDeleted: false } });
+    const applicationCount = await prisma.application.count();
+    const recruiterCount = await prisma.recruiter.count({ where: { isDeleted: false } });
+    const userCount = await prisma.user.count();
+    const activeJobCount = await prisma.job.count({ where: { status: "ACTIVE", isDeleted: false } });
+    const pendingRecruiters = await prisma.recruiter.count({ where: { status: "PENDING" } });
 
-        const totalRevenue = await prisma.payment.aggregate({
-            _sum: { amount: true},
-            where:{
-                status: PaymentStatus.PAID
-            }
-        });
-
-        const pieChartData = await getPieChartData();
-        const barChartData = await getBarChartData();
-
-        return {
-            appointmentCount,
-            doctorCount,
-            patientCount,
-            paymentCount,
-            userCount,
-            adminCount,
-            totalRevenue: totalRevenue._sum.amount || 0,
-            pieChartData,
-            barChartData
-        }
-}
-
-const getDoctorStatsData = async (user : IRequestUser) => {
-    const doctorData = await prisma.doctor.findUniqueOrThrow({
-        where: {
-            email: user.email
-        }
+    const totalRevenue = await prisma.subscription.aggregate({
+        _sum: { amount: true },
+        where: { status: PaymentStatus.PAID }
     });
 
-    const reviewCount = await prisma.review.count({
-        where: {
-            doctorId: doctorData.id
-        }
-    })
-
-    const patientCount = await prisma.appointment.groupBy({
-        by: ["patientId"],
-        _count:{
-            id : true
-        },
-        where: {
-            doctorId: doctorData.id
-        }
-    })
-
-    // const formattedPatientCount = patientCount.map(({_count, patientId}) => ({
-    //     patientId,
-    //     count: _count.id
-    // }));
-
-    const appointmentCount = await prisma.appointment.count({
-        where: {
-            doctorId: doctorData.id
-        }
-    })
-
-    const totalRevenue = await prisma.payment.aggregate({
-        _sum: { amount: true},
-        where : {
-            appointment :{
-                doctorId: doctorData.id
-            },
-            status: PaymentStatus.PAID
-        }
-    })
-
-    const appointmentStatusDistribution = await prisma.appointment.groupBy({
-        by: ["status"],
-        _count: {
-            id: true
-        },
-        where: {
-            doctorId: doctorData.id
-        }
-    })
-
-    const formattedAppointmentStatusDistribution = appointmentStatusDistribution.map(({_count, status}) => ({
-        status,
-        count : _count.id
-    }))
+    const pieChartData = await getApplicationStatusDistribution();
+    const barChartData = await getApplicationsByMonth();
 
     return {
-        reviewCount,
-        patientCount : patientCount.length,
-        appointmentCount,
+        jobCount,
+        applicationCount,
+        recruiterCount,
+        userCount,
+        activeJobCount,
+        pendingRecruiters,
         totalRevenue: totalRevenue._sum.amount || 0,
-        appointmentStatusDistribution: formattedAppointmentStatusDistribution
+        pieChartData,
+        barChartData
     }
 }
 
-const getPatientStatsData = async (user : IRequestUser) => {
-    const patientData = await prisma.patient.findUniqueOrThrow({
-        where: {
-            email: user.email
-        }
+const getRecruiterStatsData = async (user: IRequestUser) => {
+    const recruiterData = await prisma.recruiter.findUniqueOrThrow({
+        where: { userId: user.userId }
     });
 
-    const appointmentCount = await prisma.appointment.count({
-        where: {
-            patientId: patientData.id
-        }
+    const jobCount = await prisma.job.count({
+        where: { recruiterId: recruiterData.id, isDeleted: false }
     })
 
-    const reviewCount = await prisma.review.count({
-        where: {
-            patientId: patientData.id
-        }
+    const applicationCount = await prisma.application.count({
+        where: { job: { recruiterId: recruiterData.id } }
     })
 
-    const appointmentStatusDistribution = await prisma.appointment.groupBy({
+    const activeJobCount = await prisma.job.count({
+        where: { recruiterId: recruiterData.id, status: "ACTIVE", isDeleted: false }
+    })
+
+    const uniqueApplicants = await prisma.application.groupBy({
+        by: ["userId"],
+        where: { job: { recruiterId: recruiterData.id } },
+        _count: { id: true }
+    })
+
+    const applicationStatusDistribution = await prisma.application.groupBy({
         by: ["status"],
-        _count: {
-            id: true
-        },
-        where: {
-            patientId: patientData.id
-        }
+        _count: { id: true },
+        where: { job: { recruiterId: recruiterData.id } }
     })
 
-    const formattedAppointmentStatusDistribution = appointmentStatusDistribution.map(({_count, status}) => ({
+    const formattedStatusDistribution = applicationStatusDistribution.map(({ _count, status }) => ({
         status,
-        count : _count.id
+        count: _count.id
     }))
+
+    const wallet = await prisma.wallet.findUnique({
+        where: { userId: user.userId }
+    })
 
     return {
-        appointmentCount,
-        reviewCount,
-        appointmentStatusDistribution: formattedAppointmentStatusDistribution
+        jobCount,
+        applicationCount,
+        activeJobCount,
+        uniqueApplicants: uniqueApplicants.length,
+        walletBalance: wallet?.balance || 0,
+        applicationStatusDistribution: formattedStatusDistribution
     }
 }
 
-const getPieChartData = async () => {
-    const appointmentStatusDistribution = await prisma.appointment.groupBy({
-        by: ["status"],
-        _count: {
-            id: true
-        }
-    });
+const getUserStatsData = async (user: IRequestUser) => {
+    const applicationCount = await prisma.application.count({
+        where: { userId: user.userId }
+    })
 
-    const formattedAppointmentStatusDistribution = appointmentStatusDistribution.map(({_count, status}) => ({
+    const applicationStatusDistribution = await prisma.application.groupBy({
+        by: ["status"],
+        _count: { id: true },
+        where: { userId: user.userId }
+    })
+
+    const formattedStatusDistribution = applicationStatusDistribution.map(({ _count, status }) => ({
         status,
-        count : _count.id
+        count: _count.id
     }))
 
-    return formattedAppointmentStatusDistribution;
+    const wallet = await prisma.wallet.findUnique({
+        where: { userId: user.userId }
+    })
+
+    return {
+        applicationCount,
+        walletBalance: wallet?.balance || 0,
+        applicationStatusDistribution: formattedStatusDistribution
+    }
 }
 
-const getBarChartData = async () => {
-    interface AppointmentCountByMonth {
+const getApplicationStatusDistribution = async () => {
+    const statusDistribution = await prisma.application.groupBy({
+        by: ["status"],
+        _count: { id: true }
+    });
+
+    return statusDistribution.map(({ _count, status }) => ({
+        status,
+        count: _count.id
+    }))
+}
+
+const getApplicationsByMonth = async () => {
+    interface ApplicationCountByMonth {
         month: Date;
         count: bigint;
     }
-    const appointmentCountByMonth : AppointmentCountByMonth[] = await prisma.$queryRaw`
+    const applicationCountByMonth: ApplicationCountByMonth[] = await prisma.$queryRaw`
         SELECT DATE_TRUNC('month', "createdAt") AS month,
         CAST(COUNT(*) AS INTEGER) AS count
-        FROM "appointments"
+        FROM "application"
         GROUP BY month
         ORDER BY month ASC;
     `
 
-    return appointmentCountByMonth
+    return applicationCountByMonth
 }
 
 

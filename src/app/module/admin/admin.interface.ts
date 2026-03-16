@@ -9,11 +9,11 @@ export interface IUpdateAdminPayload {
 }
 
 export interface IChangeUserStatusPayload {
-    userId : string;
-    userStatus : UserStatus;
+    userId: string;
+    userStatus: UserStatus;
 }
 
 export interface IChangeUserRolePayload {
-    userId : string;
-    role : Role;
+    userId: string;
+    role: Role;
 }

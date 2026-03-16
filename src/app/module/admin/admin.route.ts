@@ -10,6 +10,9 @@ const router = Router();
 router.get("/",
     checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
     AdminController.getAllAdmins);
+router.get("/jobs",
+    checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
+    AdminController.getAllJobs);
 router.get("/:id",
     checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
     AdminController.getAdminById);
@@ -20,12 +23,12 @@ router.delete("/:id",
     checkAuth(Role.SUPER_ADMIN),
     AdminController.deleteAdmin);
 
-router.patch("/change-user-status", 
+router.patch("/change-user-status",
     checkAuth(Role.SUPER_ADMIN, Role.ADMIN),
-     AdminController.changeUserStatus);
+    AdminController.changeUserStatus);
 router.patch("/change-user-role",
-     checkAuth(Role.SUPER_ADMIN),
-     AdminController.changeUserRole);
+    checkAuth(Role.SUPER_ADMIN),
+    AdminController.changeUserRole);
 
 
 export const AdminRoutes = router;
