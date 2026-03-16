@@ -1,6 +1,5 @@
 import { Request, Response } from "express";
 import status from "http-status";
-import ms, { StringValue } from "ms";
 import { envVars } from "../../config/env";
 import AppError from "../../errorHelpers/AppError";
 import { auth } from "../../lib/auth";
@@ -12,8 +11,6 @@ import { AuthService } from "./auth.service";
 
 const registerUser = catchAsync(
     async (req: Request, res: Response) => {
-        const maxAge = ms(envVars.ACCESS_TOKEN_EXPIRES_IN as StringValue);
-        console.log({ maxAge });
         const payload = req.body;
 
         const result = await AuthService.registerUser(payload);

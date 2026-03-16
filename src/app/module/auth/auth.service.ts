@@ -28,7 +28,7 @@ const registerUser = async (payload: IRegisterUserPayload) => {
     }
 
     try {
-        // Create wallet with 50 free coins for new user
+        // Create wallet with 50 free coins and welcome notification for new user
         await prisma.$transaction(async (tx) => {
             await tx.wallet.create({
                 data: {
@@ -42,6 +42,16 @@ const registerUser = async (payload: IRegisterUserPayload) => {
                             details: "Welcome bonus - Free plan (50 coins)",
                         }
                     }
+                }
+            })
+
+            await tx.notification.create({
+                data: {
+                    userId: data.user.id,
+                    type: "GENERAL",
+                    title: "Welcome to CareerBangla!",
+                    message: "Your account has been created successfully. You have received 50 free coins to get started. Complete your profile to unlock all features.",
+                    metadata: { coins: 50 },
                 }
             })
         })
@@ -73,7 +83,6 @@ const registerUser = async (payload: IRegisterUserPayload) => {
         }
 
     } catch (error) {
-        console.log("Transaction error : ", error);
         await prisma.user.delete({
             where: {
                 id: data.user.id
