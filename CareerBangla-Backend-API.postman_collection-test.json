@@ -26,16 +26,9 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/auth/register",
               "protocol": "http",
-              "host": [
-                "localhost"
-              ],
+              "host": ["localhost"],
               "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "auth",
-                "register"
-              ]
+              "path": ["api", "v1", "auth", "register"]
             }
           },
           "response": []
@@ -57,16 +50,9 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/auth/login",
               "protocol": "http",
-              "host": [
-                "localhost"
-              ],
+              "host": ["localhost"],
               "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "auth",
-                "login"
-              ]
+              "path": ["api", "v1", "auth", "login"]
             }
           },
           "response": []
@@ -88,16 +74,9 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/auth/login",
               "protocol": "http",
-              "host": [
-                "localhost"
-              ],
+              "host": ["localhost"],
               "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "auth",
-                "login"
-              ]
+              "path": ["api", "v1", "auth", "login"]
             }
           },
           "response": []
@@ -119,16 +98,9 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/auth/login",
               "protocol": "http",
-              "host": [
-                "localhost"
-              ],
+              "host": ["localhost"],
               "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "auth",
-                "login"
-              ]
+              "path": ["api", "v1", "auth", "login"]
             }
           },
           "response": []
@@ -141,16 +113,9 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/auth/me",
               "protocol": "http",
-              "host": [
-                "localhost"
-              ],
+              "host": ["localhost"],
               "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "auth",
-                "me"
-              ]
+              "path": ["api", "v1", "auth", "me"]
             }
           },
           "response": []
@@ -158,24 +123,15 @@
         {
           "name": "Refresh Token",
           "request": {
-            "auth": {
-              "type": "noauth"
-            },
+            "auth": { "type": "noauth" },
             "method": "POST",
             "header": [],
             "url": {
               "raw": "http://localhost:5000/api/v1/auth/refresh-token",
               "protocol": "http",
-              "host": [
-                "localhost"
-              ],
+              "host": ["localhost"],
               "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "auth",
-                "refresh-token"
-              ]
+              "path": ["api", "v1", "auth", "refresh-token"]
             }
           },
           "response": []
@@ -183,14 +139,11 @@
         {
           "name": "Change Password",
           "request": {
-            "auth": {
-              "type": "noauth"
-            },
             "method": "POST",
             "header": [],
             "body": {
               "mode": "raw",
-              "raw": "{\r\n    \"currentPassword\" : \"password12345\",\r\n    \"newPassword\": \"password1234\"\r\n}",
+              "raw": "{\r\n    \"currentPassword\": \"password12345\",\r\n    \"newPassword\": \"password1234\"\r\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -200,16 +153,9 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/auth/change-password",
               "protocol": "http",
-              "host": [
-                "localhost"
-              ],
+              "host": ["localhost"],
               "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "auth",
-                "change-password"
-              ]
+              "path": ["api", "v1", "auth", "change-password"]
             }
           },
           "response": []
@@ -217,24 +163,14 @@
         {
           "name": "Logout",
           "request": {
-            "auth": {
-              "type": "noauth"
-            },
             "method": "POST",
             "header": [],
             "url": {
               "raw": "http://localhost:5000/api/v1/auth/logout",
               "protocol": "http",
-              "host": [
-                "localhost"
-              ],
+              "host": ["localhost"],
               "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "auth",
-                "logout"
-              ]
+              "path": ["api", "v1", "auth", "logout"]
             }
           },
           "response": []
@@ -246,7 +182,7 @@
             "header": [],
             "body": {
               "mode": "raw",
-              "raw": "{\r\n    \"email\": \"saminisrar1@gmail.com\",\r\n    \"otp\" : \"096816\"\r\n}",
+              "raw": "{\r\n    \"email\": \"saminisrar1@gmail.com\",\r\n    \"otp\": \"096816\"\r\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -256,16 +192,9 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/auth/verify-email",
               "protocol": "http",
-              "host": [
-                "localhost"
-              ],
+              "host": ["localhost"],
               "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "auth",
-                "verify-email"
-              ]
+              "path": ["api", "v1", "auth", "verify-email"]
             }
           },
           "response": []
@@ -287,16 +216,9 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/auth/forget-password",
               "protocol": "http",
-              "host": [
-                "localhost"
-              ],
+              "host": ["localhost"],
               "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "auth",
-                "forget-password"
-              ]
+              "path": ["api", "v1", "auth", "forget-password"]
             }
           },
           "response": []
@@ -308,7 +230,7 @@
             "header": [],
             "body": {
               "mode": "raw",
-              "raw": "{\r\n    \"email\": \"saminisrar1@gmail.com\",\r\n    \"otp\" : \"108691\",\r\n    \"newPassword\" : \"password1234\"\r\n}",
+              "raw": "{\r\n    \"email\": \"saminisrar1@gmail.com\",\r\n    \"otp\": \"108691\",\r\n    \"newPassword\": \"password1234\"\r\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -318,16 +240,9 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/auth/reset-password",
               "protocol": "http",
-              "host": [
-                "localhost"
-              ],
+              "host": ["localhost"],
               "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "auth",
-                "reset-password"
-              ]
+              "path": ["api", "v1", "auth", "reset-password"]
             }
           },
           "response": []
@@ -340,17 +255,9 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/auth/login/google",
               "protocol": "http",
-              "host": [
-                "localhost"
-              ],
+              "host": ["localhost"],
               "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "auth",
-                "login",
-                "google"
-              ]
+              "path": ["api", "v1", "auth", "login", "google"]
             }
           },
           "response": []
@@ -358,114 +265,7 @@
       ]
     },
     {
-      "name": "Job Category",
-      "item": [
-        {
-          "name": "Create Job Category",
-          "request": {
-            "method": "POST",
-            "header": [],
-            "body": {
-              "mode": "formdata",
-              "formdata": [
-                {
-                  "key": "data",
-                  "value": "{\n    \"title\" : \"Software Engineering\"\n}",
-                  "type": "text",
-                  "uuid": "62073147-8e82-488d-87bd-0d34950c6a94"
-                },
-                {
-                  "key": "file",
-                  "type": "file",
-                  "uuid": "f21339bd-c4c9-4c56-bf05-aa1501bea237",
-                  "src": "/C:/Users/samin/Downloads/software-engineering.png"
-                }
-              ]
-            },
-            "url": {
-              "raw": "http://localhost:5000/api/v1/job-categories",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "job-categories"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Get All Job Categories",
-          "protocolProfileBehavior": {
-            "disableBodyPruning": true
-          },
-          "request": {
-            "method": "GET",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\r\n    \"title\" : \"Software Engineering\"\r\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "http://localhost:5000/api/v1/job-categories",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "job-categories"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Delete Job Category",
-          "request": {
-            "method": "DELETE",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\r\n    \"title\" : \"Software Engineering\"\r\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "http://localhost:5000/api/v1/job-categories/019c2965-1506-706d-8613-38de4bee68cc",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "job-categories",
-                "019c2965-1506-706d-8613-38de4bee68cc"
-              ]
-            }
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "User",
+      "name": "Users",
       "item": [
         {
           "name": "Create Recruiter",
@@ -474,7 +274,7 @@
             "header": [],
             "body": {
               "mode": "raw",
-              "raw": "{\r\n  \"password\": \"recruiterPass1002\",\r\n  \"recruiter\": {\r\n    \"name\": \"Tanvir Ahmed\",\r\n    \"email\": \"tanvir.ahmed@example.com\",\r\n    \"contactNumber\": \"+8801922222222\",\r\n    \"address\": \"Mirpur, Dhaka\",\r\n    \"companyName\": \"Tech Solutions BD\",\r\n    \"experience\": 10,\r\n    \"gender\": \"MALE\",\r\n    \"designation\": \"HR Manager\",\r\n    \"industry\": \"Information Technology\",\r\n    \"companyWebsite\": \"https://techsolutionsbd.com\"\r\n  },\r\n  \"jobCategories\": [\"019c4eec-f32b-7694-bdc7-2a1037d74e8b\"]\r\n}",
+              "raw": "{\r\n  \"password\": \"recruiterPass1002\",\r\n  \"recruiter\": {\r\n    \"name\": \"Tanvir Ahmed\",\r\n    \"email\": \"tanvir.ahmed@example.com\",\r\n    \"contactNumber\": \"+8801922222222\",\r\n    \"companyName\": \"Tech Solutions BD\",\r\n    \"designation\": \"HR Manager\",\r\n    \"industry\": \"Information Technology\",\r\n    \"companyWebsite\": \"https://techsolutionsbd.com\"\r\n  }\r\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -484,16 +284,33 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/users/create-recruiter",
               "protocol": "http",
-              "host": [
-                "localhost"
-              ],
+              "host": ["localhost"],
               "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "users",
-                "create-recruiter"
-              ]
+              "path": ["api", "v1", "users", "create-recruiter"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Admin",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"password\": \"adminPass1234\",\r\n  \"admin\": {\r\n    \"name\": \"Admin User\",\r\n    \"email\": \"admin@careerbangla.com\",\r\n    \"contactNumber\": \"+8801800000000\"\r\n  }\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/v1/users/create-admin",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "v1", "users", "create-admin"]
             }
           },
           "response": []
@@ -501,7 +318,7 @@
       ]
     },
     {
-      "name": "Recruiter",
+      "name": "Recruiters",
       "item": [
         {
           "name": "Get All Recruiters",
@@ -511,79 +328,153 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/recruiters",
               "protocol": "http",
-              "host": [
-                "localhost"
-              ],
+              "host": ["localhost"],
               "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "recruiters"
-              ],
+              "path": ["api", "v1", "recruiters"],
               "query": [
-                {
-                  "key": "page",
-                  "value": "1",
-                  "disabled": true
-                },
-                {
-                  "key": "limit",
-                  "value": "2",
-                  "disabled": true
-                },
-                {
-                  "key": "searchTerm",
-                  "value": "Software Engineering",
-                  "description": "search by category or keyword",
-                  "disabled": true
-                },
-                {
-                  "key": "gender",
-                  "value": "FEMALE",
-                  "type": "text",
-                  "disabled": true
-                },
-                {
-                  "key": "experience[gt]",
-                  "value": "7",
-                  "type": "text",
-                  "disabled": true
-                },
-                {
-                  "key": "fields",
-                  "value": "name,email",
-                  "type": "text",
-                  "disabled": true
-                },
-                {
-                  "key": "sortBy",
-                  "value": "name",
-                  "type": "text",
-                  "disabled": true
-                },
-                {
-                  "key": "sortOrder",
-                  "value": "asc",
-                  "type": "text",
-                  "disabled": true
-                },
-                {
-                  "key": "include",
-                  "value": "jobCategories",
-                  "type": "text",
-                  "disabled": true
-                },
-                {
-                  "key": "user.role",
-                  "value": "RECRUITER",
-                  "type": "text",
-                  "disabled": true
-                },
-                {
-                  "key": "jobCategories.jobCategory.title",
-                  "value": "Software Engineering",
-                  "disabled": true
+                { "key": "page", "value": "1", "disabled": true },
+                { "key": "limit", "value": "10", "disabled": true },
+                { "key": "searchTerm", "value": "tech", "disabled": true },
+                { "key": "sortBy", "value": "name", "disabled": true },
+                { "key": "sortOrder", "value": "asc", "disabled": true }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get My Recruiter Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5000/api/v1/recruiters/my-profile",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "v1", "recruiters", "my-profile"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Recruiter By Id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5000/api/v1/recruiters/:id",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "v1", "recruiters", ":id"],
+              "variable": [
+                { "key": "id", "value": "{{recruiterId}}" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update My Recruiter Profile",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"companyName\": \"Tech Solutions BD (Updated)\",\r\n    \"description\": \"Leading IT company in Bangladesh\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
                 }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/v1/recruiters/update-my-profile",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "v1", "recruiters", "update-my-profile"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Recruiter [Admin]",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"companyName\": \"Tech Solutions BD (Admin Updated)\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/v1/recruiters/:id",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "v1", "recruiters", ":id"],
+              "variable": [
+                { "key": "id", "value": "{{recruiterId}}" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Recruiter [Admin]",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5000/api/v1/recruiters/:id",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "v1", "recruiters", ":id"],
+              "variable": [
+                { "key": "id", "value": "{{recruiterId}}" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Approve Recruiter [Admin]",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5000/api/v1/recruiters/approve/:id",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "v1", "recruiters", "approve", ":id"],
+              "variable": [
+                { "key": "id", "value": "{{recruiterId}}" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Reject Recruiter [Admin]",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5000/api/v1/recruiters/reject/:id",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "v1", "recruiters", "reject", ":id"],
+              "variable": [
+                { "key": "id", "value": "{{recruiterId}}" }
               ]
             }
           },
@@ -595,13 +486,70 @@
       "name": "Jobs",
       "item": [
         {
-          "name": "Create Job",
+          "name": "Create Job Category [Admin]",
           "request": {
             "method": "POST",
             "header": [],
             "body": {
               "mode": "raw",
-              "raw": "{\r\n    \"title\": \"Senior Full Stack Developer\",\r\n    \"description\": \"We are looking for an experienced Full Stack Developer to join our team.\",\r\n    \"requirements\": \"5+ years experience in Node.js, React, TypeScript\",\r\n    \"location\": \"Dhaka, Bangladesh\",\r\n    \"salaryRange\": \"80000-120000\",\r\n    \"jobType\": \"FULL_TIME\",\r\n    \"experienceLevel\": \"SENIOR\",\r\n    \"deadline\": \"2026-04-30\",\r\n    \"categoryId\": \"019c4eec-f32b-7694-bdc7-2a1037d74e8b\"\r\n}",
+              "raw": "{\r\n    \"title\": \"Software Engineering\",\r\n    \"icon\": \"https://example.com/icons/software.png\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/v1/jobs/categories",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "v1", "jobs", "categories"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Job Categories",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5000/api/v1/jobs/categories",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "v1", "jobs", "categories"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Job Category [Admin]",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5000/api/v1/jobs/categories/:id",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "v1", "jobs", "categories", ":id"],
+              "variable": [
+                { "key": "id", "value": "{{categoryId}}" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Job [Recruiter]",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"title\": \"Senior Full Stack Developer\",\r\n    \"description\": \"We are looking for an experienced Full Stack Developer to join our team.\",\r\n    \"requirements\": [\"5+ years experience in Node.js\", \"Strong React skills\", \"TypeScript proficiency\"],\r\n    \"responsibilities\": [\"Lead development team\", \"Code review\", \"Architecture design\"],\r\n    \"location\": \"Dhaka, Bangladesh\",\r\n    \"salaryMin\": 80000,\r\n    \"salaryMax\": 120000,\r\n    \"jobType\": \"FULL_TIME\",\r\n    \"experience\": \"5+ years\",\r\n    \"education\": \"BSc in CSE\",\r\n    \"skills\": [\"Node.js\", \"React\", \"TypeScript\", \"PostgreSQL\"],\r\n    \"benefits\": [\"Health insurance\", \"Flexible hours\", \"Remote work\"],\r\n    \"deadline\": \"2026-04-30\",\r\n    \"vacancies\": 2,\r\n    \"categoryId\": \"{{categoryId}}\"\r\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -611,15 +559,9 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/jobs",
               "protocol": "http",
-              "host": [
-                "localhost"
-              ],
+              "host": ["localhost"],
               "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "jobs"
-              ]
+              "path": ["api", "v1", "jobs"]
             }
           },
           "response": []
@@ -632,52 +574,36 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/jobs",
               "protocol": "http",
-              "host": [
-                "localhost"
-              ],
+              "host": ["localhost"],
               "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "jobs"
-              ],
+              "path": ["api", "v1", "jobs"],
               "query": [
-                {
-                  "key": "page",
-                  "value": "1",
-                  "disabled": true
-                },
-                {
-                  "key": "limit",
-                  "value": "10",
-                  "disabled": true
-                },
-                {
-                  "key": "searchTerm",
-                  "value": "developer",
-                  "disabled": true
-                },
-                {
-                  "key": "jobType",
-                  "value": "FULL_TIME",
-                  "disabled": true
-                },
-                {
-                  "key": "experienceLevel",
-                  "value": "SENIOR",
-                  "disabled": true
-                },
-                {
-                  "key": "sortBy",
-                  "value": "createdAt",
-                  "disabled": true
-                },
-                {
-                  "key": "sortOrder",
-                  "value": "desc",
-                  "disabled": true
-                }
+                { "key": "page", "value": "1", "disabled": true },
+                { "key": "limit", "value": "10", "disabled": true },
+                { "key": "searchTerm", "value": "developer", "disabled": true },
+                { "key": "jobType", "value": "FULL_TIME", "disabled": true },
+                { "key": "location", "value": "Dhaka", "disabled": true },
+                { "key": "categoryId", "value": "{{categoryId}}", "disabled": true },
+                { "key": "salaryMin[gte]", "value": "50000", "disabled": true },
+                { "key": "salaryMax[lte]", "value": "150000", "disabled": true },
+                { "key": "sortBy", "value": "createdAt", "disabled": true },
+                { "key": "sortOrder", "value": "desc", "disabled": true }
               ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get My Posted Jobs [Recruiter]",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5000/api/v1/jobs/my-jobs",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "v1", "jobs", "my-jobs"]
             }
           },
           "response": []
@@ -688,17 +614,13 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "http://localhost:5000/api/v1/jobs/019c614a-2362-761d-b021-771beb22a4c5",
+              "raw": "http://localhost:5000/api/v1/jobs/:id",
               "protocol": "http",
-              "host": [
-                "localhost"
-              ],
+              "host": ["localhost"],
               "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "jobs",
-                "019c614a-2362-761d-b021-771beb22a4c5"
+              "path": ["api", "v1", "jobs", ":id"],
+              "variable": [
+                { "key": "id", "value": "{{jobId}}" }
               ]
             }
           },
@@ -711,7 +633,7 @@
             "header": [],
             "body": {
               "mode": "raw",
-              "raw": "{\r\n    \"title\": \"Senior Full Stack Developer (Updated)\",\r\n    \"salaryRange\": \"90000-130000\",\r\n    \"deadline\": \"2026-05-15\"\r\n}",
+              "raw": "{\r\n    \"title\": \"Senior Full Stack Developer (Updated)\",\r\n    \"salaryMin\": 90000,\r\n    \"salaryMax\": 130000,\r\n    \"deadline\": \"2026-05-15\"\r\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -719,17 +641,13 @@
               }
             },
             "url": {
-              "raw": "http://localhost:5000/api/v1/jobs/019c614a-2362-761d-b021-771beb22a4c5",
+              "raw": "http://localhost:5000/api/v1/jobs/:id",
               "protocol": "http",
-              "host": [
-                "localhost"
-              ],
+              "host": ["localhost"],
               "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "jobs",
-                "019c614a-2362-761d-b021-771beb22a4c5"
+              "path": ["api", "v1", "jobs", ":id"],
+              "variable": [
+                { "key": "id", "value": "{{jobId}}" }
               ]
             }
           },
@@ -741,39 +659,13 @@
             "method": "DELETE",
             "header": [],
             "url": {
-              "raw": "http://localhost:5000/api/v1/jobs/019c614a-2362-761d-b021-771beb22a4c5",
+              "raw": "http://localhost:5000/api/v1/jobs/:id",
               "protocol": "http",
-              "host": [
-                "localhost"
-              ],
+              "host": ["localhost"],
               "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "jobs",
-                "019c614a-2362-761d-b021-771beb22a4c5"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Get My Posted Jobs",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "http://localhost:5000/api/v1/jobs/my-jobs",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "jobs",
-                "my-jobs"
+              "path": ["api", "v1", "jobs", ":id"],
+              "variable": [
+                { "key": "id", "value": "{{jobId}}" }
               ]
             }
           },
@@ -785,13 +677,13 @@
       "name": "Applications",
       "item": [
         {
-          "name": "Submit Application",
+          "name": "Apply for Job [User]",
           "request": {
             "method": "POST",
             "header": [],
             "body": {
               "mode": "raw",
-              "raw": "{\r\n  \"jobId\": \"019c614a-2362-761d-b021-771beb22a4c5\",\r\n  \"coverLetter\": \"I am very interested in this position and believe my skills align perfectly with your requirements.\",\r\n  \"resumeUrl\": \"https://example.com/resume/samin-israr.pdf\"\r\n}",
+              "raw": "{\r\n    \"jobId\": \"{{jobId}}\",\r\n    \"coverLetter\": \"I am very interested in this position and believe my skills align perfectly with your requirements.\"\r\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -799,91 +691,65 @@
               }
             },
             "url": {
-              "raw": "http://localhost:5000/api/v1/applications/submit-application",
+              "raw": "http://localhost:5000/api/v1/applications/apply",
               "protocol": "http",
-              "host": [
-                "localhost"
-              ],
+              "host": ["localhost"],
               "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "applications",
-                "submit-application"
-              ]
+              "path": ["api", "v1", "applications", "apply"]
             }
           },
           "response": []
         },
         {
-          "name": "Get My Applications",
+          "name": "Get My Applications [User]",
           "request": {
             "method": "GET",
             "header": [],
             "url": {
               "raw": "http://localhost:5000/api/v1/applications/my-applications",
               "protocol": "http",
-              "host": [
-                "localhost"
-              ],
+              "host": ["localhost"],
               "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "applications",
-                "my-applications"
-              ]
+              "path": ["api", "v1", "applications", "my-applications"]
             }
           },
           "response": []
         },
         {
-          "name": "Get Single Application",
+          "name": "Get All Applications [Admin]",
           "request": {
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "http://localhost:5000/api/v1/applications/my-single-application/45454e574676",
+              "raw": "http://localhost:5000/api/v1/applications/all",
               "protocol": "http",
-              "host": [
-                "localhost"
-              ],
+              "host": ["localhost"],
               "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "applications",
-                "my-single-application",
-                "45454e574676"
-              ]
+              "path": ["api", "v1", "applications", "all"]
             }
           },
           "response": []
         },
         {
-          "name": "Get All Applications",
+          "name": "Get Applications For Job [Recruiter]",
           "request": {
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "http://localhost:5000/api/v1/applications/all-applications",
+              "raw": "http://localhost:5000/api/v1/applications/job/:jobId",
               "protocol": "http",
-              "host": [
-                "localhost"
-              ],
+              "host": ["localhost"],
               "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "applications",
-                "all-applications"
+              "path": ["api", "v1", "applications", "job", ":jobId"],
+              "variable": [
+                { "key": "jobId", "value": "{{jobId}}" }
               ]
             }
           },
           "response": []
         },
         {
-          "name": "Change Application Status",
+          "name": "Update Application Status [Recruiter]",
           "request": {
             "method": "PATCH",
             "header": [],
@@ -897,41 +763,94 @@
               }
             },
             "url": {
-              "raw": "http://localhost:5000/api/v1/applications/change-application-status/34635635346",
+              "raw": "http://localhost:5000/api/v1/applications/status/:id",
               "protocol": "http",
-              "host": [
-                "localhost"
-              ],
+              "host": ["localhost"],
               "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "applications",
-                "change-application-status",
-                "34635635346"
+              "path": ["api", "v1", "applications", "status", ":id"],
+              "variable": [
+                { "key": "id", "value": "{{applicationId}}" }
               ]
             }
           },
           "response": []
         },
         {
-          "name": "Get Applications For Job",
+          "name": "Schedule Interview [Recruiter]",
           "request": {
-            "method": "GET",
+            "method": "PATCH",
             "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"status\": \"INTERVIEW\",\r\n    \"interviewDate\": \"2026-04-15T10:00:00.000Z\",\r\n    \"interviewNote\": \"Technical interview via Google Meet\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
             "url": {
-              "raw": "http://localhost:5000/api/v1/applications/job/019c614a-2362-761d-b021-771beb22a4c5",
+              "raw": "http://localhost:5000/api/v1/applications/status/:id",
               "protocol": "http",
-              "host": [
-                "localhost"
-              ],
+              "host": ["localhost"],
               "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "applications",
-                "job",
-                "019c614a-2362-761d-b021-771beb22a4c5"
+              "path": ["api", "v1", "applications", "status", ":id"],
+              "variable": [
+                { "key": "id", "value": "{{applicationId}}" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Hire Candidate [Recruiter]",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"status\": \"HIRED\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/v1/applications/status/:id",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "v1", "applications", "status", ":id"],
+              "variable": [
+                { "key": "id", "value": "{{applicationId}}" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Reject Application [Recruiter]",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"status\": \"REJECTED\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/v1/applications/status/:id",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "v1", "applications", "status", ":id"],
+              "variable": [
+                { "key": "id", "value": "{{applicationId}}" }
               ]
             }
           },
@@ -943,65 +862,28 @@
       "name": "Resume / ATS Profile",
       "item": [
         {
-          "name": "Create Resume",
-          "request": {
-            "method": "POST",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\r\n    \"title\": \"Full Stack Developer Resume\",\r\n    \"summary\": \"Experienced developer with 5+ years in web technologies.\",\r\n    \"skills\": [\"JavaScript\", \"TypeScript\", \"React\", \"Node.js\", \"PostgreSQL\"],\r\n    \"education\": [\r\n        {\r\n            \"institution\": \"BUET\",\r\n            \"degree\": \"BSc in CSE\",\r\n            \"year\": \"2020\"\r\n        }\r\n    ],\r\n    \"experience\": [\r\n        {\r\n            \"company\": \"Tech Solutions BD\",\r\n            \"role\": \"Senior Developer\",\r\n            \"duration\": \"2020-2025\",\r\n            \"description\": \"Led a team of 5 developers building enterprise web applications.\"\r\n        }\r\n    ]\r\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "http://localhost:5000/api/v1/resumes",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "resumes"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Get My Resume",
+          "name": "Get My Resume [User]",
           "request": {
             "method": "GET",
             "header": [],
             "url": {
               "raw": "http://localhost:5000/api/v1/resumes/my-resume",
               "protocol": "http",
-              "host": [
-                "localhost"
-              ],
+              "host": ["localhost"],
               "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "resumes",
-                "my-resume"
-              ]
+              "path": ["api", "v1", "resumes", "my-resume"]
             }
           },
           "response": []
         },
         {
-          "name": "Update My Resume",
+          "name": "Create / Update My Resume [User]",
           "request": {
             "method": "PATCH",
             "header": [],
             "body": {
               "mode": "raw",
-              "raw": "{\r\n    \"summary\": \"Experienced full stack developer with 6+ years specializing in React and Node.js.\",\r\n    \"skills\": [\"JavaScript\", \"TypeScript\", \"React\", \"Next.js\", \"Node.js\", \"PostgreSQL\", \"Prisma\"]\r\n}",
+              "raw": "{\r\n    \"title\": \"Full Stack Developer Resume\",\r\n    \"summary\": \"Experienced developer with 5+ years in web technologies.\",\r\n    \"skills\": [\"JavaScript\", \"TypeScript\", \"React\", \"Node.js\", \"PostgreSQL\"],\r\n    \"education\": [\r\n        {\r\n            \"institution\": \"BUET\",\r\n            \"degree\": \"BSc in CSE\",\r\n            \"year\": \"2020\"\r\n        }\r\n    ],\r\n    \"experience\": [\r\n        {\r\n            \"company\": \"Tech Solutions BD\",\r\n            \"role\": \"Senior Developer\",\r\n            \"duration\": \"2020-2025\",\r\n            \"description\": \"Led a team of 5 developers building enterprise web applications.\"\r\n        }\r\n    ],\r\n    \"languages\": [\"Bangla\", \"English\"],\r\n    \"contactNumber\": \"+8801700000000\",\r\n    \"address\": \"Dhaka, Bangladesh\",\r\n    \"linkedinUrl\": \"https://linkedin.com/in/example\",\r\n    \"portfolioUrl\": \"https://example.com\"\r\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1011,68 +893,68 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/resumes/my-resume",
               "protocol": "http",
-              "host": [
-                "localhost"
-              ],
+              "host": ["localhost"],
               "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "resumes",
-                "my-resume"
+              "path": ["api", "v1", "resumes", "my-resume"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Search Candidates [Recruiter]",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5000/api/v1/resumes/search-candidates",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "v1", "resumes", "search-candidates"],
+              "query": [
+                { "key": "searchTerm", "value": "react", "disabled": true },
+                { "key": "skills", "value": "React,Node.js", "disabled": true },
+                { "key": "location", "value": "Dhaka", "disabled": true },
+                { "key": "experience", "value": "true", "disabled": true },
+                { "key": "education", "value": "true", "disabled": true },
+                { "key": "page", "value": "1", "disabled": true },
+                { "key": "limit", "value": "10", "disabled": true }
               ]
             }
           },
           "response": []
         },
         {
-          "name": "Delete My Resume",
+          "name": "View Candidate Resume [Recruiter] (10 coins)",
           "request": {
-            "method": "DELETE",
+            "method": "GET",
             "header": [],
             "url": {
-              "raw": "http://localhost:5000/api/v1/resumes/my-resume",
+              "raw": "http://localhost:5000/api/v1/resumes/user/:userId",
               "protocol": "http",
-              "host": [
-                "localhost"
-              ],
+              "host": ["localhost"],
               "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "resumes",
-                "my-resume"
+              "path": ["api", "v1", "resumes", "user", ":userId"],
+              "variable": [
+                { "key": "userId", "value": "{{candidateUserId}}" }
               ]
             }
           },
           "response": []
         },
         {
-          "name": "ATS Score Check",
+          "name": "View Recruiter Email [User] (15 coins)",
           "request": {
-            "method": "POST",
+            "method": "GET",
             "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\r\n    \"jobId\": \"019c614a-2362-761d-b021-771beb22a4c5\"\r\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
-              "raw": "http://localhost:5000/api/v1/resumes/ats-score",
+              "raw": "http://localhost:5000/api/v1/resumes/view-recruiter-email/:recruiterId",
               "protocol": "http",
-              "host": [
-                "localhost"
-              ],
+              "host": ["localhost"],
               "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "resumes",
-                "ats-score"
+              "path": ["api", "v1", "resumes", "view-recruiter-email", ":recruiterId"],
+              "variable": [
+                { "key": "recruiterId", "value": "{{recruiterId}}" }
               ]
             }
           },
@@ -1089,49 +971,11 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "http://localhost:5000/api/v1/wallet/my-wallet",
+              "raw": "http://localhost:5000/api/v1/wallet",
               "protocol": "http",
-              "host": [
-                "localhost"
-              ],
+              "host": ["localhost"],
               "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "wallet",
-                "my-wallet"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Add Coins",
-          "request": {
-            "method": "POST",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\r\n    \"amount\": 500,\r\n    \"paymentMethod\": \"BKASH\"\r\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "http://localhost:5000/api/v1/wallet/add-coins",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "wallet",
-                "add-coins"
-              ]
+              "path": ["api", "v1", "wallet"]
             }
           },
           "response": []
@@ -1144,39 +988,9 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/wallet/transactions",
               "protocol": "http",
-              "host": [
-                "localhost"
-              ],
+              "host": ["localhost"],
               "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "wallet",
-                "transactions"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Initiate Payment",
-          "request": {
-            "method": "POST",
-            "header": [],
-            "url": {
-              "raw": "http://localhost:5000/api/v1/wallet/initiate-payment/019c616c-5889-7636-8a06-92db8fad1bc9",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "wallet",
-                "initiate-payment",
-                "019c616c-5889-7636-8a06-92db8fad1bc9"
-              ]
+              "path": ["api", "v1", "wallet", "transactions"]
             }
           },
           "response": []
@@ -1184,38 +998,31 @@
       ]
     },
     {
-      "name": "Subscription",
+      "name": "Subscriptions",
       "item": [
         {
-          "name": "Get All Plans",
+          "name": "Get Subscription Plans",
           "request": {
             "method": "GET",
             "header": [],
             "url": {
               "raw": "http://localhost:5000/api/v1/subscriptions/plans",
               "protocol": "http",
-              "host": [
-                "localhost"
-              ],
+              "host": ["localhost"],
               "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "subscriptions",
-                "plans"
-              ]
+              "path": ["api", "v1", "subscriptions", "plans"]
             }
           },
           "response": []
         },
         {
-          "name": "Subscribe to Plan",
+          "name": "Purchase Subscription (Stripe Checkout)",
           "request": {
             "method": "POST",
             "header": [],
             "body": {
               "mode": "raw",
-              "raw": "{\r\n    \"planId\": \"019c614a-2362-761d-b021-771beb22a4c5\",\r\n    \"paymentMethod\": \"BKASH\"\r\n}",
+              "raw": "{\r\n    \"plan\": \"STARTER\"\r\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1223,93 +1030,26 @@
               }
             },
             "url": {
-              "raw": "http://localhost:5000/api/v1/subscriptions/subscribe",
+              "raw": "http://localhost:5000/api/v1/subscriptions/purchase",
               "protocol": "http",
-              "host": [
-                "localhost"
-              ],
+              "host": ["localhost"],
               "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "subscriptions",
-                "subscribe"
-              ]
+              "path": ["api", "v1", "subscriptions", "purchase"]
             }
           },
           "response": []
         },
         {
-          "name": "Get My Subscription",
+          "name": "Get My Subscriptions",
           "request": {
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "http://localhost:5000/api/v1/subscriptions/my-subscription",
+              "raw": "http://localhost:5000/api/v1/subscriptions/my-subscriptions",
               "protocol": "http",
-              "host": [
-                "localhost"
-              ],
+              "host": ["localhost"],
               "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "subscriptions",
-                "my-subscription"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Cancel Subscription",
-          "request": {
-            "method": "POST",
-            "header": [],
-            "url": {
-              "raw": "http://localhost:5000/api/v1/subscriptions/cancel",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "subscriptions",
-                "cancel"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Create Plan [Admin]",
-          "request": {
-            "method": "POST",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\r\n    \"name\": \"Premium Recruiter\",\r\n    \"price\": 2999,\r\n    \"duration\": 30,\r\n    \"features\": [\"Unlimited job posts\", \"Featured listing\", \"Priority support\", \"ATS integration\"]\r\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "http://localhost:5000/api/v1/subscriptions/plans",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "subscriptions",
-                "plans"
-              ]
+              "path": ["api", "v1", "subscriptions", "my-subscriptions"]
             }
           },
           "response": []
@@ -1326,7 +1066,7 @@
             "header": [],
             "body": {
               "mode": "raw",
-              "raw": "{\r\n    \"code\": \"CAREER50\",\r\n    \"discountType\": \"PERCENTAGE\",\r\n    \"discountValue\": 50,\r\n    \"maxUsage\": 100,\r\n    \"expiresAt\": \"2026-06-30\",\r\n    \"description\": \"50% off on Premium subscription\"\r\n}",
+              "raw": "{\r\n    \"code\": \"CAREER50\",\r\n    \"coins\": 50,\r\n    \"maxUsage\": 100,\r\n    \"expiresAt\": \"2026-06-30\"\r\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1336,42 +1076,48 @@
             "url": {
               "raw": "http://localhost:5000/api/v1/coupons",
               "protocol": "http",
-              "host": [
-                "localhost"
-              ],
+              "host": ["localhost"],
               "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "coupons"
-              ]
+              "path": ["api", "v1", "coupons"]
             }
           },
           "response": []
         },
         {
-          "name": "Get All Coupons",
+          "name": "Get All Coupons [Admin]",
           "request": {
             "method": "GET",
             "header": [],
             "url": {
               "raw": "http://localhost:5000/api/v1/coupons",
               "protocol": "http",
-              "host": [
-                "localhost"
-              ],
+              "host": ["localhost"],
               "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "coupons"
+              "path": ["api", "v1", "coupons"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Coupon [Admin]",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5000/api/v1/coupons/:id",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "v1", "coupons", ":id"],
+              "variable": [
+                { "key": "id", "value": "{{couponId}}" }
               ]
             }
           },
           "response": []
         },
         {
-          "name": "Apply Coupon",
+          "name": "Redeem Coupon",
           "request": {
             "method": "POST",
             "header": [],
@@ -1385,40 +1131,11 @@
               }
             },
             "url": {
-              "raw": "http://localhost:5000/api/v1/coupons/apply",
+              "raw": "http://localhost:5000/api/v1/coupons/redeem",
               "protocol": "http",
-              "host": [
-                "localhost"
-              ],
+              "host": ["localhost"],
               "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "coupons",
-                "apply"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Delete Coupon [Admin]",
-          "request": {
-            "method": "DELETE",
-            "header": [],
-            "url": {
-              "raw": "http://localhost:5000/api/v1/coupons/019c614a-2362-761d-b021-771beb22a4c5",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "coupons",
-                "019c614a-2362-761d-b021-771beb22a4c5"
-              ]
+              "path": ["api", "v1", "coupons", "redeem"]
             }
           },
           "response": []
@@ -1430,7 +1147,7 @@
             "header": [],
             "body": {
               "mode": "raw",
-              "raw": "{\r\n    \"code\": \"GIFT500\",\r\n    \"coinValue\": 500,\r\n    \"maxUsage\": 50,\r\n    \"expiresAt\": \"2026-06-30\",\r\n    \"description\": \"Gift voucher worth 500 coins\"\r\n}",
+              "raw": "{\r\n    \"code\": \"GIFT500\",\r\n    \"coins\": 500,\r\n    \"maxUsage\": 1,\r\n    \"recipientEmail\": \"saminisrar1@gmail.com\",\r\n    \"expiresAt\": \"2026-06-30\"\r\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1438,16 +1155,43 @@
               }
             },
             "url": {
-              "raw": "http://localhost:5000/api/v1/gift-vouchers",
+              "raw": "http://localhost:5000/api/v1/coupons/gift-voucher",
               "protocol": "http",
-              "host": [
-                "localhost"
-              ],
+              "host": ["localhost"],
               "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "gift-vouchers"
+              "path": ["api", "v1", "coupons", "gift-voucher"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Gift Vouchers [Admin]",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5000/api/v1/coupons/gift-vouchers",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "v1", "coupons", "gift-vouchers"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Gift Voucher [Admin]",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5000/api/v1/coupons/gift-voucher/:id",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "v1", "coupons", "gift-voucher", ":id"],
+              "variable": [
+                { "key": "id", "value": "{{giftVoucherId}}" }
               ]
             }
           },
@@ -1468,17 +1212,96 @@
               }
             },
             "url": {
-              "raw": "http://localhost:5000/api/v1/gift-vouchers/redeem",
+              "raw": "http://localhost:5000/api/v1/coupons/redeem-gift-voucher",
               "protocol": "http",
-              "host": [
-                "localhost"
-              ],
+              "host": ["localhost"],
               "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "gift-vouchers",
-                "redeem"
+              "path": ["api", "v1", "coupons", "redeem-gift-voucher"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "Get My Notifications",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5000/api/v1/notifications",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "v1", "notifications"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Unread Count",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5000/api/v1/notifications/unread-count",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "v1", "notifications", "unread-count"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Mark Notification as Read",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5000/api/v1/notifications/read/:id",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "v1", "notifications", "read", ":id"],
+              "variable": [
+                { "key": "id", "value": "{{notificationId}}" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Mark All Notifications as Read",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5000/api/v1/notifications/read-all",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "v1", "notifications", "read-all"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Notification",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5000/api/v1/notifications/:id",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "v1", "notifications", ":id"],
+              "variable": [
+                { "key": "id", "value": "{{notificationId}}" }
               ]
             }
           },
@@ -1490,52 +1313,61 @@
       "name": "Admin",
       "item": [
         {
-          "name": "Get All Users [Admin]",
+          "name": "Get All Admins",
           "request": {
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "http://localhost:5000/api/v1/admin/users",
+              "raw": "http://localhost:5000/api/v1/admins",
               "protocol": "http",
-              "host": [
-                "localhost"
-              ],
+              "host": ["localhost"],
               "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "admin",
-                "users"
-              ],
-              "query": [
-                {
-                  "key": "page",
-                  "value": "1",
-                  "disabled": true
-                },
-                {
-                  "key": "limit",
-                  "value": "10",
-                  "disabled": true
-                },
-                {
-                  "key": "role",
-                  "value": "USER",
-                  "disabled": true
-                }
+              "path": ["api", "v1", "admins"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Jobs [Admin]",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5000/api/v1/admins/jobs",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "v1", "admins", "jobs"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Admin By Id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5000/api/v1/admins/:id",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "v1", "admins", ":id"],
+              "variable": [
+                { "key": "id", "value": "{{adminId}}" }
               ]
             }
           },
           "response": []
         },
         {
-          "name": "Block User [Admin]",
+          "name": "Update Admin [Super Admin]",
           "request": {
             "method": "PATCH",
             "header": [],
             "body": {
               "mode": "raw",
-              "raw": "{\r\n    \"status\": \"BLOCKED\"\r\n}",
+              "raw": "{\r\n    \"name\": \"Updated Admin Name\",\r\n    \"contactNumber\": \"+8801900000000\"\r\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1543,77 +1375,44 @@
               }
             },
             "url": {
-              "raw": "http://localhost:5000/api/v1/admin/users/019c4eef-9c4f-75c5-baa8-5802f28bbbb8/status",
+              "raw": "http://localhost:5000/api/v1/admins/:id",
               "protocol": "http",
-              "host": [
-                "localhost"
-              ],
+              "host": ["localhost"],
               "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "admin",
-                "users",
-                "019c4eef-9c4f-75c5-baa8-5802f28bbbb8",
-                "status"
+              "path": ["api", "v1", "admins", ":id"],
+              "variable": [
+                { "key": "id", "value": "{{adminId}}" }
               ]
             }
           },
           "response": []
         },
         {
-          "name": "Get Dashboard Stats [Admin]",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "http://localhost:5000/api/v1/admin/dashboard",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "admin",
-                "dashboard"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Delete User [Admin]",
+          "name": "Delete Admin [Super Admin]",
           "request": {
             "method": "DELETE",
             "header": [],
             "url": {
-              "raw": "http://localhost:5000/api/v1/admin/users/019c4eef-9c4f-75c5-baa8-5802f28bbbb8",
+              "raw": "http://localhost:5000/api/v1/admins/:id",
               "protocol": "http",
-              "host": [
-                "localhost"
-              ],
+              "host": ["localhost"],
               "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "admin",
-                "users",
-                "019c4eef-9c4f-75c5-baa8-5802f28bbbb8"
+              "path": ["api", "v1", "admins", ":id"],
+              "variable": [
+                { "key": "id", "value": "{{adminId}}" }
               ]
             }
           },
           "response": []
         },
         {
-          "name": "Verify Recruiter [Admin]",
+          "name": "Block / Unblock User [Admin]",
           "request": {
             "method": "PATCH",
             "header": [],
             "body": {
               "mode": "raw",
-              "raw": "{\r\n    \"isVerified\": true\r\n}",
+              "raw": "{\r\n    \"userId\": \"{{userId}}\",\r\n    \"status\": \"BLOCKED\"\r\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1621,20 +1420,90 @@
               }
             },
             "url": {
-              "raw": "http://localhost:5000/api/v1/admin/recruiters/019c4eef-9c4f-75c5-baa8-5802f28bbbb8/verify",
+              "raw": "http://localhost:5000/api/v1/admins/change-user-status",
               "protocol": "http",
-              "host": [
-                "localhost"
-              ],
+              "host": ["localhost"],
               "port": "5000",
-              "path": [
-                "api",
-                "v1",
-                "admin",
-                "recruiters",
-                "019c4eef-9c4f-75c5-baa8-5802f28bbbb8",
-                "verify"
-              ]
+              "path": ["api", "v1", "admins", "change-user-status"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Change User Role [Super Admin]",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"userId\": \"{{userId}}\",\r\n    \"role\": \"ADMIN\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/v1/admins/change-user-role",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "v1", "admins", "change-user-role"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Stats",
+      "item": [
+        {
+          "name": "Get Dashboard Stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5000/api/v1/stats",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "v1", "stats"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Stripe Webhook",
+      "item": [
+        {
+          "name": "Stripe Webhook (checkout.session.completed)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "stripe-signature",
+                "value": "{{stripeSignature}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:5000/webhook",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["webhook"]
             }
           },
           "response": []

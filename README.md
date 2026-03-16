@@ -198,7 +198,8 @@ PENDING → SHORTLISTED → INTERVIEW → HIRED
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/create-recruiter` | Create recruiter account (Admin) |
+| POST | `/create-recruiter` | Create recruiter account |
+| POST | `/create-admin` | Create admin account (Super Admin / Admin) |
 
 ### Recruiters — `/api/v1/recruiters`
 
@@ -301,7 +302,7 @@ PENDING → SHORTLISTED → INTERVIEW → HIRED
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/dashboard` | Get role-based dashboard statistics |
+| GET | `/` | Get role-based dashboard statistics |
 
 ### Payments — `/api/v1/payments`
 
@@ -348,3 +349,28 @@ PENDING → SHORTLISTED → INTERVIEW → HIRED
 - Set all environment variables (see `.env.example`)
 - Run `npx prisma migrate deploy` before deployment
 - Seed initial data: `npx prisma db seed`
+
+---
+
+## Audit Notes & Known Gaps
+
+The following items were identified during a code audit and are not yet implemented:
+
+### Missing Features
+- **Profile completion percentage check** — Users should not be able to apply for jobs until `profileCompletion === 100%`. Currently only resume existence and skills presence are validated.
+- **Recruiter profile completion check** — Recruiters should not be able to post jobs until `profileCompletion === 100%` AND admin verification. Currently only admin verification (`APPROVED` status) is checked.
+- **ATS score endpoint** — No ATS score calculation or endpoint exists (`POST /resumes/ats-score`).
+- **Subscription cancellation** — No cancel endpoint exists.
+- **Welcome notification on registration** — `registerUser()` does not create a welcome notification.
+
+### Logic Issues
+- **Coin deduction before data validation** in `getResumeByUserId` — Recruiter coins are deducted before verifying the resume exists. If resume is not found, coins are lost.
+- **checkAuth middleware redundancy** — Dead code at lines 71-78 where access token is checked inside the session block but never used.
+- **Potential session/JWT identity mismatch** — `req.user` is set from session data, but role is also checked from JWT. Stale JWT tokens may cause inconsistencies.
+
+### Security Recommendations
+- Add rate limiting on auth endpoints (login, register, forgot-password)
+- Add CSRF protection or use `sameSite: "strict"` cookies
+- Add Zod validation schema for resume update endpoint
+- Remove `console.log` / `console.error` from production code
+- Add proper logging library (e.g., winston, pino)
