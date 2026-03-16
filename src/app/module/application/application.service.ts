@@ -1,0 +1,297 @@
+import status from "http-status";
+import { ApplicationStatus } from "../../../generated/prisma/enums";
+import AppError from "../../errorHelpers/AppError";
+import { IRequestUser } from "../../interfaces/requestUser.interface";
+import { prisma } from "../../lib/prisma";
+import { sendEmail } from "../../utils/email";
+
+const applyJob = async (user: IRequestUser, payload: { jobId: string; coverLetter?: string }) => {
+    const { jobId, coverLetter } = payload;
+
+    const job = await prisma.job.findUnique({
+        where: { id: jobId, isDeleted: false, status: "ACTIVE" },
+        include: { recruiter: true }
+    })
+
+    if (!job) {
+        throw new AppError(status.NOT_FOUND, "Job not found or no longer active");
+    }
+
+    if (new Date(job.deadline) < new Date()) {
+        throw new AppError(status.BAD_REQUEST, "Job application deadline has passed");
+    }
+
+    // Check if already applied
+    const existingApplication = await prisma.application.findUnique({
+        where: {
+            userId_jobId: {
+                userId: user.userId,
+                jobId,
+            }
+        }
+    })
+
+    if (existingApplication) {
+        throw new AppError(status.CONFLICT, "You have already applied for this job");
+    }
+
+    // Check wallet balance (10 coins to apply)
+    const wallet = await prisma.wallet.findUnique({
+        where: { userId: user.userId }
+    })
+
+    if (!wallet || wallet.balance < 10) {
+        throw new AppError(status.BAD_REQUEST, "Insufficient coins. Applying for a job costs 10 coins.");
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+        // Deduct coins
+        await tx.wallet.update({
+            where: { id: wallet.id },
+            data: { balance: { decrement: 10 } }
+        })
+
+        await tx.coinTransaction.create({
+            data: {
+                walletId: wallet.id,
+                amount: 10,
+                type: "DEBIT",
+                purpose: "APPLY_JOB",
+                details: `Applied for job: ${job.title}`,
+            }
+        })
+
+        const application = await tx.application.create({
+            data: {
+                userId: user.userId,
+                jobId,
+                coverLetter,
+            },
+            include: {
+                job: {
+                    include: {
+                        recruiter: true,
+                    }
+                },
+                user: {
+                    select: { id: true, name: true, email: true, image: true }
+                }
+            }
+        })
+
+        // Create notification for recruiter
+        await tx.notification.create({
+            data: {
+                userId: job.recruiter.userId,
+                type: "APPLICATION_SUBMITTED",
+                title: "New Application Received",
+                message: `${user.email} applied for "${job.title}"`,
+                metadata: { applicationId: application.id, jobId: job.id },
+            }
+        })
+
+        return application;
+    })
+
+    // Send email notification to applicant
+    try {
+        await sendEmail({
+            to: user.email,
+            subject: `Application Submitted - ${job.title}`,
+            templateName: "applicationStatus",
+            templateData: {
+                name: result.user.name,
+                jobTitle: job.title,
+                companyName: job.recruiter.companyName,
+                status: "submitted",
+                message: "Your application has been submitted successfully. We will notify you of any updates.",
+            }
+        })
+    } catch (error) {
+        console.error("Error sending application email:", error);
+    }
+
+    return result;
+}
+
+const getMyApplications = async (user: IRequestUser) => {
+    const applications = await prisma.application.findMany({
+        where: { userId: user.userId },
+        include: {
+            job: {
+                include: {
+                    recruiter: {
+                        select: {
+                            id: true,
+                            name: true,
+                            companyName: true,
+                            companyLogo: true,
+                        }
+                    },
+                    category: true,
+                }
+            },
+        },
+        orderBy: { createdAt: "desc" },
+    })
+
+    return applications;
+}
+
+const getJobApplications = async (user: IRequestUser, jobId: string) => {
+    const job = await prisma.job.findUnique({
+        where: { id: jobId },
+        include: { recruiter: true }
+    })
+
+    if (!job) {
+        throw new AppError(status.NOT_FOUND, "Job not found");
+    }
+
+    if (job.recruiter.userId !== user.userId && user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") {
+        throw new AppError(status.FORBIDDEN, "You are not authorized to view these applications");
+    }
+
+    const applications = await prisma.application.findMany({
+        where: { jobId },
+        include: {
+            user: {
+                select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    image: true,
+                    resume: true,
+                }
+            },
+            job: true,
+        },
+        orderBy: { createdAt: "desc" },
+    })
+
+    return applications;
+}
+
+const updateApplicationStatus = async (
+    user: IRequestUser,
+    applicationId: string,
+    payload: { status: ApplicationStatus; interviewDate?: string; interviewNote?: string }
+) => {
+    const application = await prisma.application.findUnique({
+        where: { id: applicationId },
+        include: {
+            job: {
+                include: { recruiter: true }
+            },
+            user: { select: { id: true, name: true, email: true } }
+        }
+    })
+
+    if (!application) {
+        throw new AppError(status.NOT_FOUND, "Application not found");
+    }
+
+    if (application.job.recruiter.userId !== user.userId && user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") {
+        throw new AppError(status.FORBIDDEN, "You are not authorized to update this application");
+    }
+
+    const updateData: { status: ApplicationStatus; interviewDate?: Date; interviewNote?: string } = {
+        status: payload.status,
+    };
+
+    if (payload.interviewDate) {
+        updateData.interviewDate = new Date(payload.interviewDate);
+    }
+    if (payload.interviewNote) {
+        updateData.interviewNote = payload.interviewNote;
+    }
+
+    const updatedApplication = await prisma.$transaction(async (tx) => {
+        const updated = await tx.application.update({
+            where: { id: applicationId },
+            data: updateData,
+            include: {
+                job: { include: { recruiter: true } },
+                user: { select: { id: true, name: true, email: true } }
+            }
+        })
+
+        // Map status to notification type
+        const notificationTypeMap: Record<string, string> = {
+            SHORTLISTED: "APPLICATION_SHORTLISTED",
+            INTERVIEW: "APPLICATION_INTERVIEW",
+            HIRED: "APPLICATION_HIRED",
+            REJECTED: "APPLICATION_REJECTED",
+        };
+
+        const notificationType = notificationTypeMap[payload.status];
+        if (notificationType) {
+            await tx.notification.create({
+                data: {
+                    userId: application.user.id,
+                    type: notificationType as "APPLICATION_SHORTLISTED" | "APPLICATION_INTERVIEW" | "APPLICATION_HIRED" | "APPLICATION_REJECTED",
+                    title: `Application ${payload.status.toLowerCase()}`,
+                    message: `Your application for "${application.job.title}" has been ${payload.status.toLowerCase()}.`,
+                    metadata: { applicationId, jobId: application.jobId },
+                }
+            })
+        }
+
+        return updated;
+    })
+
+    // Send email notification
+    try {
+        const statusMessages: Record<string, string> = {
+            SHORTLISTED: "Congratulations! You have been shortlisted.",
+            INTERVIEW: `You have been scheduled for an interview${payload.interviewDate ? ` on ${new Date(payload.interviewDate).toLocaleDateString()}` : ""}.`,
+            HIRED: "Congratulations! You have been hired!",
+            REJECTED: "Unfortunately, your application was not selected at this time.",
+        };
+
+        await sendEmail({
+            to: application.user.email,
+            subject: `Application Update - ${application.job.title}`,
+            templateName: "applicationStatus",
+            templateData: {
+                name: application.user.name,
+                jobTitle: application.job.title,
+                companyName: application.job.recruiter.companyName,
+                status: payload.status.toLowerCase(),
+                message: statusMessages[payload.status] || "Your application status has been updated.",
+            }
+        })
+    } catch (error) {
+        console.error("Error sending status update email:", error);
+    }
+
+    return updatedApplication;
+}
+
+const getAllApplications = async () => {
+    const applications = await prisma.application.findMany({
+        include: {
+            user: {
+                select: { id: true, name: true, email: true, image: true }
+            },
+            job: {
+                include: {
+                    recruiter: {
+                        select: { id: true, name: true, companyName: true }
+                    }
+                }
+            },
+        },
+        orderBy: { createdAt: "desc" },
+    })
+
+    return applications;
+}
+
+export const ApplicationService = {
+    applyJob,
+    getMyApplications,
+    getJobApplications,
+    updateApplicationStatus,
+    getAllApplications,
+}
