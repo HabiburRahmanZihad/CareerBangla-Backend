@@ -3,10 +3,11 @@ import status from "http-status";
 import { catchAsync } from "../../shared/catchAsync";
 import { sendResponse } from "../../shared/sendResponse";
 import { RecruiterService } from "./recruiter.service";
+import { IQueryParams } from "../../interfaces/query.interface";
 
 const getAllRecruiters = catchAsync(
     async (req: Request, res: Response) => {
-        const result = await RecruiterService.getAllRecruiters(req.query);
+        const result = await RecruiterService.getAllRecruiters(req.query as IQueryParams);
 
         sendResponse(res, {
             httpStatusCode: status.OK,
