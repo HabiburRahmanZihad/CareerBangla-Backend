@@ -1296,7 +1296,7 @@
           "response": []
         },
         {
-          "name": "Create / Update My Resume [User]",
+          "name": "Create / Update My Resume [User] (free until 100%, then 15 coins)",
           "request": {
             "method": "PATCH",
             "header": [],

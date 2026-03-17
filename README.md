@@ -123,7 +123,9 @@ PENDING → SHORTLISTED → INTERVIEW → HIRED
 | View Recruiter Email | 15 | User |
 | Post a Job | 15 | Recruiter |
 | View Candidate Resume | 10 | Recruiter |
+| Update Profile (after first 100% completion) | 15 | User |
 
+- **Paid Profile Updates:** The first time a user completes their profile to 100%, it is FREE. After `profileCompletedAt` is set, any future resume/profile update costs 15 coins. Insufficient balance returns 400 before the update is attempted.
 - All coin deductions happen inside **database transactions** (atomic with the action)
 - Coin deductions occur **after** all validation checks pass (no coins lost on validation failure)
 - Each deduction creates a `CoinTransaction` record and an in-app `COIN_DEBITED` notification
@@ -263,7 +265,7 @@ PENDING → SHORTLISTED → INTERVIEW → HIRED
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/my-resume` | Get my resume (includes profileCompletion %) |
-| PATCH | `/my-resume` | Create/update my resume (Zod validated) |
+| PATCH | `/my-resume` | Create/update my resume (free until 100%, then 15 coins per update) |
 | POST | `/ats-score` | Calculate ATS score (optional jobId for skill matching) |
 | GET | `/search-candidates` | Search candidates with filters (Recruiter) |
 | GET | `/user/:userId` | View candidate resume (costs 10 coins for Recruiter) |
@@ -342,7 +344,7 @@ PENDING → SHORTLISTED → INTERVIEW → HIRED
 - **JobStatus:** ACTIVE, CLOSED, DRAFT
 - **JobType:** FULL_TIME, PART_TIME, CONTRACT, INTERNSHIP, REMOTE
 - **ApplicationStatus:** PENDING, SHORTLISTED, INTERVIEW, HIRED, REJECTED
-- **TransactionPurpose:** APPLY_JOB, VIEW_RECRUITER_EMAIL, POST_JOB, VIEW_CANDIDATE, SUBSCRIPTION_PURCHASE, COUPON_REDEEM, GIFT_VOUCHER_REDEEM, ADMIN_ADJUSTMENT
+- **TransactionPurpose:** APPLY_JOB, VIEW_RECRUITER_EMAIL, POST_JOB, VIEW_CANDIDATE, PROFILE_UPDATE, SUBSCRIPTION_PURCHASE, COUPON_REDEEM, GIFT_VOUCHER_REDEEM, ADMIN_ADJUSTMENT
 - **NotificationType:** APPLICATION_SUBMITTED, APPLICATION_SHORTLISTED, APPLICATION_INTERVIEW, APPLICATION_HIRED, APPLICATION_REJECTED, RECRUITER_APPROVED, RECRUITER_REJECTED, JOB_POSTED, COIN_CREDITED, COIN_DEBITED, GENERAL
 
 ---
