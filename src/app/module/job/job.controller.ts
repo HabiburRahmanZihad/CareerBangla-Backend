@@ -3,6 +3,7 @@ import status from "http-status";
 import { catchAsync } from "../../shared/catchAsync";
 import { sendResponse } from "../../shared/sendResponse";
 import { JobService } from "./job.service";
+import { IQueryParams } from "../../interfaces/query.interface";
 
 const createJob = catchAsync(
     async (req: Request, res: Response) => {
@@ -21,7 +22,7 @@ const createJob = catchAsync(
 
 const getAllJobs = catchAsync(
     async (req: Request, res: Response) => {
-        const result = await JobService.getAllJobs(req.query);
+        const result = await JobService.getAllJobs(req.query as IQueryParams);
 
         sendResponse(res, {
             httpStatusCode: status.OK,
@@ -50,7 +51,7 @@ const getJobById = catchAsync(
 const getMyJobs = catchAsync(
     async (req: Request, res: Response) => {
         const user = req.user;
-        const result = await JobService.getMyJobs(user, req.query);
+        const result = await JobService.getMyJobs(user, req.query as IQueryParams);
 
         sendResponse(res, {
             httpStatusCode: status.OK,

@@ -1,4 +1,4 @@
-import { JobType } from "../../../generated/prisma/enums";
+import { JobStatus, JobType } from "../../../generated/prisma/enums";
 
 export interface ICreateJobPayload {
     title: string;
@@ -34,5 +34,5 @@ export interface IUpdateJobPayload {
     deadline?: string;
     vacancies?: number;
     categoryId?: string;
-    status?: string;
+    status?: JobStatus;
 }
