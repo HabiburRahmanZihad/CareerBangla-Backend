@@ -6,6 +6,14 @@ import { envVars } from "../config/env";
 import { sendEmail } from "../utils/email";
 import { prisma } from "./prisma";
 
+const sendOtpEmailSafely = async (emailOptions: Parameters<typeof sendEmail>[0]) => {
+    try {
+        await sendEmail(emailOptions);
+    } catch (error) {
+        console.error("OTP email delivery failed:", error);
+    }
+};
+
 export const auth = betterAuth({
     baseURL: envVars.BETTER_AUTH_URL,
     secret: envVars.BETTER_AUTH_SECRET,
@@ -98,7 +106,7 @@ export const auth = betterAuth({
                     }
 
                     if (user && !user.emailVerified) {
-                        sendEmail({
+                        await sendOtpEmailSafely({
                             to: email,
                             subject: "Verify your email - CareerBangla",
                             templateName: "otp",
@@ -116,7 +124,7 @@ export const auth = betterAuth({
                     })
 
                     if (user) {
-                        sendEmail({
+                        await sendOtpEmailSafely({
                             to: email,
                             subject: "Password Reset OTP - CareerBangla",
                             templateName: "otp",

@@ -182,7 +182,10 @@ const getMe = async (user: IRequestUser) => {
     return isUserExists;
 }
 
-const getNewToken = async (refreshToken: string, sessionToken: string) => {
+const getNewToken = async (refreshToken: string, sessionToken?: string) => {
+    if (!sessionToken) {
+        throw new AppError(status.UNAUTHORIZED, "Session token is missing");
+    }
 
     const isSessionTokenExists = await prisma.session.findUnique({
         where: {
@@ -245,7 +248,11 @@ const getNewToken = async (refreshToken: string, sessionToken: string) => {
 
 }
 
-const changePassword = async (payload: IChangePasswordPayload, sessionToken: string) => {
+const changePassword = async (payload: IChangePasswordPayload, sessionToken?: string) => {
+    if (!sessionToken) {
+        throw new AppError(status.UNAUTHORIZED, "Session token is missing");
+    }
+
     const session = await auth.api.getSession({
         headers: new Headers({
             Authorization: `Bearer ${sessionToken}`
@@ -308,7 +315,11 @@ const changePassword = async (payload: IChangePasswordPayload, sessionToken: str
     }
 }
 
-const logoutUser = async (sessionToken: string) => {
+const logoutUser = async (sessionToken?: string) => {
+    if (!sessionToken) {
+        throw new AppError(status.UNAUTHORIZED, "Session token is missing");
+    }
+
     const result = await auth.api.signOut({
         headers: new Headers({
             Authorization: `Bearer ${sessionToken}`
