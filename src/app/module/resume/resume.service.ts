@@ -33,32 +33,89 @@ const updateMyResume = async (user: IRequestUser, payload: Prisma.ResumeUpdateIn
         payload.dateOfBirth = new Date(payload.dateOfBirth as string);
     }
 
+    const resumeInclude = {
+        user: {
+            select: { id: true, name: true, email: true, image: true }
+        }
+    };
+
+    // If profile was already completed once, charge 15 coins for any update
+    if (existingResume?.profileCompletedAt) {
+        const wallet = await prisma.wallet.findUnique({
+            where: { userId: user.userId }
+        });
+
+        if (!wallet || wallet.balance < 15) {
+            throw new AppError(status.BAD_REQUEST, "Insufficient coins. Updating your profile costs 15 coins after initial completion.");
+        }
+
+        const resume = await prisma.$transaction(async (tx) => {
+            await tx.wallet.update({
+                where: { id: wallet.id },
+                data: { balance: { decrement: 15 } }
+            });
+
+            await tx.coinTransaction.create({
+                data: {
+                    walletId: wallet.id,
+                    amount: 15,
+                    type: "DEBIT",
+                    purpose: "PROFILE_UPDATE",
+                    details: "Profile update after initial completion",
+                }
+            });
+
+            await tx.notification.create({
+                data: {
+                    userId: user.userId,
+                    type: "COIN_DEBITED",
+                    title: "Coins Deducted",
+                    message: "15 coins deducted for profile update",
+                    metadata: { coins: 15, reason: "PROFILE_UPDATE" },
+                }
+            });
+
+            const updated = await tx.resume.update({
+                where: { id: existingResume.id },
+                data: payload,
+                include: resumeInclude,
+            });
+
+            return updated;
+        });
+
+        const profileCompletion = getUserProfileCompletion(resume);
+        return { ...resume, profileCompletion };
+    }
+
+    // First-time creation or update before profile is 100% complete
     let resume;
     if (existingResume) {
         resume = await prisma.resume.update({
             where: { id: existingResume.id },
             data: payload,
-            include: {
-                user: {
-                    select: { id: true, name: true, email: true, image: true }
-                }
-            }
-        })
+            include: resumeInclude,
+        });
     } else {
         resume = await prisma.resume.create({
             data: {
                 userId: user.userId,
                 ...payload,
             } as Prisma.ResumeUncheckedCreateInput,
-            include: {
-                user: {
-                    select: { id: true, name: true, email: true, image: true }
-                }
-            }
-        })
+            include: resumeInclude,
+        });
     }
 
     const profileCompletion = getUserProfileCompletion(resume);
+
+    // If profile just reached 100% for the first time, set profileCompletedAt
+    if (profileCompletion === 100 && !resume.profileCompletedAt) {
+        await prisma.resume.update({
+            where: { id: resume.id },
+            data: { profileCompletedAt: new Date() },
+        });
+        resume.profileCompletedAt = new Date();
+    }
 
     return {
         ...resume,
