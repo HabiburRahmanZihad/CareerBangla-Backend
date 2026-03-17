@@ -1,8 +1,8 @@
 import status from "http-status";
 import { Prisma } from "../../../generated/prisma/client";
 import AppError from "../../errorHelpers/AppError";
-import { IRequestUser } from "../../interfaces/requestUser.interface";
 import { IQueryParams } from "../../interfaces/query.interface";
+import { IRequestUser } from "../../interfaces/requestUser.interface";
 import { prisma } from "../../lib/prisma";
 import { getUserProfileCompletion } from "../../utils/profileCompletion";
 
@@ -196,7 +196,7 @@ const getAtsScore = async (user: IRequestUser, jobId?: string) => {
     const profileCompletion = getUserProfileCompletion(resume);
 
     // Base score from profile completion
-    let score = profileCompletion;
+    const score = profileCompletion;
     const suggestions: string[] = [];
 
     // Evaluate resume sections
