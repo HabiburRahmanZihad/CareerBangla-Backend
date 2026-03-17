@@ -89,33 +89,39 @@ const updateMyResume = async (user: IRequestUser, payload: Prisma.ResumeUpdateIn
     }
 
     // First-time creation or update before profile is 100% complete
-    let resume;
-    if (existingResume) {
-        resume = await prisma.resume.update({
-            where: { id: existingResume.id },
-            data: payload,
-            include: resumeInclude,
-        });
-    } else {
-        resume = await prisma.resume.create({
-            data: {
-                userId: user.userId,
-                ...payload,
-            } as Prisma.ResumeUncheckedCreateInput,
-            include: resumeInclude,
-        });
-    }
+    const resume = await prisma.$transaction(async (tx) => {
+        let result;
+        if (existingResume) {
+            result = await tx.resume.update({
+                where: { id: existingResume.id },
+                data: payload,
+                include: resumeInclude,
+            });
+        } else {
+            result = await tx.resume.create({
+                data: {
+                    userId: user.userId,
+                    ...payload,
+                } as Prisma.ResumeUncheckedCreateInput,
+                include: resumeInclude,
+            });
+        }
+
+        const completion = getUserProfileCompletion(result);
+
+        // If profile just reached 100% for the first time, set profileCompletedAt
+        if (completion === 100 && !result.profileCompletedAt) {
+            result = await tx.resume.update({
+                where: { id: result.id },
+                data: { profileCompletedAt: new Date() },
+                include: resumeInclude,
+            });
+        }
+
+        return result;
+    });
 
     const profileCompletion = getUserProfileCompletion(resume);
-
-    // If profile just reached 100% for the first time, set profileCompletedAt
-    if (profileCompletion === 100 && !resume.profileCompletedAt) {
-        await prisma.resume.update({
-            where: { id: resume.id },
-            data: { profileCompletedAt: new Date() },
-        });
-        resume.profileCompletedAt = new Date();
-    }
 
     return {
         ...resume,
