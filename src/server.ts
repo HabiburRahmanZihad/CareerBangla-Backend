@@ -3,8 +3,8 @@ import app from "./app";
 import { envVars } from "./app/config/env";
 import { seedSuperAdmin } from "./app/utils/seed";
 
-let server : Server;
-const bootstrap = async() => {
+let server: Server;
+const bootstrap = async () => {
     try {
         await seedSuperAdmin();
         server = app.listen(envVars.PORT, () => {
@@ -12,22 +12,22 @@ const bootstrap = async() => {
         });
     } catch (error) {
         console.error('Failed to start server:', error);
-    }   
+    }
 }
 
 // SIGTERM signal handler
 process.on("SIGTERM", () => {
     console.log("SIGTERM signal received. Shutting down server...");
 
-    if(server){
+    if (server) {
         server.close(() => {
             console.log("Server closed gracefully.");
             process.exit(1);
         });
-    } 
-    
+    }
+
     process.exit(1);
-    
+
 })
 
 // SIGINT signal handler
@@ -35,7 +35,7 @@ process.on("SIGTERM", () => {
 process.on("SIGINT", () => {
     console.log("SIGINT signal received. Shutting down server...");
 
-    if(server){
+    if (server) {
         server.close(() => {
             console.log("Server closed gracefully.");
             process.exit(1);
@@ -50,7 +50,7 @@ process.on("SIGINT", () => {
 process.on('uncaughtException', (error) => {
     console.log("Uncaught Exception Detected... Shutting down server", error);
 
-    if(server){
+    if (server) {
         server.close(() => {
             process.exit(1);
         })
@@ -62,7 +62,7 @@ process.on('uncaughtException', (error) => {
 process.on("unhandledRejection", (error) => {
     console.log("Unhandled Rejection Detected... Shutting down server", error);
 
-    if(server){
+    if (server) {
         server.close(() => {
             process.exit(1);
         })
