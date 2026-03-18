@@ -112,6 +112,11 @@ const loginUser = async (payload: ILoginUserPayload) => {
         throw new AppError(status.NOT_FOUND, "User is deleted");
     }
 
+    // Check if email is verified
+    if (!data.user.emailVerified) {
+        throw new AppError(status.UNAUTHORIZED, "Email not verified");
+    }
+
     const accessToken = tokenUtils.getAccessToken({
         userId: data.user.id,
         role: data.user.role,
