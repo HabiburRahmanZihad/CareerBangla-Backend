@@ -406,10 +406,27 @@ const searchCandidates = async (user: IRequestUser, query: IQueryParams) => {
     };
 }
 
+const deleteMyResume = async (user: IRequestUser) => {
+    const resume = await prisma.resume.findUnique({
+        where: { userId: user.userId },
+    });
+
+    if (!resume) {
+        throw new AppError(status.NOT_FOUND, "Resume not found");
+    }
+
+    await prisma.resume.delete({
+        where: { id: resume.id },
+    });
+
+    return null;
+}
+
 export const ResumeService = {
     getMyResume,
     updateMyResume,
     getResumeByUserId,
     getAtsScore,
     searchCandidates,
+    deleteMyResume,
 }

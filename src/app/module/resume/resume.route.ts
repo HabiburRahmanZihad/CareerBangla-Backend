@@ -16,6 +16,10 @@ router.patch("/my-resume",
     validateRequest(updateResumeZodSchema),
     ResumeController.updateMyResume);
 
+router.delete("/my-resume",
+    checkAuth(Role.USER),
+    ResumeController.deleteMyResume);
+
 router.post("/ats-score",
     checkAuth(Role.USER),
     ResumeController.getAtsScore);

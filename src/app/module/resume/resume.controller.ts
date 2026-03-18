@@ -79,10 +79,25 @@ const searchCandidates = catchAsync(
     }
 )
 
+const deleteMyResume = catchAsync(
+    async (req: Request, res: Response) => {
+        const user = req.user;
+        await ResumeService.deleteMyResume(user);
+
+        sendResponse(res, {
+            httpStatusCode: status.OK,
+            success: true,
+            message: "Resume deleted successfully",
+            data: null,
+        })
+    }
+)
+
 export const ResumeController = {
     getMyResume,
     updateMyResume,
     getResumeByUserId,
     getAtsScore,
     searchCandidates,
+    deleteMyResume,
 }

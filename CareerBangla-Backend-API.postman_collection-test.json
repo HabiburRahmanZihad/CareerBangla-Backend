@@ -2226,6 +2226,95 @@
           "response": []
         }
       ]
+    },
+    {
+      "name": "Resume",
+      "item": [
+        {
+          "name": "Get My Resume",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/resumes/my-resume",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "resumes",
+                "my-resume"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update or Create My Resume",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"professionalTitle\": \"Full Stack Dev\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/resumes/my-resume",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "resumes",
+                "my-resume"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete My Resume",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/resumes/my-resume",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "resumes",
+                "my-resume"
+              ]
+            }
+          }
+        }
+      ]
     }
   ]
 }

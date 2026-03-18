@@ -628,6 +628,7 @@ PENDING → SHORTLISTED → INTERVIEW → HIRED
 |--------|----------|-------------|
 | GET | `/my-resume` | Get my resume (includes profileCompletion %) |
 | PATCH | `/my-resume` | Create/update my resume (free until 100%, then 15 coins per update) |
+| DELETE | `/my-resume` | Delete my resume |
 | POST | `/ats-score` | Calculate ATS score (optional jobId for skill matching) |
 | GET | `/search-candidates` | Search candidates with filters (Recruiter) |
 | GET | `/user/:userId` | View candidate resume (costs 10 coins for Recruiter) |
