@@ -127,7 +127,7 @@ const updateMyResume = async (user: IRequestUser, payload: Prisma.ResumeUpdateIn
                 data: buildPayload(true),
                 include: resumeInclude,
             });
-        });
+        }, { maxWait: 10000, timeout: 30000 });
 
         const profileCompletion = getUserProfileCompletion(resume);
         return { ...resume, profileCompletion };
@@ -162,7 +162,7 @@ const updateMyResume = async (user: IRequestUser, payload: Prisma.ResumeUpdateIn
         }
 
         return result;
-    });
+    }, { maxWait: 10000, timeout: 30000 });
 
     const profileCompletion = getUserProfileCompletion(resume);
 
