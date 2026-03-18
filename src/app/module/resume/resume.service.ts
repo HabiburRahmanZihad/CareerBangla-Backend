@@ -54,27 +54,11 @@ const updateMyResume = async (user: IRequestUser, payload: Prisma.ResumeUpdateIn
         payload.dateOfBirth = new Date(payload.dateOfBirth as string);
     }
 
-    const buildPayload = (isUpdate: boolean) => {
+    const buildPayload = () => {
         const p = { ...payload } as any;
-
-        const mapRel = (fieldArray: any) => {
-            if (Array.isArray(fieldArray)) {
-                const mapped = {
-                    create: fieldArray.map((item) => {
-                        const { id, resumeId, createdAt, updatedAt, ...rest } = item;
-                        return rest;
-                    })
-                };
-                if (isUpdate) (mapped as any).deleteMany = {};
-                return mapped;
-            }
-            return undefined;
-        };
-
-        if (p.workExperience !== undefined) p.workExperience = mapRel(p.workExperience);
-        if (p.education !== undefined) p.education = mapRel(p.education);
-        if (p.certifications !== undefined) p.certifications = mapRel(p.certifications);
-
+        delete p.workExperience;
+        delete p.education;
+        delete p.certifications;
         return p;
     };
 
@@ -89,79 +73,106 @@ const updateMyResume = async (user: IRequestUser, payload: Prisma.ResumeUpdateIn
         references: { orderBy: { createdAt: 'desc' as const } }
     };
 
-    if (existingResume?.profileCompletedAt) {
-        const wallet = await prisma.wallet.findUnique({ where: { userId: user.userId } });
-
-        if (!wallet || wallet.balance < 15) {
-            throw new AppError(status.BAD_REQUEST, "Insufficient coins. Updating your profile costs 15 coins after initial completion.");
+    const handleArrays = async (tx: any, resumeId: string) => {
+        if (payload.workExperience !== undefined) {
+            await tx.workExperience.deleteMany({ where: { resumeId } });
+            if (Array.isArray(payload.workExperience) && payload.workExperience.length > 0) {
+                await tx.workExperience.createMany({
+                    data: payload.workExperience.map((item: any) => {
+                        const { id, resumeId: rId, createdAt, updatedAt, ...rest } = item;
+                        return { ...rest, resumeId };
+                    })
+                });
+            }
         }
-
-        const resume = await prisma.$transaction(async (tx) => {
-            await tx.wallet.update({
-                where: { id: wallet.id },
-                data: { balance: { decrement: 15 } }
-            });
-
-            await tx.coinTransaction.create({
-                data: {
-                    walletId: wallet.id,
-                    amount: 15,
-                    type: "DEBIT",
-                    purpose: "PROFILE_UPDATE",
-                    details: "Profile update after initial completion",
-                }
-            });
-
-            await tx.notification.create({
-                data: {
-                    userId: user.userId,
-                    type: "COIN_DEBITED",
-                    title: "Coins Deducted",
-                    message: "15 coins deducted for profile update",
-                    metadata: { coins: 15, reason: "PROFILE_UPDATE" },
-                }
-            });
-
-            return await tx.resume.update({
-                where: { id: existingResume.id },
-                data: buildPayload(true),
-                include: resumeInclude,
-            });
-        }, { maxWait: 10000, timeout: 30000 });
-
-        const profileCompletion = getUserProfileCompletion(resume);
-        return { ...resume, profileCompletion };
-    }
+        if (payload.education !== undefined) {
+            await tx.education.deleteMany({ where: { resumeId } });
+            if (Array.isArray(payload.education) && payload.education.length > 0) {
+                await tx.education.createMany({
+                    data: payload.education.map((item: any) => {
+                        const { id, resumeId: rId, createdAt, updatedAt, ...rest } = item;
+                        return { ...rest, resumeId };
+                    })
+                });
+            }
+        }
+        if (payload.certifications !== undefined) {
+            await tx.certification.deleteMany({ where: { resumeId } });
+            if (Array.isArray(payload.certifications) && payload.certifications.length > 0) {
+                await tx.certification.createMany({
+                    data: payload.certifications.map((item: any) => {
+                        const { id, resumeId: rId, createdAt, updatedAt, ...rest } = item;
+                        return { ...rest, resumeId };
+                    })
+                });
+            }
+        }
+    };
 
     const resume = await prisma.$transaction(async (tx) => {
         let result;
+        
         if (existingResume) {
+            if (existingResume.profileCompletedAt) {
+                const wallet = await tx.wallet.findUnique({ where: { userId: user.userId } });
+                if (!wallet || wallet.balance < 15) {
+                    throw new AppError(status.BAD_REQUEST, "Insufficient coins. Updating your profile costs 15 coins after initial completion.");
+                }
+                await tx.wallet.update({
+                    where: { id: wallet.id },
+                    data: { balance: { decrement: 15 } }
+                });
+                await tx.coinTransaction.create({
+                    data: {
+                        walletId: wallet.id,
+                        amount: 15,
+                        type: "DEBIT",
+                        purpose: "PROFILE_UPDATE",
+                        details: "Profile update after initial completion",
+                    }
+                });
+                await tx.notification.create({
+                    data: {
+                        userId: user.userId,
+                        type: "COIN_DEBITED",
+                        title: "Coins Deducted",
+                        message: "15 coins deducted for profile update",
+                        metadata: { coins: 15, reason: "PROFILE_UPDATE" },
+                    }
+                });
+            }
+
             result = await tx.resume.update({
                 where: { id: existingResume.id },
-                data: buildPayload(true),
-                include: resumeInclude,
+                data: buildPayload(),
             });
         } else {
             result = await tx.resume.create({
                 data: {
                     userId: user.userId,
-                    ...buildPayload(false),
+                    ...buildPayload(),
                 },
-                include: resumeInclude,
             });
         }
 
-        const completion = getUserProfileCompletion(result);
+        await handleArrays(tx, result.id);
+
+        let fullResume = await tx.resume.findUnique({
+            where: { id: result.id },
+            include: resumeInclude
+        });
+
+        const completion = getUserProfileCompletion(fullResume as any);
 
         if (completion >= 50 && !result.profileCompletedAt) {
-            result = await tx.resume.update({
+            fullResume = await tx.resume.update({
                 where: { id: result.id },
                 data: { profileCompletedAt: new Date() },
                 include: resumeInclude,
             });
         }
 
-        return result;
+        return fullResume;
     }, { maxWait: 10000, timeout: 30000 });
 
     const profileCompletion = getUserProfileCompletion(resume);
