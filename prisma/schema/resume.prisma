@@ -1,25 +1,183 @@
 model Resume {
-  id               String   @id @default(uuid(7))
-  title            String?
-  summary          String?
-  skills           String[]
-  experience       Json[]
-  education        Json[]
-  certifications   Json[]
-  languages        String[]
-  linkedinUrl      String?
-  portfolioUrl     String?
-  resumeFileUrl    String?
-  gender           Gender?
-  dateOfBirth      DateTime?
-  contactNumber    String?
-  address          String?
+  id String @id @default(uuid(7))
+
+  // Personal Information
+  fullName          String?
+  email             String?
+  professionalTitle String?
+  contactNumber     String?
+  dateOfBirth       DateTime?
+  gender            Gender?
+  nationality       String?
+  address           String?
+
+  // URLs
+  linkedinUrl  String?
+  githubUrl    String?
+  portfolioUrl String?
+  websiteUrl   String?
+  profilePhoto String? // URL to uploaded photo
+
+  // Professional Summary
+  professionalSummary String? @db.Text
+
+  // Skills (stored as JSON with categories)
+  technicalSkills      String[]
+  softSkills           String[]
+  toolsAndTechnologies String[]
+
+  // Nested data stored as JSON
+  workExperience WorkExperience[]
+  education      Education[]
+  certifications Certification[]
+  projects       Project[]
+  languages      Language[]
+  awards         Award[]
+  interests      String[]
+  references     Reference[]
+
+  // Legacy fields (for backward compatibility)
+  skills                String[]
+  experience            Json[]
+  certifications_legacy Json[]   @map("certifications")
+
+  // Metadata
   profileCompletedAt DateTime?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   userId String @unique
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@map("resume")
+}
+
+model WorkExperience {
+  id               String    @id @default(uuid(7))
+  jobTitle         String
+  companyName      String
+  employmentType   String? // Full-time, Part-time, Contract, etc.
+  location         String?
+  startDate        DateTime
+  endDate          DateTime?
+  currentlyWorking Boolean   @default(false)
+  responsibilities String[]
+  achievements     String[]
+  technologiesUsed String[]
+
+  resumeId String
+  resume   Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("work_experience")
+}
+
+model Education {
+  id                String    @id @default(uuid(7))
+  degree            String
+  fieldOfStudy      String
+  institutionName   String
+  location          String?
+  startDate         DateTime
+  endDate           DateTime?
+  currentlyStudying Boolean   @default(false)
+  cgpaOrResult      String?
+  description       String?   @db.Text
+
+  resumeId String
+  resume   Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("education")
+}
+
+model Certification {
+  id                  String    @id @default(uuid(7))
+  certificationName   String
+  issuingOrganization String
+  issueDate           DateTime
+  expiryDate          DateTime?
+  credentialId        String?
+  credentialUrl       String?
+
+  resumeId String
+  resume   Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("certification")
+}
+
+model Project {
+  id               String    @id @default(uuid(7))
+  projectName      String
+  role             String?
+  description      String    @db.Text
+  technologiesUsed String[]
+  liveUrl          String?
+  githubUrl        String?
+  startDate        DateTime?
+  endDate          DateTime?
+  highlights       String[]
+
+  resumeId String
+  resume   Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("project")
+}
+
+model Language {
+  id               String @id @default(uuid(7))
+  language         String
+  proficiencyLevel String // Native, Fluent, Intermediate, Beginner
+
+  resumeId String
+  resume   Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("language")
+}
+
+model Award {
+  id          String   @id @default(uuid(7))
+  title       String
+  issuer      String
+  date        DateTime
+  description String?  @db.Text
+
+  resumeId String
+  resume   Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("award")
+}
+
+model Reference {
+  id           String  @id @default(uuid(7))
+  name         String
+  designation  String?
+  company      String?
+  email        String?
+  phone        String?
+  relationship String?
+
+  resumeId String
+  resume   Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("reference")
 }
