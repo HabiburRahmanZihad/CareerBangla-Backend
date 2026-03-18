@@ -23,6 +23,10 @@ const registerUser = async (payload: IRegisterUserPayload) => {
         }
     })
 
+    console.log("[registerUser] better-auth response keys:", Object.keys(data));
+    console.log("[registerUser] data.token:", data.token !== undefined ? "exists" : "undefined");
+    console.log("[registerUser] data.user exists:", !!data.user);
+
     if (!data.user) {
         throw new AppError(status.BAD_REQUEST, "Failed to register user");
     }
@@ -76,8 +80,14 @@ const registerUser = async (payload: IRegisterUserPayload) => {
             emailVerified: data.user.emailVerified,
         });
 
+        console.log("[registerUser] about to return:", {
+            hasToken: !!data.token,
+            tokenPreview: data.token ? data.token.substring(0, 20) : "null"
+        });
+
         return {
-            ...data,
+            user: data.user,
+            token: data.token,
             accessToken,
             refreshToken,
         }
@@ -103,6 +113,10 @@ const loginUser = async (payload: ILoginUserPayload) => {
             password,
         }
     })
+
+    console.log("[loginUser] better-auth response keys:", Object.keys(data));
+    console.log("[loginUser] data.token:", data.token !== undefined ? "exists" : "undefined");
+    console.log("[loginUser] data.user exists:", !!data.user);
 
     if (data.user.status === UserStatus.BLOCKED) {
         throw new AppError(status.FORBIDDEN, "User is blocked");
@@ -138,7 +152,8 @@ const loginUser = async (payload: ILoginUserPayload) => {
     });
 
     return {
-        ...data,
+        user: data.user,
+        token: data.token,
         accessToken,
         refreshToken,
     };
@@ -352,6 +367,33 @@ const verifyEmail = async (email: string, otp: string) => {
                 emailVerified: true,
             }
         })
+    }
+
+    const accessToken = tokenUtils.getAccessToken({
+        userId: result.user.id,
+        role: result.user.role,
+        name: result.user.name,
+        email: result.user.email,
+        status: result.user.status,
+        isDeleted: result.user.isDeleted,
+        emailVerified: result.user.emailVerified,
+    });
+
+    const refreshToken = tokenUtils.getRefreshToken({
+        userId: result.user.id,
+        role: result.user.role,
+        name: result.user.name,
+        email: result.user.email,
+        status: result.user.status,
+        isDeleted: result.user.isDeleted,
+        emailVerified: result.user.emailVerified,
+    });
+
+    return {
+        user: result.user,
+        token: result.token,
+        accessToken,
+        refreshToken,
     }
 }
 
