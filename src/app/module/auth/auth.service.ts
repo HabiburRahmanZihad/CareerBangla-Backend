@@ -382,6 +382,24 @@ const verifyEmail = async (email: string, otp: string) => {
     }
 }
 
+const resendVerificationEmail = async (email: string) => {
+    const isUserExist = await prisma.user.findUnique({
+        where: { email },
+    });
+
+    if (!isUserExist) {
+        throw new AppError(status.NOT_FOUND, "User not found");
+    }
+
+    if (isUserExist.emailVerified) {
+        throw new AppError(status.BAD_REQUEST, "Email is already verified");
+    }
+
+    await auth.api.sendVerificationEmail({
+        body: { email },
+    });
+};
+
 const forgetPassword = async (email: string) => {
     const isUserExist = await prisma.user.findUnique({
         where: {
@@ -511,6 +529,7 @@ export const AuthService = {
     changePassword,
     logoutUser,
     verifyEmail,
+    resendVerificationEmail,
     forgetPassword,
     resetPassword,
     googleLoginSuccess,

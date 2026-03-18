@@ -13,6 +13,7 @@ router.post("/refresh-token", AuthController.getNewToken)
 router.post("/change-password", checkAuth(Role.ADMIN, Role.RECRUITER, Role.USER, Role.SUPER_ADMIN), AuthController.changePassword)
 router.post("/logout", checkAuth(Role.ADMIN, Role.RECRUITER, Role.USER, Role.SUPER_ADMIN), AuthController.logoutUser)
 router.post("/verify-email", authRateLimiter, AuthController.verifyEmail)
+router.post("/resend-verify-email", authRateLimiter, AuthController.resendVerificationEmail)
 router.post("/forget-password", authRateLimiter, AuthController.forgetPassword)
 router.post("/reset-password", authRateLimiter, AuthController.resetPassword)
 
