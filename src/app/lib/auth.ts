@@ -157,20 +157,22 @@ export const auth = betterAuth({
     trustedOrigins: [process.env.BETTER_AUTH_URL || "http://localhost:5000", envVars.FRONTEND_URL],
 
     advanced: {
-        useSecureCookies: false,
+        useSecureCookies: false, // We manage secure attribute manually to keep cookie names consistent
         cookies: {
             state: {
+                name: "better-auth.state",
                 attributes: {
-                    sameSite: "none",
-                    secure: true,
+                    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+                    secure: process.env.NODE_ENV === "production",
                     httpOnly: true,
                     path: "/",
                 }
             },
             sessionToken: {
+                name: "better-auth.session_token",
                 attributes: {
-                    sameSite: "none",
-                    secure: true,
+                    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+                    secure: process.env.NODE_ENV === "production",
                     httpOnly: true,
                     path: "/",
                 }

@@ -1,5 +1,4 @@
 import status from "http-status";
-import { JwtPayload } from "jsonwebtoken";
 import { UserStatus } from "../../../generated/prisma/enums";
 import { envVars } from "../../config/env";
 import AppError from "../../errorHelpers/AppError";
@@ -207,63 +206,49 @@ const getNewToken = async (refreshToken: string, sessionToken?: string) => {
         throw new AppError(status.UNAUTHORIZED, "Session token is missing");
     }
 
-    const isSessionTokenExists = await prisma.session.findUnique({
-        where: {
-            token: sessionToken,
-        },
-        include: {
-            user: true,
-        }
-    })
+    // Validate session using better-auth API (handles token hashing internally)
+    const sessionData = await auth.api.getSession({
+        headers: new Headers({
+            Authorization: `Bearer ${sessionToken}`
+        })
+    });
 
-    if (!isSessionTokenExists) {
+    if (!sessionData || !sessionData.user) {
         throw new AppError(status.UNAUTHORIZED, "Invalid session token");
     }
 
     const verifiedRefreshToken = jwtUtils.verifyToken(refreshToken, envVars.REFRESH_TOKEN_SECRET)
 
-
     if (!verifiedRefreshToken.success && verifiedRefreshToken.error) {
         throw new AppError(status.UNAUTHORIZED, "Invalid refresh token");
     }
 
-    const data = verifiedRefreshToken.data as JwtPayload;
+    const user = sessionData.user;
 
     const newAccessToken = tokenUtils.getAccessToken({
-        userId: data.userId,
-        role: data.role,
-        name: data.name,
-        email: data.email,
-        status: data.status,
-        isDeleted: data.isDeleted,
-        emailVerified: data.emailVerified,
+        userId: user.id,
+        role: user.role,
+        name: user.name,
+        email: user.email,
+        status: user.status,
+        isDeleted: user.isDeleted,
+        emailVerified: user.emailVerified,
     });
 
     const newRefreshToken = tokenUtils.getRefreshToken({
-        userId: data.userId,
-        role: data.role,
-        name: data.name,
-        email: data.email,
-        status: data.status,
-        isDeleted: data.isDeleted,
-        emailVerified: data.emailVerified,
+        userId: user.id,
+        role: user.role,
+        name: user.name,
+        email: user.email,
+        status: user.status,
+        isDeleted: user.isDeleted,
+        emailVerified: user.emailVerified,
     });
-
-    const { token } = await prisma.session.update({
-        where: {
-            token: sessionToken
-        },
-        data: {
-            token: sessionToken,
-            expiresAt: new Date(Date.now() + 60 * 60 * 24 * 1000),
-            updatedAt: new Date(),
-        }
-    })
 
     return {
         accessToken: newAccessToken,
         refreshToken: newRefreshToken,
-        sessionToken: token,
+        sessionToken: sessionToken,
     }
 
 }
@@ -496,12 +481,20 @@ const googleLoginSuccess = async (session: Record<string, any>) => {
         userId: session.user.id,
         role: session.user.role,
         name: session.user.name,
+        email: session.user.email,
+        status: session.user.status,
+        isDeleted: session.user.isDeleted,
+        emailVerified: session.user.emailVerified,
     });
 
     const refreshToken = tokenUtils.getRefreshToken({
         userId: session.user.id,
         role: session.user.role,
         name: session.user.name,
+        email: session.user.email,
+        status: session.user.status,
+        isDeleted: session.user.isDeleted,
+        emailVerified: session.user.emailVerified,
     });
 
     return {

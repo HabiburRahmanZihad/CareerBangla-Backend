@@ -40,17 +40,21 @@ app.use(cors({
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
+    exposedHeaders: ["X-Session-Refresh", "X-Session-Expires-At", "X-Time-Remaining"],
     maxAge: 3600, // 1 hour
 }))
 
-app.use("/api/auth", toNodeHandler(auth))
+// Parse cookies before any route handlers
+app.use(cookieParser())
 
 // Enable URL-encoded form data parsing
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Middleware to parse JSON bodies
 app.use(express.json({ limit: '10mb' }));
-app.use(cookieParser())
+
+// Better-auth handles its own routes (/api/auth/*)
+app.use("/api/auth", toNodeHandler(auth))
 
 app.use("/api/v1", IndexRoutes);
 

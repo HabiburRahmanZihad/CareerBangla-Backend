@@ -130,21 +130,16 @@ const logoutUser = catchAsync(
     async (req: Request, res: Response) => {
         const betterAuthSessionToken = req.cookies["better-auth.session_token"];
         const result = await AuthService.logoutUser(betterAuthSessionToken);
-        CookieUtils.clearCookie(res, 'accessToken', {
+        const isProduction = process.env.NODE_ENV === "production";
+        const cookieClearOptions = {
             httpOnly: true,
-            secure: true,
-            sameSite: "none",
-        });
-        CookieUtils.clearCookie(res, 'refreshToken', {
-            httpOnly: true,
-            secure: true,
-            sameSite: "none",
-        });
-        CookieUtils.clearCookie(res, 'better-auth.session_token', {
-            httpOnly: true,
-            secure: true,
-            sameSite: "none",
-        });
+            secure: isProduction,
+            sameSite: isProduction ? "none" as const : "lax" as const,
+            path: "/",
+        };
+        CookieUtils.clearCookie(res, 'accessToken', cookieClearOptions);
+        CookieUtils.clearCookie(res, 'refreshToken', cookieClearOptions);
+        CookieUtils.clearCookie(res, 'better-auth.session_token', cookieClearOptions);
 
         sendResponse(res, {
             httpStatusCode: status.OK,
@@ -250,6 +245,9 @@ const googleLoginSuccess = catchAsync(async (req: Request, res: Response) => {
 
     tokenUtils.setAccessTokenCookie(res, accessToken);
     tokenUtils.setRefreshTokenCookie(res, refreshToken);
+    // Re-set session cookie with our consistent options so it works cross-port
+    tokenUtils.setBetterAuthSessionCookie(res, sessionToken);
+
     // ?redirect=//profile -> /profile
     const isValidRedirectPath = redirectPath.startsWith("/") && !redirectPath.startsWith("//");
     const finalRedirectPath = isValidRedirectPath ? redirectPath : "/dashboard";
