@@ -56,7 +56,7 @@ export const getUserProfileCompletion = (resume: ResumeWithRelations | null): nu
 
         // Professional Summary Section (12%)
         {
-            value: resume.professionalSummary && resume.professionalSummary.length > 50,
+            value: resume.professionalSummary && resume.professionalSummary.trim().length > 0,
             weight: 12,
             label: "Professional Summary"
         },
