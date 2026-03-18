@@ -59,6 +59,10 @@ const updateMyResume = async (user: IRequestUser, payload: Prisma.ResumeUpdateIn
         delete p.workExperience;
         delete p.education;
         delete p.certifications;
+        delete p.projects;
+        delete p.languages;
+        delete p.awards;
+        delete p.references;
         return p;
     };
 
@@ -107,13 +111,58 @@ const updateMyResume = async (user: IRequestUser, payload: Prisma.ResumeUpdateIn
                 });
             }
         }
+        if (payload.projects !== undefined) {
+            await tx.project.deleteMany({ where: { resumeId } });
+            if (Array.isArray(payload.projects) && payload.projects.length > 0) {
+                await tx.project.createMany({
+                    data: payload.projects.map((item: any) => {
+                        const { id, resumeId: rId, createdAt, updatedAt, ...rest } = item;
+                        return { ...rest, resumeId };
+                    })
+                });
+            }
+        }
+        if (payload.languages !== undefined) {
+            await tx.language.deleteMany({ where: { resumeId } });
+            if (Array.isArray(payload.languages) && payload.languages.length > 0) {
+                await tx.language.createMany({
+                    data: payload.languages.map((item: any) => {
+                        const { id, resumeId: rId, createdAt, updatedAt, ...rest } = item;
+                        return { ...rest, resumeId };
+                    })
+                });
+            }
+        }
+        if (payload.awards !== undefined) {
+            await tx.award.deleteMany({ where: { resumeId } });
+            if (Array.isArray(payload.awards) && payload.awards.length > 0) {
+                await tx.award.createMany({
+                    data: payload.awards.map((item: any) => {
+                        const { id, resumeId: rId, createdAt, updatedAt, ...rest } = item;
+                        return { ...rest, resumeId };
+                    })
+                });
+            }
+        }
+        if (payload.references !== undefined) {
+            await tx.reference.deleteMany({ where: { resumeId } });
+            if (Array.isArray(payload.references) && payload.references.length > 0) {
+                await tx.reference.createMany({
+                    data: payload.references.map((item: any) => {
+                        const { id, resumeId: rId, createdAt, updatedAt, ...rest } = item;
+                        return { ...rest, resumeId };
+                    })
+                });
+            }
+        }
     };
 
     const resume = await prisma.$transaction(async (tx) => {
         let result;
         
         if (existingResume) {
-            if (existingResume.profileCompletedAt) {
+            const currentCompletion = getUserProfileCompletion(existingResume as any);
+            if (currentCompletion === 100) {
                 const wallet = await tx.wallet.findUnique({ where: { userId: user.userId } });
                 if (!wallet || wallet.balance < 15) {
                     throw new AppError(status.BAD_REQUEST, "Insufficient coins. Updating your profile costs 15 coins after initial completion.");
@@ -164,7 +213,7 @@ const updateMyResume = async (user: IRequestUser, payload: Prisma.ResumeUpdateIn
 
         const completion = getUserProfileCompletion(fullResume as any);
 
-        if (completion >= 50 && !result.profileCompletedAt) {
+        if (completion === 100 && !result.profileCompletedAt) {
             fullResume = await tx.resume.update({
                 where: { id: result.id },
                 data: { profileCompletedAt: new Date() },
