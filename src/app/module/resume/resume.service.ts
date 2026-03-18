@@ -54,38 +54,43 @@ const updateMyResume = async (user: IRequestUser, payload: Prisma.ResumeUpdateIn
         payload.dateOfBirth = new Date(payload.dateOfBirth as string);
     }
 
-    const resumeInclude = {
-        user: {
-            select: { id: true, name: true, email: true, image: true }
-        },
-        workExperience: {
-            orderBy: { createdAt: 'desc' as const }
-        },
-        education: {
-            orderBy: { createdAt: 'desc' as const }
-        },
-        certifications: {
-            orderBy: { createdAt: 'desc' as const }
-        },
-        projects: {
-            orderBy: { createdAt: 'desc' as const }
-        },
-        languages: {
-            orderBy: { createdAt: 'desc' as const }
-        },
-        awards: {
-            orderBy: { createdAt: 'desc' as const }
-        },
-        references: {
-            orderBy: { createdAt: 'desc' as const }
-        }
+    const buildPayload = (isUpdate: boolean) => {
+        const p = { ...payload } as any;
+
+        const mapRel = (fieldArray: any) => {
+            if (Array.isArray(fieldArray)) {
+                const mapped = {
+                    create: fieldArray.map((item) => {
+                        const { id, resumeId, createdAt, updatedAt, ...rest } = item;
+                        return rest;
+                    })
+                };
+                if (isUpdate) (mapped as any).deleteMany = {};
+                return mapped;
+            }
+            return undefined;
+        };
+
+        if (p.workExperience !== undefined) p.workExperience = mapRel(p.workExperience);
+        if (p.education !== undefined) p.education = mapRel(p.education);
+        if (p.certifications !== undefined) p.certifications = mapRel(p.certifications);
+
+        return p;
     };
 
-    // If profile was already completed once, charge 15 coins for any update
+    const resumeInclude = {
+        user: { select: { id: true, name: true, email: true, image: true } },
+        workExperience: { orderBy: { createdAt: 'desc' as const } },
+        education: { orderBy: { createdAt: 'desc' as const } },
+        certifications: { orderBy: { createdAt: 'desc' as const } },
+        projects: { orderBy: { createdAt: 'desc' as const } },
+        languages: { orderBy: { createdAt: 'desc' as const } },
+        awards: { orderBy: { createdAt: 'desc' as const } },
+        references: { orderBy: { createdAt: 'desc' as const } }
+    };
+
     if (existingResume?.profileCompletedAt) {
-        const wallet = await prisma.wallet.findUnique({
-            where: { userId: user.userId }
-        });
+        const wallet = await prisma.wallet.findUnique({ where: { userId: user.userId } });
 
         if (!wallet || wallet.balance < 15) {
             throw new AppError(status.BAD_REQUEST, "Insufficient coins. Updating your profile costs 15 coins after initial completion.");
@@ -117,41 +122,37 @@ const updateMyResume = async (user: IRequestUser, payload: Prisma.ResumeUpdateIn
                 }
             });
 
-            const updated = await tx.resume.update({
+            return await tx.resume.update({
                 where: { id: existingResume.id },
-                data: payload,
+                data: buildPayload(true),
                 include: resumeInclude,
             });
-
-            return updated;
         });
 
         const profileCompletion = getUserProfileCompletion(resume);
         return { ...resume, profileCompletion };
     }
 
-    // First-time creation or update before profile is 100% complete
     const resume = await prisma.$transaction(async (tx) => {
         let result;
         if (existingResume) {
             result = await tx.resume.update({
                 where: { id: existingResume.id },
-                data: payload,
+                data: buildPayload(true),
                 include: resumeInclude,
             });
         } else {
             result = await tx.resume.create({
                 data: {
                     userId: user.userId,
-                    ...payload,
-                } as Prisma.ResumeUncheckedCreateInput,
+                    ...buildPayload(false),
+                },
                 include: resumeInclude,
             });
         }
 
         const completion = getUserProfileCompletion(result);
 
-        // If profile just reached 100% for the first time, set profileCompletedAt
         if (completion === 100 && !result.profileCompletedAt) {
             result = await tx.resume.update({
                 where: { id: result.id },
@@ -429,4 +430,5 @@ export const ResumeService = {
     getAtsScore,
     searchCandidates,
     deleteMyResume,
+
 }
