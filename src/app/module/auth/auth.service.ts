@@ -395,8 +395,11 @@ const resendVerificationEmail = async (email: string) => {
         throw new AppError(status.BAD_REQUEST, "Email is already verified");
     }
 
-    await auth.api.sendVerificationEmail({
-        body: { email },
+    await auth.api.sendVerificationOTP({
+        body: { 
+            email, 
+            type: "email-verification" 
+        },
     });
 };
 
