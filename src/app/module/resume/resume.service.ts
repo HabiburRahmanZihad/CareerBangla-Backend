@@ -153,7 +153,7 @@ const updateMyResume = async (user: IRequestUser, payload: Prisma.ResumeUpdateIn
 
         const completion = getUserProfileCompletion(result);
 
-        if (completion === 100 && !result.profileCompletedAt) {
+        if (completion >= 50 && !result.profileCompletedAt) {
             result = await tx.resume.update({
                 where: { id: result.id },
                 data: { profileCompletedAt: new Date() },
