@@ -19,35 +19,52 @@ app.set("views", path.resolve(process.cwd(), `src/app/templates`))
 
 app.post("/webhook", express.raw({ type: "application/json" }), PaymentController.handleStripeWebhookEvent)
 
+// CORS Configuration - Production Ready
+const allowedOrigins = [
+    envVars.FRONTEND_URL,
+    envVars.BETTER_AUTH_URL,
+    ...(process.env.NODE_ENV === 'development' ? ["http://localhost:3000", "http://localhost:5000"] : [])
+];
+
 app.use(cors({
-    origin: [envVars.FRONTEND_URL, envVars.BETTER_AUTH_URL, "http://localhost:3000", "http://localhost:5000"],
+    origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+
+        if (allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('CORS policy violation'));
+        }
+    },
     credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
-    allowedHeaders: ["Content-Type", "Authorization"]
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    maxAge: 3600, // 1 hour
 }))
 
 app.use("/api/auth", toNodeHandler(auth))
 
 // Enable URL-encoded form data parsing
-app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Middleware to parse JSON bodies
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 app.use(cookieParser())
-app.use(express.urlencoded({ extended: true }));
 
 app.use("/api/v1", IndexRoutes);
 
-// Basic route
+// Basic route - health check
 app.get('/', async (req: Request, res: Response) => {
-    res.status(201).json({
+    res.status(200).json({
         success: true,
         message: 'CareerBangla API is running',
+        timestamp: new Date().toISOString(),
     })
 });
 
+// Global error handlers (must be last)
 app.use(globalErrorHandler)
 app.use(notFound)
-
 
 export default app;

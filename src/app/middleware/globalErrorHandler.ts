@@ -14,19 +14,23 @@ import { deleteUploadedFilesFromGlobalErrorHandler } from "../utils/deleteUpload
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const globalErrorHandler = async (err: any, req: Request, res: Response, next: NextFunction) => {
-    if (envVars.NODE_ENV === 'development') {
-        console.log("Error from Global Error Handler", err);
+    const isDevelopment = envVars.NODE_ENV === 'development';
+
+    if (isDevelopment) {
+        console.log("🔴 [GlobalErrorHandler] Error caught:", {
+            name: err?.name,
+            message: err?.message,
+            code: err?.code,
+        });
     }
 
-    // if(req.file){
-    //     await deleteFileFromCloudinary(req.file.path)
-    // }
-
-    // if(req.files && Array.isArray(req.files) && req.files.length > 0){
-    //     const imageUrls = req.files.map((file) => file.path);
-    //     await Promise.all(imageUrls.map(url => deleteFileFromCloudinary(url))); 
-    // }
+    // Clean up uploaded files on error
     await deleteUploadedFilesFromGlobalErrorHandler(req);
+
+    // Prevent sending response multiple times
+    if (res.headersSent) {
+        return;
+    }
 
     let errorSources: TErrorSources[] = []
     let statusCode: number = status.INTERNAL_SERVER_ERROR;
@@ -51,19 +55,19 @@ export const globalErrorHandler = async (err: any, req: Request, res: Response, 
       }
     ] 
     */
-    if(err instanceof Prisma.PrismaClientKnownRequestError){
+    if (err instanceof Prisma.PrismaClientKnownRequestError) {
         const simplifiedError = handlePrismaClientKnownRequestError(err);
         statusCode = simplifiedError.statusCode as number
         message = simplifiedError.message
         errorSources = [...simplifiedError.errorSources]
         stack = err.stack;
-    } else if(err instanceof Prisma.PrismaClientUnknownRequestError){
+    } else if (err instanceof Prisma.PrismaClientUnknownRequestError) {
         const simplifiedError = handlePrismaClientUnknownError(err);
         statusCode = simplifiedError.statusCode as number
         message = simplifiedError.message
         errorSources = [...simplifiedError.errorSources]
         stack = err.stack;
-    } else if(err instanceof Prisma.PrismaClientValidationError){
+    } else if (err instanceof Prisma.PrismaClientValidationError) {
         const simplifiedError = handlePrismaClientValidationError(err)
         statusCode = simplifiedError.statusCode as number
         message = simplifiedError.message
@@ -75,7 +79,7 @@ export const globalErrorHandler = async (err: any, req: Request, res: Response, 
         message = simplifiedError.message
         errorSources = [...simplifiedError.errorSources]
         stack = err.stack;
-    } else if(err instanceof Prisma.PrismaClientInitializationError){
+    } else if (err instanceof Prisma.PrismaClientInitializationError) {
         const simplifiedError = handlerPrismaClientInitializationError(err);
         statusCode = simplifiedError.statusCode as number
         message = simplifiedError.message
@@ -111,13 +115,13 @@ export const globalErrorHandler = async (err: any, req: Request, res: Response, 
         ]
     }
 
-
+    // In production, hide internal error details
     const errorResponse: TErrorResponse = {
         success: false,
-        message: message,
-        errorSources,
-        error: envVars.NODE_ENV === 'development' ? err : undefined,
-        stack: envVars.NODE_ENV === 'development' ? stack : undefined,
+        message: isDevelopment ? message : 'An error occurred. Please try again later.',
+        errorSources: isDevelopment ? errorSources : [],
+        error: isDevelopment ? err : undefined,
+        stack: isDevelopment ? stack : undefined,
     }
 
     res.status(statusCode).json(errorResponse);
