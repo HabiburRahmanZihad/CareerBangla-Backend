@@ -39,7 +39,7 @@ model Resume {
   // Legacy fields (for backward compatibility)
   skills                String[]
   experience            Json[]
-  certifications_legacy Json[]   @map("certifications")
+  certifications_legacy Json[]
 
   // Metadata
   profileCompletedAt DateTime?

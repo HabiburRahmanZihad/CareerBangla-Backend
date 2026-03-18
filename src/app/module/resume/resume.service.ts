@@ -12,6 +12,27 @@ const getMyResume = async (user: IRequestUser) => {
         include: {
             user: {
                 select: { id: true, name: true, email: true, image: true }
+            },
+            workExperience: {
+                orderBy: { createdAt: 'desc' }
+            },
+            education: {
+                orderBy: { createdAt: 'desc' }
+            },
+            certifications: {
+                orderBy: { createdAt: 'desc' }
+            },
+            projects: {
+                orderBy: { createdAt: 'desc' }
+            },
+            languages: {
+                orderBy: { createdAt: 'desc' }
+            },
+            awards: {
+                orderBy: { createdAt: 'desc' }
+            },
+            references: {
+                orderBy: { createdAt: 'desc' }
             }
         }
     })
@@ -36,6 +57,27 @@ const updateMyResume = async (user: IRequestUser, payload: Prisma.ResumeUpdateIn
     const resumeInclude = {
         user: {
             select: { id: true, name: true, email: true, image: true }
+        },
+        workExperience: {
+            orderBy: { createdAt: 'desc' as const }
+        },
+        education: {
+            orderBy: { createdAt: 'desc' as const }
+        },
+        certifications: {
+            orderBy: { createdAt: 'desc' as const }
+        },
+        projects: {
+            orderBy: { createdAt: 'desc' as const }
+        },
+        languages: {
+            orderBy: { createdAt: 'desc' as const }
+        },
+        awards: {
+            orderBy: { createdAt: 'desc' as const }
+        },
+        references: {
+            orderBy: { createdAt: 'desc' as const }
         }
     };
 
@@ -141,6 +183,27 @@ const getResumeByUserId = async (userId: string, requestUser: IRequestUser) => {
         include: {
             user: {
                 select: { id: true, name: true, email: true, image: true }
+            },
+            workExperience: {
+                orderBy: { createdAt: 'desc' }
+            },
+            education: {
+                orderBy: { createdAt: 'desc' }
+            },
+            certifications: {
+                orderBy: { createdAt: 'desc' }
+            },
+            projects: {
+                orderBy: { createdAt: 'desc' }
+            },
+            languages: {
+                orderBy: { createdAt: 'desc' }
+            },
+            awards: {
+                orderBy: { createdAt: 'desc' }
+            },
+            references: {
+                orderBy: { createdAt: 'desc' }
             }
         }
     })
@@ -192,7 +255,11 @@ const getResumeByUserId = async (userId: string, requestUser: IRequestUser) => {
 
 const getAtsScore = async (user: IRequestUser, jobId?: string) => {
     const resume = await prisma.resume.findUnique({
-        where: { userId: user.userId }
+        where: { userId: user.userId },
+        include: {
+            workExperience: true,
+            education: true,
+        }
     })
 
     if (!resume) {
@@ -206,12 +273,15 @@ const getAtsScore = async (user: IRequestUser, jobId?: string) => {
     const suggestions: string[] = [];
 
     // Evaluate resume sections
-    if (!resume.title) suggestions.push("Add a professional title to your resume.");
-    if (!resume.summary) suggestions.push("Write a professional summary.");
-    if (!resume.skills || resume.skills.length === 0) suggestions.push("Add your skills.");
-    if (!resume.skills || resume.skills.length < 5) suggestions.push("Add at least 5 skills for better matching.");
-    if (!resume.experience || (resume.experience as unknown[]).length === 0) suggestions.push("Add your work experience.");
-    if (!resume.education || (resume.education as unknown[]).length === 0) suggestions.push("Add your education details.");
+    if (!resume.professionalTitle) suggestions.push("Add a professional title to your resume.");
+    if (!resume.professionalSummary) suggestions.push("Write a professional summary.");
+    if (!resume.technicalSkills || resume.technicalSkills.length === 0) suggestions.push("Add your skills.");
+    if (!resume.technicalSkills || resume.technicalSkills.length < 5) suggestions.push("Add at least 5 skills for better matching.");
+
+    if (resume.workExperience.length === 0) suggestions.push("Add your work experience.");
+
+    if (resume.education.length === 0) suggestions.push("Add your education details.");
+
     if (!resume.contactNumber) suggestions.push("Add your contact number.");
     if (!resume.address) suggestions.push("Add your address.");
     if (!resume.linkedinUrl) suggestions.push("Add your LinkedIn profile URL.");
@@ -279,29 +349,30 @@ const searchCandidates = async (user: IRequestUser, query: IQueryParams) => {
         });
     }
 
-    // Free text search across title, summary, address
+    // Free text search across professional title, summary, and address
     if (searchTerm) {
         conditions.push({
             OR: [
-                { title: { contains: searchTerm, mode: "insensitive" } },
-                { summary: { contains: searchTerm, mode: "insensitive" } },
+                { professionalTitle: { contains: searchTerm, mode: "insensitive" } },
+                { professionalSummary: { contains: searchTerm, mode: "insensitive" } },
                 { address: { contains: searchTerm, mode: "insensitive" } },
-                { skills: { hasSome: [searchTerm] } },
+                { technicalSkills: { hasSome: [searchTerm] } },
+                { softSkills: { hasSome: [searchTerm] } },
             ]
         });
     }
 
-    // Search by experience (JSON array path search via raw filter)
+    // Search by work experience
     if (experience) {
         conditions.push({
-            experience: { isEmpty: false }
+            workExperience: { some: {} }
         });
     }
 
-    // Search by education (JSON array path search)
+    // Search by education (relation filter)
     if (education) {
         conditions.push({
-            education: { isEmpty: false }
+            education: { some: {} }
         });
     }
 
