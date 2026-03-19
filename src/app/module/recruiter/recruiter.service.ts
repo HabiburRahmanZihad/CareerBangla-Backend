@@ -246,15 +246,6 @@ const rejectRecruiter = async (id: string) => {
 }
 
 const viewRecruiterEmail = async (user: IRequestUser, recruiterId: string) => {
-    // Charge user 15 coins to view recruiter email
-    const wallet = await prisma.wallet.findUnique({
-        where: { userId: user.userId }
-    })
-
-    if (!wallet || wallet.balance < 15) {
-        throw new AppError(status.BAD_REQUEST, "Insufficient coins. Viewing recruiter email costs 15 coins.");
-    }
-
     const recruiter = await prisma.recruiter.findUnique({
         where: { id: recruiterId },
         include: { user: true }
@@ -263,33 +254,6 @@ const viewRecruiterEmail = async (user: IRequestUser, recruiterId: string) => {
     if (!recruiter) {
         throw new AppError(status.NOT_FOUND, "Recruiter not found");
     }
-
-    await prisma.$transaction(async (tx) => {
-        await tx.wallet.update({
-            where: { id: wallet.id },
-            data: { balance: { decrement: 15 } }
-        })
-
-        await tx.coinTransaction.create({
-            data: {
-                walletId: wallet.id,
-                amount: 15,
-                type: "DEBIT",
-                purpose: "VIEW_RECRUITER_EMAIL",
-                details: `Viewed recruiter email: ${recruiter.companyName}`,
-            }
-        })
-
-        await tx.notification.create({
-            data: {
-                userId: user.userId,
-                type: "COIN_DEBITED",
-                title: "Coins Deducted",
-                message: `15 coins deducted for viewing recruiter email: ${recruiter.companyName}`,
-                metadata: { coins: 15, recruiterId },
-            }
-        })
-    })
 
     return { email: recruiter.email, companyName: recruiter.companyName };
 }

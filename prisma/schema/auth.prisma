@@ -11,15 +11,22 @@ model User {
   image              String?
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
-  sessions           Session[]
-  accounts           Account[]
-  recruiter          Recruiter?
-  admin              Admin?
-  resume             Resume?
-  wallet             Wallet?
-  applications       Application[]
-  notifications      Notification[]
-  subscriptions      Subscription[]
+
+  isPremium    Boolean   @default(false)
+  premiumUntil DateTime?
+  referralCode String?   @unique
+  referredBy   String?
+
+  sessions          Session[]
+  accounts          Account[]
+  recruiter         Recruiter?
+  admin             Admin?
+  resume            Resume?
+  applications      Application[]
+  notifications     Notification[]
+  subscriptions     Subscription[]
+  referralsMade     ReferralHistory[] @relation("ReferredBy")
+  referralsReceived ReferralHistory[] @relation("ReferredUser")
 
   @@unique([email])
   @@map("user")
@@ -71,4 +78,18 @@ model Verification {
 
   @@index([identifier])
   @@map("verification")
+}
+
+model ReferralHistory {
+  id             String    @id @default(uuid(7))
+  referrerId     String
+  referrer       User      @relation("ReferredBy", fields: [referrerId], references: [id], onDelete: Cascade)
+  referredUserId String    @unique
+  referredUser   User      @relation("ReferredUser", fields: [referredUserId], references: [id], onDelete: Cascade)
+  hasPaid        Boolean   @default(false)
+  paidAt         DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([referrerId])
+  @@map("referral_history")
 }

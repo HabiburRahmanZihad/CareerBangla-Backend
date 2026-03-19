@@ -16,41 +16,14 @@ const createCoupon = catchAsync(
     }
 )
 
-const createGiftVoucher = catchAsync(
+const validateCoupon = catchAsync(
     async (req: Request, res: Response) => {
-        const result = await CouponService.createGiftVoucher(req.body);
-        sendResponse(res, {
-            httpStatusCode: status.CREATED,
-            success: true,
-            message: "Gift voucher created successfully",
-            data: result,
-        })
-    }
-)
-
-const redeemCoupon = catchAsync(
-    async (req: Request, res: Response) => {
-        const user = req.user;
         const { code } = req.body;
-        const result = await CouponService.redeemCoupon(user, code);
+        const result = await CouponService.validateCoupon(code);
         sendResponse(res, {
             httpStatusCode: status.OK,
             success: true,
-            message: `Coupon redeemed successfully! ${result.coins} coins added to your wallet.`,
-            data: result,
-        })
-    }
-)
-
-const redeemGiftVoucher = catchAsync(
-    async (req: Request, res: Response) => {
-        const user = req.user;
-        const { code } = req.body;
-        const result = await CouponService.redeemGiftVoucher(user, code);
-        sendResponse(res, {
-            httpStatusCode: status.OK,
-            success: true,
-            message: `Gift voucher redeemed successfully! ${result.coins} coins added to your wallet.`,
+            message: "Coupon is valid",
             data: result,
         })
     }
@@ -63,18 +36,6 @@ const getAllCoupons = catchAsync(
             httpStatusCode: status.OK,
             success: true,
             message: "Coupons fetched successfully",
-            data: result,
-        })
-    }
-)
-
-const getAllGiftVouchers = catchAsync(
-    async (req: Request, res: Response) => {
-        const result = await CouponService.getAllGiftVouchers();
-        sendResponse(res, {
-            httpStatusCode: status.OK,
-            success: true,
-            message: "Gift vouchers fetched successfully",
             data: result,
         })
     }
@@ -93,26 +54,9 @@ const deleteCoupon = catchAsync(
     }
 )
 
-const deleteGiftVoucher = catchAsync(
-    async (req: Request, res: Response) => {
-        const { id } = req.params;
-        const result = await CouponService.deleteGiftVoucher(id as string);
-        sendResponse(res, {
-            httpStatusCode: status.OK,
-            success: true,
-            message: "Gift voucher deleted successfully",
-            data: result,
-        })
-    }
-)
-
 export const CouponController = {
     createCoupon,
-    createGiftVoucher,
-    redeemCoupon,
-    redeemGiftVoucher,
+    validateCoupon,
     getAllCoupons,
-    getAllGiftVouchers,
     deleteCoupon,
-    deleteGiftVoucher,
 }

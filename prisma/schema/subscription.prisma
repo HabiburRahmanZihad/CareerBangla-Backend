@@ -1,14 +1,23 @@
 model Subscription {
-  id               String           @id @default(uuid(7))
-  plan             SubscriptionPlan @default(FREE)
-  coins            Int
-  amount           Float            @default(0)
-  transactionId    String?          @unique
-  stripeEventId    String?          @unique
-  status           PaymentStatus    @default(UNPAID)
+  id                 String           @id @default(uuid(7))
+  plan               SubscriptionPlan @default(FREE)
+  amount             Float            @default(0)
+  transactionId      String?          @unique
+  val_id             String?          @unique // SSLCommerz validation ID
+  bank_tran_id       String?
+  store_amount       Float?
+  card_type          String?
+  status             PaymentStatus    @default(UNPAID)
   paymentGatewayData Json?
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+
+  couponId   String?
+  referralId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)

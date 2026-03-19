@@ -1,36 +1,18 @@
 model Coupon {
-  id         String       @id @default(uuid(7))
-  code       String       @unique
-  coins      Int
-  maxUsage   Int          @default(1)
-  usageCount Int          @default(0)
-  status     CouponStatus @default(ACTIVE)
-  usedBy     String?
-  usedAt     DateTime?
-  expiresAt  DateTime?
-  createdAt  DateTime     @default(now())
-  updatedAt  DateTime     @updatedAt
+  id              String       @id @default(uuid(7))
+  code            String       @unique
+  discountPercent Float? // e.g., 20 for 20% off
+  discountAmount  Float? // Or a flat reduction
+  maxUsage        Int          @default(1)
+  usageCount      Int          @default(0)
+  status          CouponStatus @default(ACTIVE)
+  usedBy          String?
+  usedAt          DateTime?
+  expiresAt       DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
 
   @@index([code])
   @@index([status])
   @@map("coupon")
-}
-
-model GiftVoucher {
-  id             String       @id @default(uuid(7))
-  code           String       @unique
-  coins          Int
-  maxUsage       Int          @default(1)
-  usageCount     Int          @default(0)
-  status         CouponStatus @default(ACTIVE)
-  recipientEmail String?
-  usedBy         String?
-  usedAt         DateTime?
-  expiresAt      DateTime?
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-
-  @@index([code])
-  @@index([status])
-  @@map("gift_voucher")
 }

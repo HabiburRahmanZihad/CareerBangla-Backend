@@ -29,42 +29,7 @@ const createJob = async (user: IRequestUser, payload: ICreateJobPayload) => {
         throw new AppError(status.BAD_REQUEST, `Your recruiter profile is ${profileCompletion}% complete. You must complete 100% of your profile before posting jobs.`);
     }
 
-    // Check wallet balance for posting job (15 coins)
-    const wallet = await prisma.wallet.findUnique({
-        where: { userId: user.userId }
-    })
-
-    if (!wallet || wallet.balance < 15) {
-        throw new AppError(status.BAD_REQUEST, "Insufficient coins. Posting a job costs 15 coins.");
-    }
-
     const result = await prisma.$transaction(async (tx) => {
-        // Deduct coins
-        await tx.wallet.update({
-            where: { id: wallet.id },
-            data: { balance: { decrement: 15 } }
-        })
-
-        await tx.coinTransaction.create({
-            data: {
-                walletId: wallet.id,
-                amount: 15,
-                type: "DEBIT",
-                purpose: "POST_JOB",
-                details: `Posted job: ${payload.title}`,
-            }
-        })
-
-        // Coin deduction notification
-        await tx.notification.create({
-            data: {
-                userId: user.userId,
-                type: "COIN_DEBITED",
-                title: "Coins Deducted",
-                message: `15 coins deducted for posting job: "${payload.title}"`,
-                metadata: { coins: 15 },
-            }
-        })
 
         // Job posted notification
         await tx.notification.create({

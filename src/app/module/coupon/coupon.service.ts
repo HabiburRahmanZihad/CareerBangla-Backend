@@ -1,10 +1,9 @@
 import status from "http-status";
 import { CouponStatus } from "../../../generated/prisma/enums";
 import AppError from "../../errorHelpers/AppError";
-import { IRequestUser } from "../../interfaces/requestUser.interface";
 import { prisma } from "../../lib/prisma";
 
-const createCoupon = async (payload: { code: string; coins: number; maxUsage?: number; expiresAt?: string }) => {
+const createCoupon = async (payload: { code: string; discountPercent?: number; discountAmount?: number; maxUsage?: number; expiresAt?: string }) => {
     const existingCoupon = await prisma.coupon.findUnique({
         where: { code: payload.code.toUpperCase() }
     })
@@ -13,10 +12,15 @@ const createCoupon = async (payload: { code: string; coins: number; maxUsage?: n
         throw new AppError(status.CONFLICT, "Coupon code already exists");
     }
 
+    if (!payload.discountPercent && !payload.discountAmount) {
+        throw new AppError(status.BAD_REQUEST, "Either discountPercent or discountAmount must be provided");
+    }
+
     const coupon = await prisma.coupon.create({
         data: {
             code: payload.code.toUpperCase(),
-            coins: payload.coins,
+            discountPercent: payload.discountPercent,
+            discountAmount: payload.discountAmount,
             maxUsage: payload.maxUsage || 1,
             expiresAt: payload.expiresAt ? new Date(payload.expiresAt) : null,
         }
@@ -25,29 +29,7 @@ const createCoupon = async (payload: { code: string; coins: number; maxUsage?: n
     return coupon;
 }
 
-const createGiftVoucher = async (payload: { code: string; coins: number; maxUsage?: number; recipientEmail?: string; expiresAt?: string }) => {
-    const existingVoucher = await prisma.giftVoucher.findUnique({
-        where: { code: payload.code.toUpperCase() }
-    })
-
-    if (existingVoucher) {
-        throw new AppError(status.CONFLICT, "Gift voucher code already exists");
-    }
-
-    const voucher = await prisma.giftVoucher.create({
-        data: {
-            code: payload.code.toUpperCase(),
-            coins: payload.coins,
-            maxUsage: payload.maxUsage || 1,
-            recipientEmail: payload.recipientEmail,
-            expiresAt: payload.expiresAt ? new Date(payload.expiresAt) : null,
-        }
-    })
-
-    return voucher;
-}
-
-const redeemCoupon = async (user: IRequestUser, code: string) => {
+const validateCoupon = async (code: string) => {
     const coupon = await prisma.coupon.findUnique({
         where: { code: code.toUpperCase() }
     })
@@ -73,154 +55,16 @@ const redeemCoupon = async (user: IRequestUser, code: string) => {
         throw new AppError(status.BAD_REQUEST, "Coupon usage limit has been reached");
     }
 
-    const result = await prisma.$transaction(async (tx) => {
-        const newUsageCount = coupon.usageCount + 1;
-        // Update coupon usage; mark as USED if limit reached
-        await tx.coupon.update({
-            where: { id: coupon.id },
-            data: {
-                usageCount: { increment: 1 },
-                status: newUsageCount >= coupon.maxUsage ? CouponStatus.USED : CouponStatus.ACTIVE,
-                usedBy: user.userId,
-                usedAt: new Date(),
-            }
-        })
-
-        // Credit coins to wallet
-        const wallet = await tx.wallet.findUnique({
-            where: { userId: user.userId }
-        })
-
-        if (wallet) {
-            await tx.wallet.update({
-                where: { id: wallet.id },
-                data: { balance: { increment: coupon.coins } }
-            })
-
-            await tx.coinTransaction.create({
-                data: {
-                    walletId: wallet.id,
-                    amount: coupon.coins,
-                    type: "CREDIT",
-                    purpose: "COUPON_REDEEM",
-                    details: `Redeemed coupon: ${coupon.code}`,
-                }
-            })
-        } else {
-            await tx.wallet.create({
-                data: {
-                    userId: user.userId,
-                    balance: coupon.coins,
-                    transactions: {
-                        create: {
-                            amount: coupon.coins,
-                            type: "CREDIT",
-                            purpose: "COUPON_REDEEM",
-                            details: `Redeemed coupon: ${coupon.code}`,
-                        }
-                    }
-                }
-            })
-        }
-
-        return { coins: coupon.coins, code: coupon.code };
-    })
-
-    return result;
-}
-
-const redeemGiftVoucher = async (user: IRequestUser, code: string) => {
-    const voucher = await prisma.giftVoucher.findUnique({
-        where: { code: code.toUpperCase() }
-    })
-
-    if (!voucher) {
-        throw new AppError(status.NOT_FOUND, "Gift voucher not found");
-    }
-
-    if (voucher.status !== CouponStatus.ACTIVE) {
-        throw new AppError(status.BAD_REQUEST, "Gift voucher is no longer active");
-    }
-
-    if (voucher.expiresAt && new Date(voucher.expiresAt) < new Date()) {
-        // Auto-expire the voucher
-        await prisma.giftVoucher.update({
-            where: { id: voucher.id },
-            data: { status: CouponStatus.EXPIRED }
-        })
-        throw new AppError(status.BAD_REQUEST, "Gift voucher has expired");
-    }
-
-    if (voucher.usageCount >= voucher.maxUsage) {
-        throw new AppError(status.BAD_REQUEST, "Gift voucher usage limit has been reached");
-    }
-
-    if (voucher.recipientEmail && voucher.recipientEmail !== user.email) {
-        throw new AppError(status.FORBIDDEN, "This gift voucher is not for you");
-    }
-
-    const result = await prisma.$transaction(async (tx) => {
-        const newUsageCount = voucher.usageCount + 1;
-        await tx.giftVoucher.update({
-            where: { id: voucher.id },
-            data: {
-                usageCount: { increment: 1 },
-                status: newUsageCount >= voucher.maxUsage ? CouponStatus.USED : CouponStatus.ACTIVE,
-                usedBy: user.userId,
-                usedAt: new Date(),
-            }
-        })
-
-        const wallet = await tx.wallet.findUnique({
-            where: { userId: user.userId }
-        })
-
-        if (wallet) {
-            await tx.wallet.update({
-                where: { id: wallet.id },
-                data: { balance: { increment: voucher.coins } }
-            })
-
-            await tx.coinTransaction.create({
-                data: {
-                    walletId: wallet.id,
-                    amount: voucher.coins,
-                    type: "CREDIT",
-                    purpose: "GIFT_VOUCHER_REDEEM",
-                    details: `Redeemed gift voucher: ${voucher.code}`,
-                }
-            })
-        } else {
-            await tx.wallet.create({
-                data: {
-                    userId: user.userId,
-                    balance: voucher.coins,
-                    transactions: {
-                        create: {
-                            amount: voucher.coins,
-                            type: "CREDIT",
-                            purpose: "GIFT_VOUCHER_REDEEM",
-                            details: `Redeemed gift voucher: ${voucher.code}`,
-                        }
-                    }
-                }
-            })
-        }
-
-        return { coins: voucher.coins, code: voucher.code };
-    })
-
-    return result;
+    return {
+        id: coupon.id,
+        code: coupon.code,
+        discountPercent: coupon.discountPercent,
+        discountAmount: coupon.discountAmount,
+    };
 }
 
 const getAllCoupons = async () => {
     return prisma.coupon.findMany({
-        orderBy: { createdAt: "desc" },
-    })
-}
-
-const getAllGiftVouchers = async () => {
-    return prisma.giftVoucher.findMany({
         orderBy: { createdAt: "desc" },
     })
 }
@@ -230,18 +74,9 @@ const deleteCoupon = async (id: string) => {
     return { message: "Coupon deleted successfully" }
 }
 
-const deleteGiftVoucher = async (id: string) => {
-    await prisma.giftVoucher.delete({ where: { id } })
-    return { message: "Gift voucher deleted successfully" }
-}
-
 export const CouponService = {
     createCoupon,
-    createGiftVoucher,
-    redeemCoupon,
-    redeemGiftVoucher,
+    validateCoupon,
     getAllCoupons,
-    getAllGiftVouchers,
     deleteCoupon,
-    deleteGiftVoucher,
 }

@@ -55,83 +55,35 @@ const applyJob = async (user: IRequestUser, payload: { jobId: string; coverLette
         throw new AppError(status.CONFLICT, "You have already applied for this job");
     }
 
-    // All validations passed — now deduct coins and create application atomically
-    const result = await prisma.$transaction(async (tx) => {
-        const userWallet = await tx.wallet.findUnique({ where: { userId: user.userId } });
-        if (!userWallet || userWallet.balance < 7) {
-            throw new AppError(status.BAD_REQUEST, "Insufficient coins. Applying for a job costs 7 coins.");
-        }
-
-        // Deduct coins
-        await tx.wallet.update({
-            where: { id: userWallet.id },
-            data: { balance: { decrement: 7 } }
-        });
-
-        // Record transaction
-        await tx.coinTransaction.create({
-            data: {
-                walletId: userWallet.id,
-                amount: 7,
-                type: "DEBIT",
-                purpose: "APPLY_JOB",
-                details: `Applied for job ID: ${payload.jobId}`,
-            }
-        });
-
-        // Create coin deduction notification for applicant
-        await tx.notification.create({
-            data: {
-                userId: user.userId,
-                type: "COIN_DEBITED",
-                title: "Coins Deducted",
-                message: "7 coins deducted for job application",
-                metadata: { coins: 7, reason: "JOB_APPLICATION", jobId: payload.jobId },
-            }
-        });
-
-        const application = await tx.application.create({
-            data: {
-                userId: user.userId,
-                jobId,
-                coverLetter,
-            },
-            include: {
-                job: {
-                    include: {
-                        recruiter: true,
-                    }
-                },
-                user: {
-                    select: { id: true, name: true, email: true, image: true }
+    // All validations passed — create application
+    const application = await prisma.application.create({
+        data: {
+            userId: user.userId,
+            jobId,
+            coverLetter,
+        },
+        include: {
+            job: {
+                include: {
+                    recruiter: true,
                 }
+            },
+            user: {
+                select: { id: true, name: true, email: true, image: true }
             }
-        })
+        }
+    });
 
-        // Create notification for recruiter
-        await tx.notification.create({
-            data: {
-                userId: job.recruiter.userId,
-                type: "APPLICATION_SUBMITTED",
-                title: "New Application Received",
-                message: `${user.email} applied for "${job.title}"`,
-                metadata: { applicationId: application.id, jobId: job.id },
-            }
-        })
-
-        // Create coin deduction notification for applicant
-        await tx.notification.create({
-            data: {
-                userId: user.userId,
-                type: "COIN_DEBITED",
-                title: "Coins Deducted",
-                message: `10 coins deducted for applying to "${job.title}"`,
-                metadata: { jobId: job.id, coins: 10 },
-            }
-        })
-
-        return application;
-    })
+    // Create notification for recruiter
+    await prisma.notification.create({
+        data: {
+            userId: job.recruiter.userId,
+            type: "APPLICATION_SUBMITTED",
+            title: "New Application Received",
+            message: `${user.email} applied for "${job.title}"`,
+            metadata: { applicationId: application.id, jobId: job.id },
+        }
+    });
 
     // Send email notification to applicant (fire-and-forget with error suppression)
     sendEmail({
@@ -139,7 +91,7 @@ const applyJob = async (user: IRequestUser, payload: { jobId: string; coverLette
         subject: `Application Submitted - ${job.title}`,
         templateName: "applicationStatus",
         templateData: {
-            name: result.user.name,
+            name: application.user.name,
             jobTitle: job.title,
             companyName: job.recruiter.companyName,
             status: "submitted",
@@ -147,7 +99,7 @@ const applyJob = async (user: IRequestUser, payload: { jobId: string; coverLette
         }
     }).catch(() => { /* email delivery is best-effort */ });
 
-    return result;
+    return application;
 }
 
 const getMyApplications = async (user: IRequestUser) => {

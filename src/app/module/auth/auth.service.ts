@@ -31,33 +31,27 @@ const registerUser = async (payload: IRegisterUserPayload) => {
     }
 
     try {
-        // Create wallet with 50 free coins and welcome notification for new user
+        // Generate a unique referral code for the new user
+        const baseCode = data.user.name ? data.user.name.substring(0, 4).toUpperCase().replace(/[^A-Z]/g, '') : "USER";
+        const randomNumbers = Math.floor(1000 + Math.random() * 9000);
+        const referralCode = `${baseCode}${randomNumbers}`;
+
         await prisma.$transaction(async (tx) => {
-            await tx.wallet.create({
-                data: {
-                    userId: data.user.id,
-                    balance: 50,
-                    transactions: {
-                        create: {
-                            amount: 50,
-                            type: "CREDIT",
-                            purpose: "SUBSCRIPTION_PURCHASE",
-                            details: "Welcome bonus - Free plan (50 coins)",
-                        }
-                    }
-                }
-            })
+            // Update user with referral code
+            await tx.user.update({
+                where: { id: data.user.id },
+                data: { referralCode }
+            });
 
             await tx.notification.create({
                 data: {
                     userId: data.user.id,
                     type: "GENERAL",
                     title: "Welcome to CareerBangla!",
-                    message: "Your account has been created successfully. You have received 50 free coins to get started. Complete your profile to unlock all features.",
-                    metadata: { coins: 50 },
+                    message: "Your account has been created successfully. Note down your referral code to invite friends and earn Premium!",
                 }
             })
-        })
+        });
 
         const accessToken = tokenUtils.getAccessToken({
             userId: data.user.id,
@@ -172,14 +166,6 @@ const getMe = async (user: IRequestUser) => {
             },
             admin: true,
             resume: true,
-            wallet: {
-                include: {
-                    transactions: {
-                        orderBy: { createdAt: "desc" },
-                        take: 10,
-                    }
-                }
-            },
             applications: {
                 include: {
                     job: {
@@ -476,26 +462,20 @@ const resetPassword = async (email: string, otp: string, newPassword: string) =>
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const googleLoginSuccess = async (session: Record<string, any>) => {
-    // Ensure wallet exists for Google OAuth users
-    const existingWallet = await prisma.wallet.findUnique({
-        where: { userId: session.user.id }
+    // Ensure user has a referral code
+    const dbUser = await prisma.user.findUnique({
+        where: { id: session.user.id }
     })
 
-    if (!existingWallet) {
-        await prisma.wallet.create({
-            data: {
-                userId: session.user.id,
-                balance: 50,
-                transactions: {
-                    create: {
-                        amount: 50,
-                        type: "CREDIT",
-                        purpose: "SUBSCRIPTION_PURCHASE",
-                        details: "Welcome bonus - Free plan (50 coins)",
-                    }
-                }
-            }
-        })
+    if (dbUser && !dbUser.referralCode) {
+        const baseCode = dbUser.name ? dbUser.name.substring(0, 4).toUpperCase().replace(/[^A-Z]/g, '') : "USER";
+        const randomNumbers = Math.floor(1000 + Math.random() * 9000);
+        const referralCode = `${baseCode}${randomNumbers}`;
+        
+        await prisma.user.update({
+            where: { id: session.user.id },
+            data: { referralCode }
+        });
     }
 
     const accessToken = tokenUtils.getAccessToken({

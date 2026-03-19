@@ -3,7 +3,7 @@ import { Role } from "../../../generated/prisma/enums";
 import { checkAuth } from "../../middleware/checkAuth";
 import { validateRequest } from "../../middleware/validateRequest";
 import { CouponController } from "./coupon.controller";
-import { createCouponZodSchema, createGiftVoucherZodSchema, redeemCodeZodSchema } from "./coupon.validation";
+import { createCouponZodSchema, validateCouponZodSchema } from "./coupon.validation";
 
 const router = Router();
 
@@ -21,29 +21,10 @@ router.delete("/:id",
     checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
     CouponController.deleteCoupon);
 
-// Gift vouchers
-router.post("/gift-voucher",
-    checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
-    validateRequest(createGiftVoucherZodSchema),
-    CouponController.createGiftVoucher);
-
-router.get("/gift-vouchers",
-    checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
-    CouponController.getAllGiftVouchers);
-
-router.delete("/gift-voucher/:id",
-    checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
-    CouponController.deleteGiftVoucher);
-
-// Redeem
-router.post("/redeem",
+// Use during checkout to validate
+router.post("/validate",
     checkAuth(Role.USER, Role.RECRUITER),
-    validateRequest(redeemCodeZodSchema),
-    CouponController.redeemCoupon);
-
-router.post("/redeem-gift-voucher",
-    checkAuth(Role.USER, Role.RECRUITER),
-    validateRequest(redeemCodeZodSchema),
-    CouponController.redeemGiftVoucher);
+    validateRequest(validateCouponZodSchema),
+    CouponController.validateCoupon);
 
 export const CouponRoutes = router;

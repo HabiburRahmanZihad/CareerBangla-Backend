@@ -51,28 +51,12 @@ enum PaymentStatus {
   FAILED
 }
 
-enum TransactionType {
-  CREDIT
-  DEBIT
-}
-
-enum TransactionPurpose {
-  APPLY_JOB
-  VIEW_RECRUITER_EMAIL
-  POST_JOB
-  VIEW_CANDIDATE
-  SUBSCRIPTION_PURCHASE
-  COUPON_REDEEM
-  GIFT_VOUCHER_REDEEM
-  PROFILE_UPDATE
-  ADMIN_ADJUSTMENT
-}
-
 enum SubscriptionPlan {
   FREE
-  STARTER
-  PROFESSIONAL
-  ENTERPRISE
+  MONTHLY
+  QUARTERLY
+  BIANNUAL
+  YEARLY
 }
 
 enum CouponStatus {
