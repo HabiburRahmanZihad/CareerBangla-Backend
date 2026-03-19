@@ -1,10 +1,20 @@
 import status from "http-status";
-import { Prisma } from "../../../generated/prisma/client";
+import { Award, Certification, Education, Language, Prisma, Project, Reference, Resume, WorkExperience } from "../../../generated/prisma/client";
 import AppError from "../../errorHelpers/AppError";
 import { IQueryParams } from "../../interfaces/query.interface";
 import { IRequestUser } from "../../interfaces/requestUser.interface";
 import { prisma } from "../../lib/prisma";
 import { getUserProfileCompletion } from "../../utils/profileCompletion";
+
+type ResumeUpdatePayload = Partial<Omit<Resume, 'id' | 'userId' | 'createdAt' | 'updatedAt'>> & {
+    workExperience?: Partial<WorkExperience>[];
+    education?: Partial<Education>[];
+    certifications?: Partial<Certification>[];
+    projects?: Partial<Project>[];
+    languages?: Partial<Language>[];
+    awards?: Partial<Award>[];
+    references?: Partial<Reference>[];
+};
 
 const getMyResume = async (user: IRequestUser) => {
     const resume = await prisma.resume.findUnique({
@@ -45,32 +55,31 @@ const getMyResume = async (user: IRequestUser) => {
     };
 }
 
-const updateMyResume = async (user: IRequestUser, payload: Prisma.ResumeUpdateInput) => {
+const updateMyResume = async (user: IRequestUser, payload: ResumeUpdatePayload) => {
     const existingResume = await prisma.resume.findUnique({
         where: { userId: user.userId },
         include: { education: true, user: { select: { isPremium: true } } }
     });
 
     if (existingResume && !existingResume.user.isPremium) {
-        if (getUserProfileCompletion(existingResume as any) === 100) {
+        if (getUserProfileCompletion(existingResume) === 100) {
             throw new AppError(status.FORBIDDEN, "Your profile is 100% complete and locked. Upgrade to Premium to continue editing.");
         }
     }
 
     if (payload.dateOfBirth) {
-        payload.dateOfBirth = new Date(payload.dateOfBirth as string);
+        payload.dateOfBirth = new Date(String(payload.dateOfBirth));
     }
 
     const buildPayload = () => {
-        const p = { ...payload } as any;
-        delete p.workExperience;
-        delete p.education;
-        delete p.certifications;
-        delete p.projects;
-        delete p.languages;
-        delete p.awards;
-        delete p.references;
-        return p;
+        const {
+            experience,
+            ...rest
+        } = payload;
+        return {
+            ...rest,
+            ...(experience !== undefined ? { experience: experience as Prisma.InputJsonValue[] } : {}),
+        };
     };
 
     const resumeInclude = {
@@ -84,15 +93,16 @@ const updateMyResume = async (user: IRequestUser, payload: Prisma.ResumeUpdateIn
         references: { orderBy: { createdAt: 'desc' as const } }
     };
 
-    const handleArrays = async (tx: any, resumeId: string) => {
+    const handleArrays = async (tx: Omit<Prisma.TransactionClient, "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends">, resumeId: string) => {
         if (payload.workExperience !== undefined) {
             await tx.workExperience.deleteMany({ where: { resumeId } });
             if (Array.isArray(payload.workExperience) && payload.workExperience.length > 0) {
                 await tx.workExperience.createMany({
-                    data: payload.workExperience.map((item: any) => {
-                        const { id, resumeId: rId, createdAt, updatedAt, ...rest } = item;
+                    data: payload.workExperience.map((item) => {
+                        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                        const { id, resumeId, createdAt, updatedAt, ...rest } = item;
                         return { ...rest, resumeId };
-                    })
+                    }) as Prisma.WorkExperienceCreateManyInput[]
                 });
             }
         }
@@ -100,10 +110,11 @@ const updateMyResume = async (user: IRequestUser, payload: Prisma.ResumeUpdateIn
             await tx.education.deleteMany({ where: { resumeId } });
             if (Array.isArray(payload.education) && payload.education.length > 0) {
                 await tx.education.createMany({
-                    data: payload.education.map((item: any) => {
-                        const { id, resumeId: rId, createdAt, updatedAt, ...rest } = item;
+                    data: payload.education.map((item) => {
+                        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                        const { id, resumeId, createdAt, updatedAt, ...rest } = item;
                         return { ...rest, resumeId };
-                    })
+                    }) as Prisma.EducationCreateManyInput[]
                 });
             }
         }
@@ -111,10 +122,11 @@ const updateMyResume = async (user: IRequestUser, payload: Prisma.ResumeUpdateIn
             await tx.certification.deleteMany({ where: { resumeId } });
             if (Array.isArray(payload.certifications) && payload.certifications.length > 0) {
                 await tx.certification.createMany({
-                    data: payload.certifications.map((item: any) => {
-                        const { id, resumeId: rId, createdAt, updatedAt, ...rest } = item;
+                    data: payload.certifications.map((item) => {
+                        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                        const { id, resumeId, createdAt, updatedAt, ...rest } = item;
                         return { ...rest, resumeId };
-                    })
+                    }) as Prisma.CertificationCreateManyInput[]
                 });
             }
         }
@@ -122,10 +134,11 @@ const updateMyResume = async (user: IRequestUser, payload: Prisma.ResumeUpdateIn
             await tx.project.deleteMany({ where: { resumeId } });
             if (Array.isArray(payload.projects) && payload.projects.length > 0) {
                 await tx.project.createMany({
-                    data: payload.projects.map((item: any) => {
-                        const { id, resumeId: rId, createdAt, updatedAt, ...rest } = item;
+                    data: payload.projects.map((item) => {
+                        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                        const { id, resumeId, createdAt, updatedAt, ...rest } = item;
                         return { ...rest, resumeId };
-                    })
+                    }) as Prisma.ProjectCreateManyInput[]
                 });
             }
         }
@@ -133,10 +146,11 @@ const updateMyResume = async (user: IRequestUser, payload: Prisma.ResumeUpdateIn
             await tx.language.deleteMany({ where: { resumeId } });
             if (Array.isArray(payload.languages) && payload.languages.length > 0) {
                 await tx.language.createMany({
-                    data: payload.languages.map((item: any) => {
-                        const { id, resumeId: rId, createdAt, updatedAt, ...rest } = item;
+                    data: payload.languages.map((item) => {
+                        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                        const { id, resumeId, createdAt, updatedAt, ...rest } = item;
                         return { ...rest, resumeId };
-                    })
+                    }) as Prisma.LanguageCreateManyInput[]
                 });
             }
         }
@@ -144,10 +158,11 @@ const updateMyResume = async (user: IRequestUser, payload: Prisma.ResumeUpdateIn
             await tx.award.deleteMany({ where: { resumeId } });
             if (Array.isArray(payload.awards) && payload.awards.length > 0) {
                 await tx.award.createMany({
-                    data: payload.awards.map((item: any) => {
-                        const { id, resumeId: rId, createdAt, updatedAt, ...rest } = item;
+                    data: payload.awards.map((item) => {
+                        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                        const { id, resumeId, createdAt, updatedAt, ...rest } = item;
                         return { ...rest, resumeId };
-                    })
+                    }) as Prisma.AwardCreateManyInput[]
                 });
             }
         }
@@ -155,10 +170,11 @@ const updateMyResume = async (user: IRequestUser, payload: Prisma.ResumeUpdateIn
             await tx.reference.deleteMany({ where: { resumeId } });
             if (Array.isArray(payload.references) && payload.references.length > 0) {
                 await tx.reference.createMany({
-                    data: payload.references.map((item: any) => {
-                        const { id, resumeId: rId, createdAt, updatedAt, ...rest } = item;
+                    data: payload.references.map((item) => {
+                        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                        const { id, resumeId, createdAt, updatedAt, ...rest } = item;
                         return { ...rest, resumeId };
-                    })
+                    }) as Prisma.ReferenceCreateManyInput[]
                 });
             }
         }
@@ -170,14 +186,14 @@ const updateMyResume = async (user: IRequestUser, payload: Prisma.ResumeUpdateIn
         if (existingResume) {
             result = await tx.resume.update({
                 where: { id: existingResume.id },
-                data: buildPayload(),
+                data: buildPayload() as Prisma.ResumeUncheckedUpdateInput,
             });
         } else {
             result = await tx.resume.create({
                 data: {
                     userId: user.userId,
                     ...buildPayload(),
-                },
+                } as Prisma.ResumeUncheckedCreateInput,
             });
         }
 
@@ -188,7 +204,7 @@ const updateMyResume = async (user: IRequestUser, payload: Prisma.ResumeUpdateIn
             include: resumeInclude
         });
 
-        const completion = getUserProfileCompletion(fullResume as any);
+        const completion = getUserProfileCompletion(fullResume as Parameters<typeof getUserProfileCompletion>[0]);
 
         if (completion === 100 && !result.profileCompletedAt) {
             fullResume = await tx.resume.update({
@@ -201,7 +217,7 @@ const updateMyResume = async (user: IRequestUser, payload: Prisma.ResumeUpdateIn
         return fullResume;
     }, { maxWait: 10000, timeout: 30000 });
 
-    const profileCompletion = getUserProfileCompletion(resume);
+    const profileCompletion = getUserProfileCompletion(resume as Parameters<typeof getUserProfileCompletion>[0]);
 
     return {
         ...resume,
@@ -272,7 +288,7 @@ const getAtsScore = async (user: IRequestUser, jobId?: string) => {
         throw new AppError(status.BAD_REQUEST, "You must create a resume before checking your ATS score.");
     }
 
-    const profileCompletion = getUserProfileCompletion(resume as any);
+    const profileCompletion = getUserProfileCompletion(resume);
 
     // ── International ATS Scoring (total 100 pts) ─────────────────────────
     // Based on industry-standard ATS evaluation criteria (Workday, Taleo, Greenhouse, iCIMS)

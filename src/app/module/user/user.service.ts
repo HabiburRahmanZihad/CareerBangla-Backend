@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import status from "http-status";
 import { Role } from "../../../generated/prisma/client";
 import AppError from "../../errorHelpers/AppError";

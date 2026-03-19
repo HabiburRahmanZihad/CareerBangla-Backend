@@ -1,6 +1,4 @@
-import status from "http-status";
 import { prisma } from "../../lib/prisma";
-import AppError from "../../errorHelpers/AppError";
 
 const getReferralTracking = async (page: number = 1, limit: number = 20) => {
     const skip = (page - 1) * limit;

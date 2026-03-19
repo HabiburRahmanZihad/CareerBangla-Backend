@@ -1,16 +1,15 @@
 import status from "http-status";
-import { SubscriptionPlan, PaymentStatus } from "../../../generated/prisma/enums";
+import SSLCommerzPayment from "sslcommerz-lts";
+import Stripe from "stripe";
+import { v4 as uuidv4 } from "uuid";
 import { Prisma } from "../../../generated/prisma/client";
+import { PaymentStatus, SubscriptionPlan } from "../../../generated/prisma/enums";
 import { envVars } from "../../config/env";
 import AppError from "../../errorHelpers/AppError";
 import { IRequestUser } from "../../interfaces/requestUser.interface";
-import { v4 as uuidv4 } from "uuid";
-// @ts-ignore
-import SSLCommerzPayment from "sslcommerz-lts";
-import Stripe from "stripe";
 import { prisma } from "../../lib/prisma";
 
-const stripe = new Stripe(envVars.STRIPE.SECRET_KEY, { apiVersion: "2023-10-16" as any });
+const stripe = new Stripe(envVars.STRIPE.SECRET_KEY, { apiVersion: "2026-01-28.clover" });
 
 const SUBSCRIPTION_PLANS = {
     MONTHLY: { durationDays: 30, amount: 500, plan: SubscriptionPlan.MONTHLY },
@@ -28,7 +27,7 @@ const initiatePayment = async (user: IRequestUser, payload: { planName: string; 
         throw new AppError(status.BAD_REQUEST, "Invalid subscription plan.");
     }
 
-    let finalAmount = planDetails.amount;
+    const finalAmount = planDetails.amount;
     let appliedCouponId: string | undefined;
 
     // Optional coupon logic: Strictly tracking only, no financial discounts applied
@@ -45,7 +44,7 @@ const initiatePayment = async (user: IRequestUser, payload: { planName: string; 
     const transactionId = `TXN-${uuidv4().substring(0, 8)}-${Date.now()}`;
 
     // Create subscription record
-    const subscription = await prisma.subscription.create({
+    await prisma.subscription.create({
         data: {
             userId: user.userId,
             plan: planDetails.plan,
@@ -94,10 +93,10 @@ const initiatePayment = async (user: IRequestUser, payload: { planName: string; 
             cancel_url: `${envVars.BACKEND_URL}/api/v1/subscriptions/ipn`,
             ipn_url: `${envVars.BACKEND_URL}/api/v1/subscriptions/ipn`,
             shipping_method: 'No',
-            product_name: `CareerBangla ${payload.planName} Premium`,
+            product_name: `CareerBangla ${payload.planName} Premium`, // cspell:disable-line
             product_category: 'Subscription',
             product_profile: 'non-physical-goods',
-            cus_name: (user as any).name || 'CareerBangla User',
+            cus_name: (user as IRequestUser & { name?: string }).name || 'CareerBangla User',
             cus_email: user.email,
             cus_add1: 'Dhaka',
             cus_add2: 'Dhaka',
@@ -107,7 +106,7 @@ const initiatePayment = async (user: IRequestUser, payload: { planName: string; 
             cus_country: 'Bangladesh',
             cus_phone: '01711111111',
             cus_fax: '01711111111',
-            ship_name: (user as any).name || 'CareerBangla User',
+            ship_name: (user as IRequestUser & { name?: string }).name || 'CareerBangla User', // cspell:disable-line
             ship_add1: 'Dhaka',
             ship_add2: 'Dhaka',
             ship_city: 'Dhaka',
@@ -125,9 +124,18 @@ const initiatePayment = async (user: IRequestUser, payload: { planName: string; 
     }
 }
 
-const handleIpn = async (payload: any) => {
+interface ISSLCommerzIpnPayload {
+    tran_id?: string;
+    status?: string;
+    val_id?: string;
+    amount?: string;
+    bank_tran_id?: string;
+    card_type?: string;
+}
+
+const handleIpn = async (payload: ISSLCommerzIpnPayload) => {
     // SSLCommerz sends POST data to IPN
-    const { tran_id, status: paymentStatus, val_id, amount, bank_tran_id, card_type } = payload;
+    const { tran_id, status: paymentStatus, val_id, bank_tran_id, card_type } = payload;
 
     if (!tran_id) {
         return { message: "Invalid IPN data" };
@@ -214,7 +222,7 @@ const handleIpn = async (payload: any) => {
                         const existingref = await tx.referralHistory.findFirst({
                             where: { referrerId: referrer.id, referredUserId: subscription.userId, hasPaid: true }
                         });
-                        
+
                         if (!existingref) {
                             await tx.referralHistory.create({
                                 data: {
@@ -252,7 +260,7 @@ const handleIpn = async (payload: any) => {
     return { redirectUrl: `${envVars.FRONTEND_URL}/dashboard/subscriptions?payment=unknown` };
 }
 
-const cancelSubscription = async (user: IRequestUser, subscriptionId: string) => {
+const cancelSubscription = async () => {
     // In a pure duration-based model with SSLCommerz, cancelling usually just means 
     // stopping auto-renewal. Since we don't have tokenized recurring yet, we can just return.
     throw new AppError(status.BAD_REQUEST, "Direct cancellation is not supported. Subscriptions expire automatically.");
@@ -278,7 +286,17 @@ const getMySubscriptions = async (user: IRequestUser) => {
     return subscriptions;
 }
 
-const handleStripeWebhook = async (req: any) => {
+interface StripeWebhookRequest {
+    body: Buffer;
+    headers: Record<string, string>;
+}
+
+interface StripeCheckoutSession {
+    client_reference_id: string;
+    id: string;
+}
+
+const handleStripeWebhook = async (req: StripeWebhookRequest) => {
     const payload = req.body;
     const sig = req.headers["stripe-signature"] as string;
 
@@ -286,12 +304,13 @@ const handleStripeWebhook = async (req: any) => {
 
     try {
         event = stripe.webhooks.constructEvent(payload, sig, envVars.STRIPE.WEBHOOK_SECRET);
-    } catch (err: any) {
-        throw new AppError(status.BAD_REQUEST, `Webhook Error: ${err.message}`);
+    } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        throw new AppError(status.BAD_REQUEST, `Webhook Error: ${errorMessage}`);
     }
 
     if (event.type === "checkout.session.completed") {
-        const session = event.data.object as any;
+        const session = event.data.object as StripeCheckoutSession;
         const transactionId = session.client_reference_id;
 
         if (transactionId) {
@@ -316,7 +335,7 @@ const handleStripeWebhook = async (req: any) => {
                         where: { id: subscription.id },
                         data: {
                             status: PaymentStatus.PAID,
-                            paymentGatewayData: session,
+                            paymentGatewayData: session as unknown as Prisma.InputJsonValue,
                             currentPeriodStart: new Date(),
                             currentPeriodEnd: newPremiumUntil,
                         }
@@ -353,10 +372,10 @@ const handleStripeWebhook = async (req: any) => {
                         const referrer = await tx.user.findUnique({ where: { referralCode: referrerCode } });
 
                         if (referrer) {
-                            const existingref = await tx.referralHistory.findFirst({
+                            const existingRef = await tx.referralHistory.findFirst({
                                 where: { referrerId: referrer.id, referredUserId: subscription.userId, hasPaid: true }
                             });
-                            if (!existingref) {
+                            if (!existingRef) {
                                 await tx.referralHistory.create({
                                     data: {
                                         referrerId: referrer.id,
