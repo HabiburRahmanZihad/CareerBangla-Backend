@@ -76,10 +76,23 @@ const handleIpn = catchAsync(
     }
 )
 
+const handleStripeWebhook = catchAsync(
+    async (req: Request, res: Response) => {
+        const result = await SubscriptionService.handleStripeWebhook(req);
+        sendResponse(res, {
+            httpStatusCode: status.OK,
+            success: true,
+            message: "Stripe webhook received",
+            data: result,
+        });
+    }
+)
+
 export const SubscriptionController = {
     initiatePayment,
     handleIpn,
     cancelSubscription,
     getSubscriptionPlans,
     getMySubscriptions,
+    handleStripeWebhook,
 }

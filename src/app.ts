@@ -47,6 +47,10 @@ app.use(cookieParser())
 // Enable URL-encoded form data parsing
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// STRIPE WEBHOOK MUST BE PARSED AS RAW BUFFER
+import { SubscriptionController } from "./app/module/subscription/subscription.controller";
+app.post("/api/v1/subscriptions/webhook", express.raw({ type: 'application/json' }), SubscriptionController.handleStripeWebhook);
+
 // Middleware to parse JSON bodies
 app.use(express.json({ limit: '10mb' }));
 

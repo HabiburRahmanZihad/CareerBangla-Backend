@@ -7,7 +7,10 @@ import { IRequestUser } from "../../interfaces/requestUser.interface";
 import { v4 as uuidv4 } from "uuid";
 // @ts-ignore
 import SSLCommerzPayment from "sslcommerz-lts";
+import Stripe from "stripe";
 import { prisma } from "../../lib/prisma";
+
+const stripe = new Stripe(envVars.STRIPE.SECRET_KEY, { apiVersion: "2023-10-16" as any });
 
 const SUBSCRIPTION_PLANS = {
     MONTHLY: { durationDays: 30, amount: 500, plan: SubscriptionPlan.MONTHLY },
@@ -16,9 +19,10 @@ const SUBSCRIPTION_PLANS = {
     YEARLY: { durationDays: 365, amount: 4500, plan: SubscriptionPlan.YEARLY },
 };
 
-const initiatePayment = async (user: IRequestUser, payload: { planName: string; couponCode?: string; referralCode?: string }) => {
+const initiatePayment = async (user: IRequestUser, payload: { planName: string; couponCode?: string; referralCode?: string; gateway?: "STRIPE" | "SSLCOMMERZ" }) => {
     const planKey = payload.planName.toUpperCase() as keyof typeof SUBSCRIPTION_PLANS;
     const planDetails = SUBSCRIPTION_PLANS[planKey];
+    const gateway = payload.gateway || "SSLCOMMERZ"; // Default to SSLCOMMERZ if not provided
 
     if (!planDetails) {
         throw new AppError(status.BAD_REQUEST, "Invalid subscription plan.");
@@ -27,16 +31,11 @@ const initiatePayment = async (user: IRequestUser, payload: { planName: string; 
     let finalAmount = planDetails.amount;
     let appliedCouponId: string | undefined;
 
-    // Optional coupon logic calculation
+    // Optional coupon logic: Strictly tracking only, no financial discounts applied
     if (payload.couponCode) {
         const coupon = await prisma.coupon.findUnique({ where: { code: payload.couponCode.toUpperCase() } });
         if (coupon && coupon.status === "ACTIVE" && (!coupon.expiresAt || new Date(coupon.expiresAt) > new Date())) {
-            if (coupon.discountPercent) {
-                finalAmount = finalAmount - (finalAmount * (coupon.discountPercent / 100));
-            } else if (coupon.discountAmount) {
-                finalAmount = finalAmount - coupon.discountAmount;
-            }
-            if (finalAmount < 0) finalAmount = 0;
+            // Note: discount logic is intentionally removed per user requirements. Final amount remains unchanged.
             appliedCouponId = coupon.id;
         } else {
             throw new AppError(status.BAD_REQUEST, "Invalid or expired coupon code.");
@@ -46,7 +45,7 @@ const initiatePayment = async (user: IRequestUser, payload: { planName: string; 
     const transactionId = `TXN-${uuidv4().substring(0, 8)}-${Date.now()}`;
 
     // Create subscription record
-    await prisma.subscription.create({
+    const subscription = await prisma.subscription.create({
         data: {
             userId: user.userId,
             plan: planDetails.plan,
@@ -57,45 +56,72 @@ const initiatePayment = async (user: IRequestUser, payload: { planName: string; 
         }
     });
 
-    const isLive = envVars.SSLCOMMERZ.IS_LIVE;
-    const sslcz = new SSLCommerzPayment(envVars.SSLCOMMERZ.STORE_ID, envVars.SSLCOMMERZ.STORE_PASSWORD, isLive);
+    if (gateway === "STRIPE") {
+        // Init Stripe Session
+        const session = await stripe.checkout.sessions.create({
+            payment_method_types: ["card"],
+            mode: "payment",
+            customer_email: user.email,
+            client_reference_id: transactionId,
+            line_items: [
+                {
+                    price_data: {
+                        currency: "bdt", // Or usd, depending on account
+                        unit_amount: finalAmount * 100, // Stripe expects minimum unit (e.g., cents/paisa)
+                        product_data: {
+                            name: `CareerBangla ${payload.planName} Premium`,
+                            description: `Premium Subscription for ${planDetails.durationDays} days.`,
+                        },
+                    },
+                    quantity: 1,
+                },
+            ],
+            success_url: `${envVars.FRONTEND_URL}/dashboard/subscriptions?payment=success`,
+            cancel_url: `${envVars.FRONTEND_URL}/dashboard/subscriptions?payment=cancelled`,
+        });
 
-    const sslczData = {
-        total_amount: finalAmount,
-        currency: 'BDT',
-        tran_id: transactionId,
-        success_url: `${envVars.BACKEND_URL}/api/v1/subscriptions/ipn`,
-        fail_url: `${envVars.BACKEND_URL}/api/v1/subscriptions/ipn`,
-        cancel_url: `${envVars.BACKEND_URL}/api/v1/subscriptions/ipn`,
-        ipn_url: `${envVars.BACKEND_URL}/api/v1/subscriptions/ipn`,
-        shipping_method: 'No',
-        product_name: `CareerBangla ${payload.planName} Premium`,
-        product_category: 'Subscription',
-        product_profile: 'non-physical-goods',
-        cus_name: (user as any).name || 'CareerBangla User',
-        cus_email: user.email,
-        cus_add1: 'Dhaka',
-        cus_add2: 'Dhaka',
-        cus_city: 'Dhaka',
-        cus_state: 'Dhaka',
-        cus_postcode: '1000',
-        cus_country: 'Bangladesh',
-        cus_phone: '01711111111',
-        cus_fax: '01711111111',
-        ship_name: (user as any).name || 'CareerBangla User',
-        ship_add1: 'Dhaka',
-        ship_add2: 'Dhaka',
-        ship_city: 'Dhaka',
-        ship_state: 'Dhaka',
-        ship_postcode: 1000,
-        ship_country: 'Bangladesh',
-    };
-
-    const apiResponse = await sslcz.init(sslczData);
-    if (apiResponse?.GatewayPageURL) {
-        return { paymentUrl: apiResponse.GatewayPageURL };
+        return { paymentUrl: session.url };
     } else {
-        throw new AppError(status.INTERNAL_SERVER_ERROR, "Failed to initiate SSLCommerz payment.");
+        const isLive = envVars.SSLCOMMERZ.IS_LIVE;
+        const sslcz = new SSLCommerzPayment(envVars.SSLCOMMERZ.STORE_ID, envVars.SSLCOMMERZ.STORE_PASSWORD, isLive);
+
+        const sslczData = {
+            total_amount: finalAmount,
+            currency: 'BDT',
+            tran_id: transactionId,
+            success_url: `${envVars.BACKEND_URL}/api/v1/subscriptions/ipn`,
+            fail_url: `${envVars.BACKEND_URL}/api/v1/subscriptions/ipn`,
+            cancel_url: `${envVars.BACKEND_URL}/api/v1/subscriptions/ipn`,
+            ipn_url: `${envVars.BACKEND_URL}/api/v1/subscriptions/ipn`,
+            shipping_method: 'No',
+            product_name: `CareerBangla ${payload.planName} Premium`,
+            product_category: 'Subscription',
+            product_profile: 'non-physical-goods',
+            cus_name: (user as any).name || 'CareerBangla User',
+            cus_email: user.email,
+            cus_add1: 'Dhaka',
+            cus_add2: 'Dhaka',
+            cus_city: 'Dhaka',
+            cus_state: 'Dhaka',
+            cus_postcode: '1000',
+            cus_country: 'Bangladesh',
+            cus_phone: '01711111111',
+            cus_fax: '01711111111',
+            ship_name: (user as any).name || 'CareerBangla User',
+            ship_add1: 'Dhaka',
+            ship_add2: 'Dhaka',
+            ship_city: 'Dhaka',
+            ship_state: 'Dhaka',
+            ship_postcode: 1000,
+            ship_country: 'Bangladesh',
+        };
+
+        const apiResponse = await sslcz.init(sslczData);
+        if (apiResponse?.GatewayPageURL) {
+            return { paymentUrl: apiResponse.GatewayPageURL };
+        } else {
+            throw new AppError(status.INTERNAL_SERVER_ERROR, "Failed to initiate SSLCommerz payment.");
+        }
     }
 }
 
@@ -178,48 +204,24 @@ const handleIpn = async (payload: any) => {
                     }
                 }
 
-                // 4. Handle Referral Bonus (Refer 10 Paid Users = 1 Month Free)
+                // 4. Handle Referral Tracking (Only logging relationship; no financial bonus)
                 if (subscription.user.referredBy) {
                     const referrerCode = subscription.user.referredBy;
                     const referrer = await tx.user.findUnique({ where: { referralCode: referrerCode } });
 
                     if (referrer) {
-                        // Create referral history entry
-                        await tx.referralHistory.create({
-                            data: {
-                                referrerId: referrer.id,
-                                referredUserId: subscription.userId,
-                                hasPaid: true,
-                                paidAt: new Date(),
-                            }
+                        // Check if a referral history entry already exists to avoid duplicate tracking
+                        const existingref = await tx.referralHistory.findFirst({
+                            where: { referrerId: referrer.id, referredUserId: subscription.userId, hasPaid: true }
                         });
-
-                        // Check total successful referrals
-                        const totalReferrals = await tx.referralHistory.count({
-                            where: { referrerId: referrer.id, hasPaid: true }
-                        });
-
-                        if (totalReferrals > 0 && totalReferrals % 10 === 0) {
-                            // Give referrer 1 month free premium
-                            const refPremiumUntil = referrer.premiumUntil && referrer.premiumUntil > new Date()
-                                ? referrer.premiumUntil : new Date();
-                            const newRefPremiumUntil = new Date(refPremiumUntil);
-                            newRefPremiumUntil.setDate(newRefPremiumUntil.getDate() + 30);
-
-                            await tx.user.update({
-                                where: { id: referrer.id },
+                        
+                        if (!existingref) {
+                            await tx.referralHistory.create({
                                 data: {
-                                    isPremium: true,
-                                    premiumUntil: newRefPremiumUntil,
-                                }
-                            });
-
-                            await tx.notification.create({
-                                data: {
-                                    userId: referrer.id,
-                                    type: "GENERAL",
-                                    title: "Referral Bonus Unlocked!",
-                                    message: "You've successfully referred 10 paid users! You have been granted 1 month of free Premium.",
+                                    referrerId: referrer.id,
+                                    referredUserId: subscription.userId,
+                                    hasPaid: true,
+                                    paidAt: new Date(),
                                 }
                             });
                         }
@@ -276,10 +278,119 @@ const getMySubscriptions = async (user: IRequestUser) => {
     return subscriptions;
 }
 
+const handleStripeWebhook = async (req: any) => {
+    const payload = req.body;
+    const sig = req.headers["stripe-signature"] as string;
+
+    let event;
+
+    try {
+        event = stripe.webhooks.constructEvent(payload, sig, envVars.STRIPE.WEBHOOK_SECRET);
+    } catch (err: any) {
+        throw new AppError(status.BAD_REQUEST, `Webhook Error: ${err.message}`);
+    }
+
+    if (event.type === "checkout.session.completed") {
+        const session = event.data.object as any;
+        const transactionId = session.client_reference_id;
+
+        if (transactionId) {
+            const subscription = await prisma.subscription.findUnique({
+                where: { transactionId },
+                include: { user: true }
+            });
+
+            if (subscription && subscription.status !== PaymentStatus.PAID) {
+                const planDetails = Object.values(SUBSCRIPTION_PLANS).find(p => p.plan === subscription.plan);
+                const durationDays = planDetails?.durationDays || 30;
+
+                const currentPremiumUntil = subscription.user.premiumUntil && subscription.user.premiumUntil > new Date()
+                    ? subscription.user.premiumUntil
+                    : new Date();
+
+                const newPremiumUntil = new Date(currentPremiumUntil);
+                newPremiumUntil.setDate(newPremiumUntil.getDate() + durationDays);
+
+                await prisma.$transaction(async (tx) => {
+                    await tx.subscription.update({
+                        where: { id: subscription.id },
+                        data: {
+                            status: PaymentStatus.PAID,
+                            paymentGatewayData: session,
+                            currentPeriodStart: new Date(),
+                            currentPeriodEnd: newPremiumUntil,
+                        }
+                    });
+
+                    await tx.user.update({
+                        where: { id: subscription.userId },
+                        data: {
+                            isPremium: true,
+                            premiumUntil: newPremiumUntil,
+                        }
+                    });
+
+                    // Track Coupon Usage
+                    if (subscription.couponId) {
+                        const coupon = await tx.coupon.findUnique({ where: { id: subscription.couponId } });
+                        if (coupon) {
+                            const newUsageCount = coupon.usageCount + 1;
+                            await tx.coupon.update({
+                                where: { id: coupon.id },
+                                data: {
+                                    usageCount: newUsageCount,
+                                    status: newUsageCount >= coupon.maxUsage ? "USED" : "ACTIVE",
+                                    usedBy: subscription.userId,
+                                    usedAt: new Date(),
+                                }
+                            });
+                        }
+                    }
+
+                    // Track Referral Usage (No financial bonus)
+                    if (subscription.user.referredBy) {
+                        const referrerCode = subscription.user.referredBy;
+                        const referrer = await tx.user.findUnique({ where: { referralCode: referrerCode } });
+
+                        if (referrer) {
+                            const existingref = await tx.referralHistory.findFirst({
+                                where: { referrerId: referrer.id, referredUserId: subscription.userId, hasPaid: true }
+                            });
+                            if (!existingref) {
+                                await tx.referralHistory.create({
+                                    data: {
+                                        referrerId: referrer.id,
+                                        referredUserId: subscription.userId,
+                                        hasPaid: true,
+                                        paidAt: new Date(),
+                                    }
+                                });
+                            }
+                        }
+                    }
+
+                    await tx.notification.create({
+                        data: {
+                            userId: subscription.userId,
+                            type: "GENERAL",
+                            title: "Premium Activated via Stripe",
+                            message: `Your ${subscription.plan} subscription has been activated until ${newPremiumUntil.toDateString()}. Enjoy all premium features!`,
+                            metadata: { subscriptionId: subscription.id },
+                        }
+                    });
+                });
+            }
+        }
+    }
+
+    return { received: true };
+}
+
 export const SubscriptionService = {
     initiatePayment,
     handleIpn,
     cancelSubscription,
     getSubscriptionPlans,
     getMySubscriptions,
+    handleStripeWebhook,
 }
