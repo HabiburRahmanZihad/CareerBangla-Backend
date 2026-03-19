@@ -47,8 +47,9 @@ const getMyResume = async (user: IRequestUser) => {
 
 const updateMyResume = async (user: IRequestUser, payload: Prisma.ResumeUpdateInput) => {
     const existingResume = await prisma.resume.findUnique({
-        where: { userId: user.userId }
-    })
+        where: { userId: user.userId },
+        include: { education: true }
+    });
 
     if (payload.dateOfBirth) {
         payload.dateOfBirth = new Date(payload.dateOfBirth as string);
@@ -157,15 +158,50 @@ const updateMyResume = async (user: IRequestUser, payload: Prisma.ResumeUpdateIn
         }
     };
 
+    // ── Coin charging rules ───────────────────────────────────────────────
+    // Charge 15 coins once per update if:
+    // (A) Any of the 4 chargeable sections (Basic Info, Social, Skills/Summary, Education)
+    //     were already filled in the saved resume, OR
+    // (B) The profile is already at 100% completion (any section update costs 15 coins)
+    const isSectionUpdateChargeable = (existing: typeof existingResume): boolean => {
+        if (!existing) return false;
+
+        // (B) Profile already at 100%
+        if (getUserProfileCompletion(existing as any) === 100) return true;
+
+        // (A) Any chargeable section was already filled
+        const basicInfoFilled = !!(
+            existing.fullName ||
+            existing.contactNumber ||
+            existing.professionalTitle
+        );
+
+        const socialFilled = !!(
+            existing.linkedinUrl ||
+            existing.githubUrl ||
+            existing.portfolioUrl
+        );
+
+        const skillsFilled = !!(
+            existing.professionalSummary ||
+            (existing.technicalSkills && existing.technicalSkills.length > 0) ||
+            (existing.softSkills && existing.softSkills.length > 0)
+        );
+
+        const educationFilled = (existing.education?.length ?? 0) > 0;
+
+        return basicInfoFilled || socialFilled || skillsFilled || educationFilled;
+    };
+
     const resume = await prisma.$transaction(async (tx) => {
         let result;
 
         if (existingResume) {
-            const currentCompletion = getUserProfileCompletion(existingResume as any);
-            if (currentCompletion === 100) {
+            // Charge 15 coins if any chargeable section was already filled
+            if (isSectionUpdateChargeable(existingResume)) {
                 const wallet = await tx.wallet.findUnique({ where: { userId: user.userId } });
                 if (!wallet || wallet.balance < 15) {
-                    throw new AppError(status.BAD_REQUEST, "Insufficient coins. Updating your profile costs 15 coins after initial completion.");
+                    throw new AppError(status.BAD_REQUEST, "Insufficient coins. Updating these sections costs 15 coins.");
                 }
                 await tx.wallet.update({
                     where: { id: wallet.id },
@@ -177,7 +213,7 @@ const updateMyResume = async (user: IRequestUser, payload: Prisma.ResumeUpdateIn
                         amount: 15,
                         type: "DEBIT",
                         purpose: "PROFILE_UPDATE",
-                        details: "Profile update after initial completion",
+                        details: "Updated Basic Info / Social Profiles / Skills & Summary / Education",
                     }
                 });
                 await tx.notification.create({
@@ -185,7 +221,7 @@ const updateMyResume = async (user: IRequestUser, payload: Prisma.ResumeUpdateIn
                         userId: user.userId,
                         type: "COIN_DEBITED",
                         title: "Coins Deducted",
-                        message: "15 coins deducted for profile update",
+                        message: "15 coins deducted for updating your profile sections",
                         metadata: { coins: 15, reason: "PROFILE_UPDATE" },
                     }
                 });
