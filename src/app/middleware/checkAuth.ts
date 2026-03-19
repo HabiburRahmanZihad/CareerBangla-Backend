@@ -65,6 +65,7 @@ export const checkAuth = (...authRoles: Role[]) => async (req: Request, res: Res
 
         next();
     } catch (error) {
+        console.error("checkAuth error:", error);
         next(error);
     }
 };
