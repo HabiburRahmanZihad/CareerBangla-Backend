@@ -200,17 +200,17 @@ const updateMyResume = async (user: IRequestUser, payload: Prisma.ResumeUpdateIn
             // Charge 15 coins if any chargeable section was already filled
             if (isSectionUpdateChargeable(existingResume)) {
                 const wallet = await tx.wallet.findUnique({ where: { userId: user.userId } });
-                if (!wallet || wallet.balance < 15) {
-                    throw new AppError(status.BAD_REQUEST, "Insufficient coins. Updating these sections costs 15 coins.");
+                if (!wallet || wallet.balance < 10) {
+                    throw new AppError(status.BAD_REQUEST, "Insufficient coins. Updating these sections costs 10 coins.");
                 }
                 await tx.wallet.update({
                     where: { id: wallet.id },
-                    data: { balance: { decrement: 15 } }
+                    data: { balance: { decrement: 10 } }
                 });
                 await tx.coinTransaction.create({
                     data: {
                         walletId: wallet.id,
-                        amount: 15,
+                        amount: 10,
                         type: "DEBIT",
                         purpose: "PROFILE_UPDATE",
                         details: "Updated Basic Info / Social Profiles / Skills & Summary / Education",
@@ -221,8 +221,8 @@ const updateMyResume = async (user: IRequestUser, payload: Prisma.ResumeUpdateIn
                         userId: user.userId,
                         type: "COIN_DEBITED",
                         title: "Coins Deducted",
-                        message: "15 coins deducted for updating your profile sections",
-                        metadata: { coins: 15, reason: "PROFILE_UPDATE" },
+                        message: "10 coins deducted for updating your profile sections",
+                        metadata: { coins: 10, reason: "PROFILE_UPDATE" },
                     }
                 });
             }
@@ -309,26 +309,26 @@ const getResumeByUserId = async (userId: string, requestUser: IRequestUser) => {
         throw new AppError(status.NOT_FOUND, "Resume not found");
     }
 
-    // If recruiter, charge 10 coins to view candidate
+    // If recruiter, charge 7 coins to view candidate
     if (requestUser.role === "RECRUITER") {
         const wallet = await prisma.wallet.findUnique({
             where: { userId: requestUser.userId }
         })
 
-        if (!wallet || wallet.balance < 10) {
-            throw new AppError(status.BAD_REQUEST, "Insufficient coins. Viewing a candidate costs 10 coins.");
+        if (!wallet || wallet.balance < 7) {
+            throw new AppError(status.BAD_REQUEST, "Insufficient coins. Viewing a candidate costs 7 coins.");
         }
 
         await prisma.$transaction(async (tx) => {
             await tx.wallet.update({
                 where: { id: wallet.id },
-                data: { balance: { decrement: 10 } }
+                data: { balance: { decrement: 7 } }
             })
 
             await tx.coinTransaction.create({
                 data: {
                     walletId: wallet.id,
-                    amount: 10,
+                    amount: 7,
                     type: "DEBIT",
                     purpose: "VIEW_CANDIDATE",
                     details: `Viewed candidate resume: ${userId}`,
@@ -340,8 +340,8 @@ const getResumeByUserId = async (userId: string, requestUser: IRequestUser) => {
                     userId: requestUser.userId,
                     type: "COIN_DEBITED",
                     title: "Coins Deducted",
-                    message: `10 coins deducted for viewing candidate profile`,
-                    metadata: { coins: 10, candidateUserId: userId },
+                    message: `7 coins deducted for viewing candidate profile`,
+                    metadata: { coins: 7, candidateUserId: userId },
                 }
             })
         })

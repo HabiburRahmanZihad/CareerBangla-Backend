@@ -204,8 +204,8 @@ const getSubscriptionPlans = async () => {
         ],
         coinCosts: {
             user: {
-                applyJob: 10,
-                viewRecruiterEmail: 15,
+                applyJob: 7,
+                viewRecruiterEmail: 7,
             },
             recruiter: {
                 postJob: 15,

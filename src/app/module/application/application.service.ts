@@ -55,32 +55,40 @@ const applyJob = async (user: IRequestUser, payload: { jobId: string; coverLette
         throw new AppError(status.CONFLICT, "You have already applied for this job");
     }
 
-    // Check wallet balance (10 coins to apply)
-    const wallet = await prisma.wallet.findUnique({
-        where: { userId: user.userId }
-    })
-
-    if (!wallet || wallet.balance < 10) {
-        throw new AppError(status.BAD_REQUEST, "Insufficient coins. Applying for a job costs 10 coins.");
-    }
-
     // All validations passed — now deduct coins and create application atomically
     const result = await prisma.$transaction(async (tx) => {
+        const userWallet = await tx.wallet.findUnique({ where: { userId: user.userId } });
+        if (!userWallet || userWallet.balance < 7) {
+            throw new AppError(status.BAD_REQUEST, "Insufficient coins. Applying for a job costs 7 coins.");
+        }
+
         // Deduct coins
         await tx.wallet.update({
-            where: { id: wallet.id },
-            data: { balance: { decrement: 10 } }
-        })
+            where: { id: userWallet.id },
+            data: { balance: { decrement: 7 } }
+        });
 
+        // Record transaction
         await tx.coinTransaction.create({
             data: {
-                walletId: wallet.id,
-                amount: 10,
+                walletId: userWallet.id,
+                amount: 7,
                 type: "DEBIT",
                 purpose: "APPLY_JOB",
-                details: `Applied for job: ${job.title}`,
+                details: `Applied for job ID: ${payload.jobId}`,
             }
-        })
+        });
+
+        // Create coin deduction notification for applicant
+        await tx.notification.create({
+            data: {
+                userId: user.userId,
+                type: "COIN_DEBITED",
+                title: "Coins Deducted",
+                message: "7 coins deducted for job application",
+                metadata: { coins: 7, reason: "JOB_APPLICATION", jobId: payload.jobId },
+            }
+        });
 
         const application = await tx.application.create({
             data: {
