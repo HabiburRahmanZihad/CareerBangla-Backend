@@ -1,217 +1,270 @@
-import Stripe from "stripe";
 import status from "http-status";
 import { SubscriptionPlan, PaymentStatus } from "../../../generated/prisma/enums";
+import { Prisma } from "../../../generated/prisma/client";
 import { envVars } from "../../config/env";
-import { stripe } from "../../config/stripe.config";
 import AppError from "../../errorHelpers/AppError";
 import { IRequestUser } from "../../interfaces/requestUser.interface";
-import { prisma } from "../../lib/prisma";
 import { v4 as uuidv4 } from "uuid";
+// @ts-ignore
+import SSLCommerzPayment from "sslcommerz-lts";
+import { prisma } from "../../lib/prisma";
 
 const SUBSCRIPTION_PLANS = {
-    STARTER: { coins: 100, amount: 300, plan: SubscriptionPlan.STARTER },
-    PROFESSIONAL: { coins: 200, amount: 600, plan: SubscriptionPlan.PROFESSIONAL },
-    ENTERPRISE: { coins: 300, amount: 900, plan: SubscriptionPlan.ENTERPRISE },
+    MONTHLY: { durationDays: 30, amount: 500, plan: SubscriptionPlan.MONTHLY },
+    QUARTERLY: { durationDays: 90, amount: 1300, plan: SubscriptionPlan.QUARTERLY },
+    BIANNUAL: { durationDays: 180, amount: 2500, plan: SubscriptionPlan.BIANNUAL },
+    YEARLY: { durationDays: 365, amount: 4500, plan: SubscriptionPlan.YEARLY },
 };
 
-const purchaseSubscription = async (user: IRequestUser, planName: string) => {
-    const planKey = planName.toUpperCase() as keyof typeof SUBSCRIPTION_PLANS;
+const initiatePayment = async (user: IRequestUser, payload: { planName: string; couponCode?: string; referralCode?: string }) => {
+    const planKey = payload.planName.toUpperCase() as keyof typeof SUBSCRIPTION_PLANS;
     const planDetails = SUBSCRIPTION_PLANS[planKey];
 
     if (!planDetails) {
-        throw new AppError(status.BAD_REQUEST, "Invalid subscription plan. Choose STARTER, PROFESSIONAL, or ENTERPRISE.");
+        throw new AppError(status.BAD_REQUEST, "Invalid subscription plan.");
     }
 
-    const transactionId = uuidv4();
+    let finalAmount = planDetails.amount;
+    let appliedCouponId: string | undefined;
+
+    // Optional coupon logic calculation
+    if (payload.couponCode) {
+        const coupon = await prisma.coupon.findUnique({ where: { code: payload.couponCode.toUpperCase() } });
+        if (coupon && coupon.status === "ACTIVE" && (!coupon.expiresAt || new Date(coupon.expiresAt) > new Date())) {
+            if (coupon.discountPercent) {
+                finalAmount = finalAmount - (finalAmount * (coupon.discountPercent / 100));
+            } else if (coupon.discountAmount) {
+                finalAmount = finalAmount - coupon.discountAmount;
+            }
+            if (finalAmount < 0) finalAmount = 0;
+            appliedCouponId = coupon.id;
+        } else {
+            throw new AppError(status.BAD_REQUEST, "Invalid or expired coupon code.");
+        }
+    }
+
+    const transactionId = `TXN-${uuidv4().substring(0, 8)}-${Date.now()}`;
 
     // Create subscription record
-    const subscription = await prisma.subscription.create({
+    await prisma.subscription.create({
         data: {
             userId: user.userId,
             plan: planDetails.plan,
-            coins: planDetails.coins,
-            amount: planDetails.amount,
+            amount: finalAmount,
             transactionId,
             status: PaymentStatus.UNPAID,
+            couponId: appliedCouponId,
         }
-    })
+    });
 
-    // Create Stripe checkout session
-    const session = await stripe.checkout.sessions.create({
-        payment_method_types: ["card"],
-        mode: "payment",
-        line_items: [
-            {
-                price_data: {
-                    currency: "usd",
-                    product_data: {
-                        name: `CareerBangla ${planName} Plan`,
-                        description: `${planDetails.coins} coins for your CareerBangla wallet`,
-                    },
-                    unit_amount: planDetails.amount * 100, // Convert to cents
-                },
-                quantity: 1,
-            }
-        ],
-        metadata: {
-            subscriptionId: subscription.id,
-            userId: user.userId,
-            coins: planDetails.coins.toString(),
-        },
-        success_url: `${envVars.FRONTEND_URL}/dashboard/wallet?payment=success`,
-        cancel_url: `${envVars.FRONTEND_URL}/dashboard/wallet?payment=cancelled`,
-    })
+    const isLive = envVars.SSLCOMMERZ.IS_LIVE;
+    const sslcz = new SSLCommerzPayment(envVars.SSLCOMMERZ.STORE_ID, envVars.SSLCOMMERZ.STORE_PASSWORD, isLive);
 
-    return {
-        subscription,
-        paymentUrl: session.url,
+    const sslczData = {
+        total_amount: finalAmount,
+        currency: 'BDT',
+        tran_id: transactionId,
+        success_url: `${envVars.BACKEND_URL}/api/v1/subscriptions/ipn`,
+        fail_url: `${envVars.BACKEND_URL}/api/v1/subscriptions/ipn`,
+        cancel_url: `${envVars.BACKEND_URL}/api/v1/subscriptions/ipn`,
+        ipn_url: `${envVars.BACKEND_URL}/api/v1/subscriptions/ipn`,
+        shipping_method: 'No',
+        product_name: `CareerBangla ${payload.planName} Premium`,
+        product_category: 'Subscription',
+        product_profile: 'non-physical-goods',
+        cus_name: (user as any).name || 'CareerBangla User',
+        cus_email: user.email,
+        cus_add1: 'Dhaka',
+        cus_add2: 'Dhaka',
+        cus_city: 'Dhaka',
+        cus_state: 'Dhaka',
+        cus_postcode: '1000',
+        cus_country: 'Bangladesh',
+        cus_phone: '01711111111',
+        cus_fax: '01711111111',
+        ship_name: (user as any).name || 'CareerBangla User',
+        ship_add1: 'Dhaka',
+        ship_add2: 'Dhaka',
+        ship_city: 'Dhaka',
+        ship_state: 'Dhaka',
+        ship_postcode: 1000,
+        ship_country: 'Bangladesh',
+    };
+
+    const apiResponse = await sslcz.init(sslczData);
+    if (apiResponse?.GatewayPageURL) {
+        return { paymentUrl: apiResponse.GatewayPageURL };
+    } else {
+        throw new AppError(status.INTERNAL_SERVER_ERROR, "Failed to initiate SSLCommerz payment.");
     }
 }
 
-const handleStripeWebhookEvent = async (event: Stripe.Event) => {
-    const existingSubscription = await prisma.subscription.findFirst({
-        where: { stripeEventId: event.id }
-    })
+const handleIpn = async (payload: any) => {
+    // SSLCommerz sends POST data to IPN
+    const { tran_id, status: paymentStatus, val_id, amount, bank_tran_id, card_type } = payload;
 
-    if (existingSubscription) {
-        return { message: `Event ${event.id} already processed. Skipping` }
+    if (!tran_id) {
+        return { message: "Invalid IPN data" };
     }
 
-    switch (event.type) {
-        case "checkout.session.completed": {
-            const session = event.data.object as Stripe.Checkout.Session;
+    const subscription = await prisma.subscription.findUnique({
+        where: { transactionId: tran_id },
+        include: { user: true }
+    });
 
-            const subscriptionId = session.metadata?.subscriptionId;
-            const userId = session.metadata?.userId;
-            const coins = parseInt(session.metadata?.coins || "0");
+    if (!subscription) {
+        return { message: "Subscription not found" };
+    }
 
-            if (!subscriptionId || !userId) {
-                return { message: "Missing metadata" };
-            }
+    if (subscription.status === PaymentStatus.PAID) {
+        return { message: "Already processed" };
+    }
+
+    if (paymentStatus === "VALID" || paymentStatus === "VALIDATED") {
+        const isLive = envVars.SSLCOMMERZ.IS_LIVE;
+        const sslcz = new SSLCommerzPayment(envVars.SSLCOMMERZ.STORE_ID, envVars.SSLCOMMERZ.STORE_PASSWORD, isLive);
+
+        // Validate the transaction strictly
+        const validationResponse = await sslcz.validate({ val_id });
+        if (validationResponse?.status === "VALID" || validationResponse?.status === "VALIDATED") {
+            const planDetails = Object.values(SUBSCRIPTION_PLANS).find(p => p.plan === subscription.plan);
+            const durationDays = planDetails?.durationDays || 30;
+
+            const currentPremiumUntil = subscription.user.premiumUntil && subscription.user.premiumUntil > new Date()
+                ? subscription.user.premiumUntil
+                : new Date();
+
+            const newPremiumUntil = new Date(currentPremiumUntil);
+            newPremiumUntil.setDate(newPremiumUntil.getDate() + durationDays);
 
             await prisma.$transaction(async (tx) => {
-                // Update subscription status
+                // 1. Mark subscription paid
                 await tx.subscription.update({
-                    where: { id: subscriptionId },
+                    where: { id: subscription.id },
                     data: {
                         status: PaymentStatus.PAID,
-                        paymentGatewayData: session as unknown as Prisma.InputJsonValue,
-                        stripeEventId: event.id,
+                        val_id,
+                        bank_tran_id,
+                        card_type,
+                        currentPeriodStart: new Date(),
+                        currentPeriodEnd: newPremiumUntil,
+                        paymentGatewayData: payload as unknown as Prisma.InputJsonValue,
                     }
-                })
+                });
 
-                // Credit coins to wallet
-                const wallet = await tx.wallet.findUnique({
-                    where: { userId }
-                })
+                // 2. Upgrade user to Premium
+                await tx.user.update({
+                    where: { id: subscription.userId },
+                    data: {
+                        isPremium: true,
+                        premiumUntil: newPremiumUntil,
+                    }
+                });
 
-                if (wallet) {
-                    await tx.wallet.update({
-                        where: { id: wallet.id },
-                        data: { balance: { increment: coins } }
-                    })
-
-                    await tx.coinTransaction.create({
-                        data: {
-                            walletId: wallet.id,
-                            amount: coins,
-                            type: "CREDIT",
-                            purpose: "SUBSCRIPTION_PURCHASE",
-                            details: `Subscription purchase: ${coins} coins`,
-                        }
-                    })
-                } else {
-                    await tx.wallet.create({
-                        data: {
-                            userId,
-                            balance: coins,
-                            transactions: {
-                                create: {
-                                    amount: coins,
-                                    type: "CREDIT",
-                                    purpose: "SUBSCRIPTION_PURCHASE",
-                                    details: `Subscription purchase: ${coins} coins`,
-                                }
+                // 3. Mark coupon used if applied
+                if (subscription.couponId) {
+                    const coupon = await tx.coupon.findUnique({ where: { id: subscription.couponId } });
+                    if (coupon) {
+                        const newUsageCount = coupon.usageCount + 1;
+                        await tx.coupon.update({
+                            where: { id: coupon.id },
+                            data: {
+                                usageCount: newUsageCount,
+                                status: newUsageCount >= coupon.maxUsage ? "USED" : "ACTIVE",
+                                usedBy: subscription.userId,
+                                usedAt: new Date(),
                             }
-                        }
-                    })
+                        });
+                    }
                 }
 
-                // Create notification
+                // 4. Handle Referral Bonus (Refer 10 Paid Users = 1 Month Free)
+                if (subscription.user.referredBy) {
+                    const referrerCode = subscription.user.referredBy;
+                    const referrer = await tx.user.findUnique({ where: { referralCode: referrerCode } });
+
+                    if (referrer) {
+                        // Create referral history entry
+                        await tx.referralHistory.create({
+                            data: {
+                                referrerId: referrer.id,
+                                referredUserId: subscription.userId,
+                                hasPaid: true,
+                                paidAt: new Date(),
+                            }
+                        });
+
+                        // Check total successful referrals
+                        const totalReferrals = await tx.referralHistory.count({
+                            where: { referrerId: referrer.id, hasPaid: true }
+                        });
+
+                        if (totalReferrals > 0 && totalReferrals % 10 === 0) {
+                            // Give referrer 1 month free premium
+                            const refPremiumUntil = referrer.premiumUntil && referrer.premiumUntil > new Date()
+                                ? referrer.premiumUntil : new Date();
+                            const newRefPremiumUntil = new Date(refPremiumUntil);
+                            newRefPremiumUntil.setDate(newRefPremiumUntil.getDate() + 30);
+
+                            await tx.user.update({
+                                where: { id: referrer.id },
+                                data: {
+                                    isPremium: true,
+                                    premiumUntil: newRefPremiumUntil,
+                                }
+                            });
+
+                            await tx.notification.create({
+                                data: {
+                                    userId: referrer.id,
+                                    type: "GENERAL",
+                                    title: "Referral Bonus Unlocked!",
+                                    message: "You've successfully referred 10 paid users! You have been granted 1 month of free Premium.",
+                                }
+                            });
+                        }
+                    }
+                }
+
                 await tx.notification.create({
                     data: {
-                        userId,
-                        type: "COIN_CREDITED",
-                        title: "Subscription Activated",
-                        message: `Your subscription has been activated. ${coins} coins have been added to your wallet.`,
-                        metadata: { subscriptionId, coins },
+                        userId: subscription.userId,
+                        type: "GENERAL",
+                        title: "Premium Activated",
+                        message: `Your ${subscription.plan} subscription has been activated until ${newPremiumUntil.toDateString()}. Enjoy all premium features!`,
+                        metadata: { subscriptionId: subscription.id },
                     }
-                })
-            })
+                });
+            });
 
-            break;
+            return { redirectUrl: `${envVars.FRONTEND_URL}/dashboard/subscriptions?payment=success` };
         }
-
-        case "checkout.session.expired":
-        case "payment_intent.payment_failed":
-            break;
-
-        default:
-            break;
+    } else if (paymentStatus === "FAILED" || paymentStatus === "CANCELLED") {
+        await prisma.subscription.update({
+            where: { id: subscription.id },
+            data: { status: PaymentStatus.FAILED }
+        });
+        return { redirectUrl: `${envVars.FRONTEND_URL}/dashboard/subscriptions?payment=${paymentStatus.toLowerCase()}` };
     }
 
-    return { message: `Webhook Event ${event.id} processed successfully` }
+    return { redirectUrl: `${envVars.FRONTEND_URL}/dashboard/subscriptions?payment=unknown` };
 }
 
 const cancelSubscription = async (user: IRequestUser, subscriptionId: string) => {
-    const subscription = await prisma.subscription.findFirst({
-        where: { id: subscriptionId, userId: user.userId }
-    })
-
-    if (!subscription) {
-        throw new AppError(status.NOT_FOUND, "Subscription not found");
-    }
-
-    if (subscription.status !== PaymentStatus.PAID) {
-        throw new AppError(status.BAD_REQUEST, "Only paid subscriptions can be cancelled.");
-    }
-
-    const updated = await prisma.subscription.update({
-        where: { id: subscriptionId },
-        data: { status: PaymentStatus.FAILED },
-    })
-
-    await prisma.notification.create({
-        data: {
-            userId: user.userId,
-            type: "GENERAL",
-            title: "Subscription Cancelled",
-            message: `Your ${subscription.plan} subscription has been cancelled.`,
-            metadata: { subscriptionId },
-        }
-    })
-
-    return updated;
+    // In a pure duration-based model with SSLCommerz, cancelling usually just means 
+    // stopping auto-renewal. Since we don't have tokenized recurring yet, we can just return.
+    throw new AppError(status.BAD_REQUEST, "Direct cancellation is not supported. Subscriptions expire automatically.");
 }
 
 const getSubscriptionPlans = async () => {
     return {
         plans: [
-            { name: "Free", coins: 50, amount: 0, description: "Welcome bonus for new users" },
-            { name: "Starter", coins: 100, amount: 300, description: "100 coins for $3.00" },
-            { name: "Professional", coins: 200, amount: 600, description: "200 coins for $6.00" },
-            { name: "Enterprise", coins: 300, amount: 900, description: "300 coins for $9.00" },
-        ],
-        coinCosts: {
-            user: {
-                applyJob: 7,
-                viewRecruiterEmail: 7,
-            },
-            recruiter: {
-                postJob: 15,
-                viewCandidate: 10,
-            }
-        }
+            { name: "Free", amount: 0, description: "Basic resume profile, limited updates" },
+            { name: "Monthly", amount: 500, description: "ATS-friendly CV, unlimited updates for 30 days" },
+            { name: "Quarterly", amount: 1300, description: "ATS-friendly CV, unlimited updates for 90 days" },
+            { name: "Biannual", amount: 2500, description: "ATS-friendly CV, unlimited updates for 180 days" },
+            { name: "Yearly", amount: 4500, description: "ATS-friendly CV, unlimited updates for 365 days" },
+        ]
     }
 }
 
@@ -223,12 +276,9 @@ const getMySubscriptions = async (user: IRequestUser) => {
     return subscriptions;
 }
 
-// Need to import Prisma for InputJsonValue type
-import { Prisma } from "../../../generated/prisma/client";
-
 export const SubscriptionService = {
-    purchaseSubscription,
-    handleStripeWebhookEvent,
+    initiatePayment,
+    handleIpn,
     cancelSubscription,
     getSubscriptionPlans,
     getMySubscriptions,

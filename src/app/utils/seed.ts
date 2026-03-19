@@ -45,13 +45,6 @@ export const seedSuperAdmin = async () => {
                 }
             })
 
-            // Create wallet for super admin
-            await tx.wallet.create({
-                data: {
-                    userId: superAdminUser.user.id,
-                    balance: 0,
-                }
-            })
         });
 
         const superAdmin = await prisma.admin.findFirst({

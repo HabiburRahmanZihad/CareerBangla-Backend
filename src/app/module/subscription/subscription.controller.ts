@@ -4,11 +4,10 @@ import { catchAsync } from "../../shared/catchAsync";
 import { sendResponse } from "../../shared/sendResponse";
 import { SubscriptionService } from "./subscription.service";
 
-const purchaseSubscription = catchAsync(
+const initiatePayment = catchAsync(
     async (req: Request, res: Response) => {
         const user = req.user;
-        const { plan } = req.body;
-        const result = await SubscriptionService.purchaseSubscription(user, plan);
+        const result = await SubscriptionService.initiatePayment(user, req.body);
 
         sendResponse(res, {
             httpStatusCode: status.CREATED,
@@ -61,8 +60,25 @@ const getMySubscriptions = catchAsync(
     }
 )
 
+const handleIpn = catchAsync(
+    async (req: Request, res: Response) => {
+        const result = await SubscriptionService.handleIpn(req.body);
+        if (result.redirectUrl) {
+            res.redirect(result.redirectUrl);
+        } else {
+            sendResponse(res, {
+                httpStatusCode: status.OK,
+                success: true,
+                message: result.message || "IPN processed",
+                data: null,
+            });
+        }
+    }
+)
+
 export const SubscriptionController = {
-    purchaseSubscription,
+    initiatePayment,
+    handleIpn,
     cancelSubscription,
     getSubscriptionPlans,
     getMySubscriptions,

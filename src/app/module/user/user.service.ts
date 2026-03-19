@@ -36,21 +36,7 @@ const createRecruiter = async (payload: ICreateRecruiterPayload) => {
                 }
             })
 
-            // Create wallet with 50 free coins
-            await tx.wallet.create({
-                data: {
-                    userId: userData.user.id,
-                    balance: 50,
-                    transactions: {
-                        create: {
-                            amount: 50,
-                            type: "CREDIT",
-                            purpose: "SUBSCRIPTION_PURCHASE",
-                            details: "Welcome bonus - Free plan (50 coins)",
-                        }
-                    }
-                }
-            })
+
 
             const recruiter = await tx.recruiter.findUnique({
                 where: {
@@ -119,13 +105,7 @@ const createAdmin = async (payload: ICreateAdminPayload) => {
                 }
             })
 
-            // Create wallet for admin
-            await tx.wallet.create({
-                data: {
-                    userId: userData.user.id,
-                    balance: 0,
-                }
-            })
+
 
             return adminData;
         })

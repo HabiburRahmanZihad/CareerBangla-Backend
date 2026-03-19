@@ -119,16 +119,11 @@ const getRecruiterStatsData = async (user: IRequestUser) => {
         count: _count.id
     }))
 
-    const wallet = await prisma.wallet.findUnique({
-        where: { userId: user.userId }
-    })
-
     return {
         jobCount,
         applicationCount,
         activeJobCount,
         uniqueApplicants: uniqueApplicants.length,
-        walletBalance: wallet?.balance || 0,
         applicationStatusDistribution: formattedStatusDistribution
     }
 }
@@ -149,13 +144,8 @@ const getUserStatsData = async (user: IRequestUser) => {
         count: _count.id
     }))
 
-    const wallet = await prisma.wallet.findUnique({
-        where: { userId: user.userId }
-    })
-
     return {
         applicationCount,
-        walletBalance: wallet?.balance || 0,
         applicationStatusDistribution: formattedStatusDistribution
     }
 }

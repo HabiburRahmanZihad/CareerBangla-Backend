@@ -10,7 +10,10 @@ router.get("/plans",
 
 router.post("/purchase",
     checkAuth(Role.USER, Role.RECRUITER),
-    SubscriptionController.purchaseSubscription);
+    SubscriptionController.initiatePayment);
+
+router.post("/ipn",
+    SubscriptionController.handleIpn);
 
 router.post("/cancel/:subscriptionId",
     checkAuth(Role.USER, Role.RECRUITER),

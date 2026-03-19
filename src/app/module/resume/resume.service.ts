@@ -11,7 +11,7 @@ const getMyResume = async (user: IRequestUser) => {
         where: { userId: user.userId },
         include: {
             user: {
-                select: { id: true, name: true, email: true, image: true }
+                select: { id: true, name: true, email: true, image: true, isPremium: true }
             },
             workExperience: {
                 orderBy: { createdAt: 'desc' }
