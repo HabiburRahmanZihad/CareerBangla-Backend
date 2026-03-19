@@ -159,7 +159,7 @@ const updateMyResume = async (user: IRequestUser, payload: Prisma.ResumeUpdateIn
 
     const resume = await prisma.$transaction(async (tx) => {
         let result;
-        
+
         if (existingResume) {
             const currentCompletion = getUserProfileCompletion(existingResume as any);
             if (currentCompletion === 100) {
@@ -320,64 +320,189 @@ const getAtsScore = async (user: IRequestUser, jobId?: string) => {
         include: {
             workExperience: true,
             education: true,
+            certifications: true,
+            projects: true,
+            languages: true,
+            awards: true,
+            references: true,
         }
-    })
+    });
 
     if (!resume) {
         throw new AppError(status.BAD_REQUEST, "You must create a resume before checking your ATS score.");
     }
 
-    const profileCompletion = getUserProfileCompletion(resume);
+    const profileCompletion = getUserProfileCompletion(resume as any);
 
-    // Base score from profile completion
-    const score = profileCompletion;
-    const suggestions: string[] = [];
+    // ── International ATS Scoring (total 100 pts) ─────────────────────────
+    // Based on industry-standard ATS evaluation criteria (Workday, Taleo, Greenhouse, iCIMS)
+    const categories: { label: string; earned: number; max: number; suggestions: string[] }[] = [];
 
-    // Evaluate resume sections
-    if (!resume.professionalTitle) suggestions.push("Add a professional title to your resume.");
-    if (!resume.professionalSummary) suggestions.push("Write a professional summary.");
-    if (!resume.technicalSkills || resume.technicalSkills.length === 0) suggestions.push("Add your skills.");
-    if (!resume.technicalSkills || resume.technicalSkills.length < 5) suggestions.push("Add at least 5 skills for better matching.");
+    // 1. Contact & Identity (10 pts)
+    {
+        let earned = 0;
+        const sug: string[] = [];
+        if (resume.fullName && resume.email && resume.contactNumber) earned += 4;
+        else sug.push("Add your Full Name, Email, and Contact Number.");
+        if (resume.address) earned += 2;
+        else sug.push("Add your address so recruiters can assess location fit.");
+        if (resume.linkedinUrl || resume.githubUrl) earned += 4;
+        else sug.push("Add a LinkedIn or GitHub URL — most ATS systems flag missing online profiles.");
+        categories.push({ label: "Contact & Identity", earned, max: 10, suggestions: sug });
+    }
 
-    if (resume.workExperience.length === 0) suggestions.push("Add your work experience.");
+    // 2. Professional Summary (15 pts)
+    {
+        let earned = 0;
+        const sug: string[] = [];
+        const summary = resume.professionalSummary?.trim() ?? "";
+        if (summary.length > 0) earned += 5;
+        else sug.push("Write a Professional Summary — it is the first thing ATS systems parse.");
+        if (summary.length >= 50) earned += 5;
+        else if (summary.length > 0) sug.push("Expand your summary to at least 50 characters for better keyword density.");
+        if (summary.length >= 150) earned += 5;
+        else if (summary.length >= 50) sug.push("Aim for 150+ characters in your summary for optimal ATS parsing.");
+        categories.push({ label: "Professional Summary", earned, max: 15, suggestions: sug });
+    }
 
-    if (resume.education.length === 0) suggestions.push("Add your education details.");
+    // 3. Skills (20 pts)
+    {
+        let earned = 0;
+        const sug: string[] = [];
+        const techSkills = resume.technicalSkills ?? [];
+        const softSkills = resume.softSkills ?? [];
+        const tools = resume.toolsAndTechnologies ?? [];
 
-    if (!resume.contactNumber) suggestions.push("Add your contact number.");
-    if (!resume.address) suggestions.push("Add your address.");
-    if (!resume.linkedinUrl) suggestions.push("Add your LinkedIn profile URL.");
+        if (techSkills.length >= 1) earned += 5;
+        else sug.push("Add at least 1 technical skill.");
+        if (techSkills.length >= 5) earned += 5;
+        else sug.push(`Add more technical skills (you have ${techSkills.length}, aim for 5+).`);
 
-    // If jobId provided, match against job requirements
+        if (softSkills.length >= 1) earned += 5;
+        else sug.push("Add at least 1 soft skill (e.g. Communication, Teamwork).");
+
+        if (tools.length >= 1) earned += 5;
+        else sug.push("Add Tools & Technologies (e.g. Git, Docker, VS Code).");
+
+        categories.push({ label: "Skills", earned, max: 20, suggestions: sug });
+    }
+
+    // 4. Work Experience (20 pts)
+    {
+        let earned = 0;
+        const sug: string[] = [];
+        const exp = resume.workExperience ?? [];
+
+        if (exp.length >= 1) earned += 10;
+        else sug.push("Add at least 1 work experience entry.");
+        if (exp.length >= 2) earned += 5;
+        else if (exp.length === 1) sug.push("Add a second work experience entry if available.");
+        const hasResponsibilities = exp.some(e => e.responsibilities && e.responsibilities.length > 0);
+        if (hasResponsibilities) earned += 5;
+        else if (exp.length > 0) sug.push("Add responsibilities/achievements to your work experience entries.");
+
+        categories.push({ label: "Work Experience", earned, max: 20, suggestions: sug });
+    }
+
+    // 5. Education (10 pts)
+    {
+        let earned = 0;
+        const sug: string[] = [];
+        if ((resume.education?.length ?? 0) >= 1) earned += 10;
+        else sug.push("Add your education background.");
+        categories.push({ label: "Education", earned, max: 10, suggestions: sug });
+    }
+
+    // 6. Projects (10 pts)
+    {
+        let earned = 0;
+        const sug: string[] = [];
+        const projects = resume.projects ?? [];
+        if (projects.length >= 1) earned += 5;
+        else sug.push("Showcase at least 1 project — ATS uses projects to validate technical skills.");
+        const hasDesc = projects.some(p => p.description && p.description.trim().length > 0);
+        if (hasDesc) earned += 5;
+        else if (projects.length > 0) sug.push("Add descriptions to your projects for better keyword coverage.");
+        categories.push({ label: "Projects", earned, max: 10, suggestions: sug });
+    }
+
+    // 7. Certifications (8 pts)
+    {
+        let earned = 0;
+        const sug: string[] = [];
+        if ((resume.certifications?.length ?? 0) >= 1) earned += 8;
+        else sug.push("Add certifications to boost credibility (e.g. AWS, Google, Coursera).");
+        categories.push({ label: "Certifications", earned, max: 8, suggestions: sug });
+    }
+
+    // 8. Languages (3 pts)
+    {
+        let earned = 0;
+        const sug: string[] = [];
+        if ((resume.languages?.length ?? 0) >= 1) earned += 3;
+        else sug.push("Add the languages you speak.");
+        categories.push({ label: "Languages", earned, max: 3, suggestions: sug });
+    }
+
+    // 9. Awards (2 pts)
+    {
+        let earned = 0;
+        const sug: string[] = [];
+        if ((resume.awards?.length ?? 0) >= 1) earned += 2;
+        else sug.push("Add any awards or recognitions you have received.");
+        categories.push({ label: "Awards", earned, max: 2, suggestions: sug });
+    }
+
+    // 10. References (2 pts)
+    {
+        let earned = 0;
+        const sug: string[] = [];
+        if ((resume.references?.length ?? 0) >= 1) earned += 2;
+        else sug.push("Add at least one professional reference.");
+        categories.push({ label: "References", earned, max: 2, suggestions: sug });
+    }
+
+    const totalEarned = categories.reduce((s, c) => s + c.earned, 0);
+    const totalMax = categories.reduce((s, c) => s + c.max, 0); // 100
+    const atsScore = Math.round((totalEarned / totalMax) * 100);
+
+    // Flatten suggestions (top suggestions first by impact = most points missing)
+    const allSuggestions = categories
+        .filter(c => c.earned < c.max)
+        .sort((a, b) => (b.max - b.earned) - (a.max - a.earned))
+        .flatMap(c => c.suggestions);
+
+    // Job matching (optional)
     let jobMatchScore: number | null = null;
     let matchedSkills: string[] = [];
     let missingSkills: string[] = [];
 
     if (jobId) {
-        const job = await prisma.job.findUnique({
-            where: { id: jobId, isDeleted: false }
-        })
-
-        if (job && job.skills && resume.skills) {
+        const job = await prisma.job.findUnique({ where: { id: jobId, isDeleted: false } });
+        if (job && job.skills) {
+            const allResumeSkills = [
+                ...(resume.technicalSkills ?? []),
+                ...(resume.softSkills ?? []),
+                ...(resume.toolsAndTechnologies ?? []),
+            ];
             const jobSkillsLower = job.skills.map(s => s.toLowerCase());
-            const resumeSkillsLower = resume.skills.map(s => s.toLowerCase());
-
-            matchedSkills = resume.skills.filter(s => jobSkillsLower.includes(s.toLowerCase()));
+            const resumeSkillsLower = allResumeSkills.map(s => s.toLowerCase());
+            matchedSkills = allResumeSkills.filter(s => jobSkillsLower.includes(s.toLowerCase()));
             missingSkills = job.skills.filter(s => !resumeSkillsLower.includes(s.toLowerCase()));
-
             jobMatchScore = jobSkillsLower.length > 0
                 ? Math.round((matchedSkills.length / jobSkillsLower.length) * 100)
                 : 100;
-
             if (missingSkills.length > 0) {
-                suggestions.push(`Consider adding these skills to match the job: ${missingSkills.join(", ")}`);
+                allSuggestions.unshift(`Add these job-specific skills: ${missingSkills.join(", ")}`);
             }
         }
     }
 
     return {
-        atsScore: score,
+        atsScore,
         profileCompletion,
-        suggestions,
+        suggestions: allSuggestions,
+        categories,
         ...(jobId ? { jobMatchScore, matchedSkills, missingSkills } : {}),
     };
 }
