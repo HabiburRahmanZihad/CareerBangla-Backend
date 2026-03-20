@@ -89,6 +89,21 @@ const handleStripeWebhook = catchAsync(
     }
 )
 
+const getInvoice = catchAsync(
+    async (req: Request, res: Response) => {
+        const user = req.user;
+        const { subscriptionId } = req.params;
+        const pdfBuffer = await SubscriptionService.getInvoice(user, subscriptionId as string);
+
+        res.set({
+            "Content-Type": "application/pdf",
+            "Content-Disposition": `attachment; filename="CareerBangla-Invoice-${subscriptionId}.pdf"`,
+            "Content-Length": pdfBuffer.length,
+        });
+        res.send(pdfBuffer);
+    }
+)
+
 export const SubscriptionController = {
     initiatePayment,
     handleIpn,
@@ -96,4 +111,5 @@ export const SubscriptionController = {
     getSubscriptionPlans,
     getMySubscriptions,
     handleStripeWebhook,
+    getInvoice,
 }

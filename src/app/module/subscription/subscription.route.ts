@@ -23,4 +23,8 @@ router.get("/my-subscriptions",
     checkAuth(Role.USER, Role.RECRUITER),
     SubscriptionController.getMySubscriptions);
 
+router.get("/invoice/:subscriptionId",
+    checkAuth(Role.USER, Role.RECRUITER),
+    SubscriptionController.getInvoice);
+
 export const SubscriptionRoutes = router;
