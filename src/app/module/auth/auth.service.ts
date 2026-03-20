@@ -7,7 +7,7 @@ import { auth } from "../../lib/auth";
 import { prisma } from "../../lib/prisma";
 import { jwtUtils } from "../../utils/jwt";
 import { tokenUtils } from "../../utils/token";
-import { IChangePasswordPayload, ILoginUserPayload, IRegisterUserPayload } from "./auth.interface";
+import { IChangePasswordPayload, IForgetPasswordPayload, ILoginUserPayload, IRegisterUserPayload } from "./auth.interface";
 import crypto from "crypto";
 
 const generateUniqueReferralCode = async (name?: string | null): Promise<string> => {
@@ -32,8 +32,21 @@ const generateUniqueReferralCode = async (name?: string | null): Promise<string>
     return fallback;
 };
 
+const BD_PHONE_REGEX = /^01[3-9]\d{8}$/;
+
 const registerUser = async (payload: IRegisterUserPayload) => {
-    const { name, email, password, referralCode: incomingReferralCode } = payload;
+    const { name, email, phone, password, referralCode: incomingReferralCode } = payload;
+
+    // Validate phone format
+    if (!BD_PHONE_REGEX.test(phone)) {
+        throw new AppError(status.BAD_REQUEST, "Enter a valid 11-digit Bangladeshi phone number starting with 01");
+    }
+
+    // Check phone uniqueness before registration
+    const existingPhone = await prisma.user.findUnique({ where: { phone }, select: { id: true } });
+    if (existingPhone) {
+        throw new AppError(status.BAD_REQUEST, "Phone number is already registered");
+    }
 
     const data = await auth.api.signUpEmail({
         body: {
@@ -68,11 +81,12 @@ const registerUser = async (payload: IRegisterUserPayload) => {
         }
 
         await prisma.$transaction(async (tx) => {
-            // Update user with referral code and referredBy
+            // Update user with referral code, referredBy, and phone
             await tx.user.update({
                 where: { id: data.user.id },
                 data: {
                     referralCode,
+                    phone,
                     ...(validReferredBy ? { referredBy: validReferredBy } : {}),
                 },
             });
@@ -149,7 +163,22 @@ const registerUser = async (payload: IRegisterUserPayload) => {
 
 
 const loginUser = async (payload: ILoginUserPayload) => {
-    const { email, password } = payload;
+    const { identifier, password } = payload;
+
+    // Detect if identifier is a phone number or email
+    let email: string;
+    if (BD_PHONE_REGEX.test(identifier)) {
+        const userByPhone = await prisma.user.findUnique({
+            where: { phone: identifier },
+            select: { email: true },
+        });
+        if (!userByPhone) {
+            throw new AppError(status.NOT_FOUND, "No account found with this phone number");
+        }
+        email = userByPhone.email;
+    } else {
+        email = identifier;
+    }
 
     const data = await auth.api.signInEmail({
         body: {
@@ -440,7 +469,9 @@ const resendVerificationEmail = async (email: string) => {
     });
 };
 
-const forgetPassword = async (email: string) => {
+const forgetPassword = async (payload: IForgetPasswordPayload) => {
+    const { email, phone } = payload;
+
     const isUserExist = await prisma.user.findUnique({
         where: {
             email,
@@ -457,6 +488,11 @@ const forgetPassword = async (email: string) => {
 
     if (isUserExist.isDeleted || isUserExist.status === UserStatus.DELETED) {
         throw new AppError(status.NOT_FOUND, "User not found");
+    }
+
+    // Verify the phone number matches the account
+    if (isUserExist.phone !== phone) {
+        throw new AppError(status.BAD_REQUEST, "Phone number does not match our records");
     }
 
     await auth.api.requestPasswordResetEmailOTP({

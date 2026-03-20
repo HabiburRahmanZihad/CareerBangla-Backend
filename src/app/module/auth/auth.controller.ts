@@ -190,8 +190,8 @@ const resendVerificationEmail = catchAsync(
 
 const forgetPassword = catchAsync(
     async (req: Request, res: Response) => {
-        const { email } = req.body;
-        await AuthService.forgetPassword(email);
+        const { email, phone } = req.body;
+        await AuthService.forgetPassword({ email, phone });
 
         sendResponse(res, {
             httpStatusCode: status.OK,
