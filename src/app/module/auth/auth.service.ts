@@ -8,11 +8,32 @@ import { prisma } from "../../lib/prisma";
 import { jwtUtils } from "../../utils/jwt";
 import { tokenUtils } from "../../utils/token";
 import { IChangePasswordPayload, ILoginUserPayload, IRegisterUserPayload } from "./auth.interface";
+import crypto from "crypto";
 
+const generateUniqueReferralCode = async (name?: string | null): Promise<string> => {
+    const prefix = name
+        ? name.substring(0, 4).toUpperCase().replace(/[^A-Z]/g, "").padEnd(2, "X")
+        : "USER";
 
+    for (let attempt = 0; attempt < 10; attempt++) {
+        const suffix = crypto.randomInt(100000, 999999).toString();
+        const code = `${prefix}${suffix}`;
+
+        const existing = await prisma.user.findUnique({
+            where: { referralCode: code },
+            select: { id: true },
+        });
+
+        if (!existing) return code;
+    }
+
+    // Fallback: fully random code
+    const fallback = `REF${crypto.randomBytes(4).toString("hex").toUpperCase()}`;
+    return fallback;
+};
 
 const registerUser = async (payload: IRegisterUserPayload) => {
-    const { name, email, password } = payload;
+    const { name, email, password, referralCode: incomingReferralCode } = payload;
 
     const data = await auth.api.signUpEmail({
         body: {
@@ -32,16 +53,46 @@ const registerUser = async (payload: IRegisterUserPayload) => {
 
     try {
         // Generate a unique referral code for the new user
-        const baseCode = data.user.name ? data.user.name.substring(0, 4).toUpperCase().replace(/[^A-Z]/g, '') : "USER";
-        const randomNumbers = Math.floor(1000 + Math.random() * 9000);
-        const referralCode = `${baseCode}${randomNumbers}`;
+        const referralCode = await generateUniqueReferralCode(data.user.name);
+
+        // Validate incoming referral code if provided
+        let validReferredBy: string | undefined;
+        if (incomingReferralCode) {
+            const referrer = await prisma.user.findUnique({
+                where: { referralCode: incomingReferralCode },
+                select: { id: true },
+            });
+            if (referrer && referrer.id !== data.user.id) {
+                validReferredBy = incomingReferralCode;
+            }
+        }
 
         await prisma.$transaction(async (tx) => {
-            // Update user with referral code
+            // Update user with referral code and referredBy
             await tx.user.update({
                 where: { id: data.user.id },
-                data: { referralCode }
+                data: {
+                    referralCode,
+                    ...(validReferredBy ? { referredBy: validReferredBy } : {}),
+                },
             });
+
+            // Create initial ReferralHistory entry (hasPaid = false until they purchase)
+            if (validReferredBy) {
+                const referrer = await tx.user.findUnique({
+                    where: { referralCode: validReferredBy },
+                    select: { id: true },
+                });
+                if (referrer) {
+                    await tx.referralHistory.create({
+                        data: {
+                            referrerId: referrer.id,
+                            referredUserId: data.user.id,
+                            hasPaid: false,
+                        },
+                    });
+                }
+            }
 
             await tx.notification.create({
                 data: {
@@ -468,10 +519,8 @@ const googleLoginSuccess = async (session: Record<string, any>) => {
     })
 
     if (dbUser && !dbUser.referralCode) {
-        const baseCode = dbUser.name ? dbUser.name.substring(0, 4).toUpperCase().replace(/[^A-Z]/g, '') : "USER";
-        const randomNumbers = Math.floor(1000 + Math.random() * 9000);
-        const referralCode = `${baseCode}${randomNumbers}`;
-        
+        const referralCode = await generateUniqueReferralCode(dbUser.name);
+
         await prisma.user.update({
             where: { id: session.user.id },
             data: { referralCode }

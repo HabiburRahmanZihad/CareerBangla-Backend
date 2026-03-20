@@ -9,6 +9,7 @@ import { RecruiterRoutes } from "../module/recruiter/recruiter.route";
 import { ResumeRoutes } from "../module/resume/resume.route";
 import { StatsRoutes } from "../module/stats/stats.route";
 import { SubscriptionRoutes } from "../module/subscription/subscription.route";
+import { ReferralRoutes } from "../module/referral/referral.route";
 import { TrackingRoutes } from "../module/tracking/tracking.route";
 import { UserRoutes } from "../module/user/user.route";
 
@@ -25,6 +26,7 @@ router.use("/subscriptions", SubscriptionRoutes);
 router.use("/tracking", TrackingRoutes);
 router.use("/coupons", CouponRoutes);
 router.use("/notifications", NotificationRoutes);
+router.use("/referrals", ReferralRoutes);
 router.use("/stats", StatsRoutes);
 
 

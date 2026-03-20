@@ -212,18 +212,23 @@ const handleIpn = async (payload: ISSLCommerzIpnPayload) => {
                     }
                 }
 
-                // 4. Handle Referral Tracking (Only logging relationship; no financial bonus)
+                // 4. Handle Referral Tracking + Reward
                 if (subscription.user.referredBy) {
                     const referrerCode = subscription.user.referredBy;
                     const referrer = await tx.user.findUnique({ where: { referralCode: referrerCode } });
 
                     if (referrer) {
-                        // Check if a referral history entry already exists to avoid duplicate tracking
-                        const existingref = await tx.referralHistory.findFirst({
-                            where: { referrerId: referrer.id, referredUserId: subscription.userId, hasPaid: true }
+                        // Mark existing entry as paid, or create a new one
+                        const existingRef = await tx.referralHistory.findFirst({
+                            where: { referrerId: referrer.id, referredUserId: subscription.userId }
                         });
 
-                        if (!existingref) {
+                        if (existingRef && !existingRef.hasPaid) {
+                            await tx.referralHistory.update({
+                                where: { id: existingRef.id },
+                                data: { hasPaid: true, paidAt: new Date() },
+                            });
+                        } else if (!existingRef) {
                             await tx.referralHistory.create({
                                 data: {
                                     referrerId: referrer.id,
@@ -231,6 +236,36 @@ const handleIpn = async (payload: ISSLCommerzIpnPayload) => {
                                     hasPaid: true,
                                     paidAt: new Date(),
                                 }
+                            });
+                        }
+
+                        // Reward: check if referrer just crossed a multiple of 10
+                        const totalPaid = await tx.referralHistory.count({
+                            where: { referrerId: referrer.id, hasPaid: true },
+                        });
+
+                        if (totalPaid > 0 && totalPaid % 10 === 0) {
+                            const referrerData = await tx.user.findUnique({
+                                where: { id: referrer.id },
+                                select: { isPremium: true, premiumUntil: true },
+                            });
+                            const baseDate = referrerData?.premiumUntil && new Date(referrerData.premiumUntil) > new Date()
+                                ? new Date(referrerData.premiumUntil)
+                                : new Date();
+                            const rewardUntil = new Date(baseDate);
+                            rewardUntil.setDate(rewardUntil.getDate() + 30);
+
+                            await tx.user.update({
+                                where: { id: referrer.id },
+                                data: { isPremium: true, premiumUntil: rewardUntil },
+                            });
+                            await tx.notification.create({
+                                data: {
+                                    userId: referrer.id,
+                                    type: "GENERAL",
+                                    title: "Referral Reward Earned!",
+                                    message: `Congratulations! You've reached ${totalPaid} successful referrals. 30 days of free Premium has been added to your account!`,
+                                },
                             });
                         }
                     }
@@ -380,16 +415,22 @@ const handleStripeWebhook = async (req: StripeWebhookRequest) => {
                         }
                     }
 
-                    // Track Referral Usage (No financial bonus)
+                    // Track Referral Usage + Reward
                     if (subscription.user.referredBy) {
                         const referrerCode = subscription.user.referredBy;
                         const referrer = await tx.user.findUnique({ where: { referralCode: referrerCode } });
 
                         if (referrer) {
                             const existingRef = await tx.referralHistory.findFirst({
-                                where: { referrerId: referrer.id, referredUserId: subscription.userId, hasPaid: true }
+                                where: { referrerId: referrer.id, referredUserId: subscription.userId }
                             });
-                            if (!existingRef) {
+
+                            if (existingRef && !existingRef.hasPaid) {
+                                await tx.referralHistory.update({
+                                    where: { id: existingRef.id },
+                                    data: { hasPaid: true, paidAt: new Date() },
+                                });
+                            } else if (!existingRef) {
                                 await tx.referralHistory.create({
                                     data: {
                                         referrerId: referrer.id,
@@ -397,6 +438,36 @@ const handleStripeWebhook = async (req: StripeWebhookRequest) => {
                                         hasPaid: true,
                                         paidAt: new Date(),
                                     }
+                                });
+                            }
+
+                            // Reward: check if referrer just crossed a multiple of 10
+                            const totalPaid = await tx.referralHistory.count({
+                                where: { referrerId: referrer.id, hasPaid: true },
+                            });
+
+                            if (totalPaid > 0 && totalPaid % 10 === 0) {
+                                const referrerData = await tx.user.findUnique({
+                                    where: { id: referrer.id },
+                                    select: { isPremium: true, premiumUntil: true },
+                                });
+                                const baseDate = referrerData?.premiumUntil && new Date(referrerData.premiumUntil) > new Date()
+                                    ? new Date(referrerData.premiumUntil)
+                                    : new Date();
+                                const rewardUntil = new Date(baseDate);
+                                rewardUntil.setDate(rewardUntil.getDate() + 30);
+
+                                await tx.user.update({
+                                    where: { id: referrer.id },
+                                    data: { isPremium: true, premiumUntil: rewardUntil },
+                                });
+                                await tx.notification.create({
+                                    data: {
+                                        userId: referrer.id,
+                                        type: "GENERAL",
+                                        title: "Referral Reward Earned!",
+                                        message: `Congratulations! You've reached ${totalPaid} successful referrals. 30 days of free Premium has been added to your account!`,
+                                    },
                                 });
                             }
                         }
