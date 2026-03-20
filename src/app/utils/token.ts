@@ -26,7 +26,7 @@ const getRefreshToken = (payload: JwtPayload) => {
 }
 
 
-const isProduction = process.env.NODE_ENV === "production";
+const isProduction = envVars.NODE_ENV === "production";
 
 const setAccessTokenCookie = (res: Response, token: string) => {
     CookieUtils.setCookie(res, 'accessToken', token, {

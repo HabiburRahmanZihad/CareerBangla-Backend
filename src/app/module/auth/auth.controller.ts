@@ -130,7 +130,7 @@ const logoutUser = catchAsync(
     async (req: Request, res: Response) => {
         const betterAuthSessionToken = req.cookies["better-auth.session_token"];
         const result = await AuthService.logoutUser(betterAuthSessionToken);
-        const isProduction = process.env.NODE_ENV === "production";
+        const isProduction = envVars.NODE_ENV === "production";
         const cookieClearOptions = {
             httpOnly: true,
             secure: isProduction,

@@ -20,7 +20,7 @@ app.set("views", path.resolve(process.cwd(), `src/app/templates`))
 const allowedOrigins = [
     envVars.FRONTEND_URL,
     envVars.BETTER_AUTH_URL,
-    ...(process.env.NODE_ENV === 'development' ? ["http://localhost:3000", "http://localhost:5000"] : [])
+    ...(envVars.NODE_ENV === 'development' ? ["http://localhost:3000", "http://localhost:5000"] : [])
 ];
 
 app.use(cors({

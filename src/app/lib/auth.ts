@@ -154,7 +154,7 @@ export const auth = betterAuth({
         signIn: `${envVars.BETTER_AUTH_URL}/api/v1/auth/google/success`,
     },
 
-    trustedOrigins: [process.env.BETTER_AUTH_URL || "http://localhost:5000", envVars.FRONTEND_URL],
+    trustedOrigins: [envVars.BETTER_AUTH_URL, envVars.FRONTEND_URL],
 
     advanced: {
         useSecureCookies: false, // We manage secure attribute manually to keep cookie names consistent
@@ -162,8 +162,8 @@ export const auth = betterAuth({
             state: {
                 name: "better-auth.state",
                 attributes: {
-                    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-                    secure: process.env.NODE_ENV === "production",
+                    sameSite: envVars.NODE_ENV === "production" ? "none" : "lax",
+                    secure: envVars.NODE_ENV === "production",
                     httpOnly: true,
                     path: "/",
                 }
@@ -171,8 +171,8 @@ export const auth = betterAuth({
             sessionToken: {
                 name: "better-auth.session_token",
                 attributes: {
-                    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-                    secure: process.env.NODE_ENV === "production",
+                    sameSite: envVars.NODE_ENV === "production" ? "none" : "lax",
+                    secure: envVars.NODE_ENV === "production",
                     httpOnly: true,
                     path: "/",
                 }
