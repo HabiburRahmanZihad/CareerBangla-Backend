@@ -1,4 +1,5 @@
 import { Router } from "express";
+import multer from "multer";
 import { Role } from "../../../generated/prisma/enums";
 import { checkAuth } from "../../middleware/checkAuth";
 import { validateRequest } from "../../middleware/validateRequest";
@@ -6,6 +7,7 @@ import { ResumeController } from "./resume.controller";
 import { updateResumeZodSchema } from "./resume.validation";
 
 const router = Router();
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
 router.get("/my-resume",
     checkAuth(Role.USER),
@@ -19,6 +21,15 @@ router.patch("/my-resume",
 router.delete("/my-resume",
     checkAuth(Role.USER),
     ResumeController.deleteMyResume);
+
+router.get("/download-pdf",
+    checkAuth(Role.USER, Role.RECRUITER),
+    ResumeController.downloadResumePdf);
+
+router.post("/upload-photo",
+    checkAuth(Role.USER),
+    upload.single("photo"),
+    ResumeController.uploadProfilePhoto);
 
 router.post("/ats-score",
     checkAuth(Role.USER),

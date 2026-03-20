@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Applicant - CareerBangla</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7fa; margin: 0; padding: 0; }
+        .container { max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .header { background: linear-gradient(135deg, #1e3a5f, #2d6a9f); color: white; padding: 30px 20px; text-align: center; }
+        .header h1 { margin: 0; font-size: 24px; }
+        .header p { margin: 5px 0 0; opacity: 0.9; font-size: 14px; }
+        .content { padding: 30px 25px; }
+        .content h2 { color: #1e3a5f; font-size: 20px; margin-bottom: 15px; }
+        .applicant-info { background-color: #f8f9fa; border-radius: 8px; padding: 15px; margin: 15px 0; }
+        .applicant-info p { margin: 5px 0; color: #555; font-size: 14px; }
+        .applicant-info strong { color: #333; }
+        .cv-note { background-color: #fff3e0; border-left: 4px solid #ff9800; padding: 12px 16px; margin: 15px 0; border-radius: 0 8px 8px 0; font-size: 13px; color: #e65100; }
+        .premium-note { background-color: #e8f5e9; border-left: 4px solid #4caf50; padding: 12px 16px; margin: 15px 0; border-radius: 0 8px 8px 0; font-size: 13px; color: #2e7d32; }
+        .footer { background-color: #f8f9fa; padding: 20px; text-align: center; color: #888; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>CareerBangla</h1>
+            <p>New Job Application</p>
+        </div>
+        <div class="content">
+            <h2>New Applicant for "<%= jobTitle %>"</h2>
+
+            <div class="applicant-info">
+                <p><strong>Name:</strong> <%= applicantName %></p>
+                <% if (showFullDetails) { %>
+                <p><strong>Email:</strong> <%= applicantEmail %></p>
+                <% if (applicantPhone) { %>
+                <p><strong>Phone:</strong> <%= applicantPhone %></p>
+                <% } %>
+                <% } %>
+                <p><strong>Applied:</strong> <%= appliedAt %></p>
+            </div>
+
+            <% if (coverLetter) { %>
+            <p><strong>Cover Letter:</strong></p>
+            <p style="color: #555; font-size: 14px; line-height: 1.6;"><%= coverLetter %></p>
+            <% } %>
+
+            <% if (hasCvAttachment) { %>
+            <div class="premium-note">
+                The applicant's CV (PDF) is attached to this email. You can review it directly.
+            </div>
+            <% } else if (!showFullDetails) { %>
+            <div class="cv-note">
+                Upgrade to Career Boost to see full applicant details (email, phone) and receive CV attachments with applications.
+            </div>
+            <% } %>
+        </div>
+        <div class="footer">
+            <p>&copy; 2026 CareerBangla. All rights reserved.</p>
+            <p>This is an automated message. Please do not reply.</p>
+        </div>
+    </div>
+</body>
+</html>

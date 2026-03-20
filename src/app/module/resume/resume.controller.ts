@@ -93,6 +93,46 @@ const deleteMyResume = catchAsync(
     }
 )
 
+const downloadResumePdf = catchAsync(
+    async (req: Request, res: Response) => {
+        const user = req.user;
+        const targetUserId = req.query.userId as string | undefined;
+        const pdfBuffer = await ResumeService.downloadResumePdf(user, targetUserId);
+
+        res.set({
+            "Content-Type": "application/pdf",
+            "Content-Disposition": `attachment; filename="CareerBangla-Resume.pdf"`,
+            "Content-Length": pdfBuffer.length,
+        });
+        res.send(pdfBuffer);
+    }
+)
+
+const uploadProfilePhoto = catchAsync(
+    async (req: Request, res: Response) => {
+        const user = req.user;
+        const file = req.file;
+
+        if (!file) {
+            return sendResponse(res, {
+                httpStatusCode: status.BAD_REQUEST,
+                success: false,
+                message: "No file uploaded",
+                data: null,
+            });
+        }
+
+        const result = await ResumeService.uploadProfilePhoto(user, file.buffer, file.originalname);
+
+        sendResponse(res, {
+            httpStatusCode: status.OK,
+            success: true,
+            message: "Profile photo uploaded successfully",
+            data: result,
+        });
+    }
+)
+
 export const ResumeController = {
     getMyResume,
     updateMyResume,
@@ -100,4 +140,6 @@ export const ResumeController = {
     getAtsScore,
     searchCandidates,
     deleteMyResume,
+    downloadResumePdf,
+    uploadProfilePhoto,
 }

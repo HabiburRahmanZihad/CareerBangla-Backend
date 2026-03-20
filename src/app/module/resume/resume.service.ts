@@ -5,6 +5,8 @@ import { IQueryParams } from "../../interfaces/query.interface";
 import { IRequestUser } from "../../interfaces/requestUser.interface";
 import { prisma } from "../../lib/prisma";
 import { getUserProfileCompletion } from "../../utils/profileCompletion";
+import { generateResumePdf } from "../../utils/resumePdf";
+import { uploadFileToCloudinary } from "../../config/cloudinary.config";
 
 type ResumeUpdatePayload = Partial<Omit<Resume, 'id' | 'userId' | 'createdAt' | 'updatedAt'>> & {
     workExperience?: Partial<WorkExperience>[];
@@ -564,6 +566,73 @@ const deleteMyResume = async (user: IRequestUser) => {
     return null;
 }
 
+const downloadResumePdf = async (user: IRequestUser, targetUserId?: string) => {
+    // Check premium status of the requesting user
+    const dbUser = await prisma.user.findUnique({
+        where: { id: user.userId },
+        select: { isPremium: true, premiumUntil: true, role: true },
+    });
+
+    const hasPremium = dbUser?.isPremium && (!dbUser.premiumUntil || new Date(dbUser.premiumUntil) > new Date());
+    if (!hasPremium) {
+        throw new AppError(status.FORBIDDEN, "Resume PDF download is a Career Boost feature. Upgrade to access this.");
+    }
+
+    // If recruiter is downloading another user's CV, verify they have the role
+    const resolvedUserId = targetUserId && (dbUser?.role === "RECRUITER" || dbUser?.role === "ADMIN" || dbUser?.role === "SUPER_ADMIN")
+        ? targetUserId
+        : user.userId;
+
+    const resume = await prisma.resume.findUnique({
+        where: { userId: resolvedUserId },
+        include: {
+            workExperience: { orderBy: { createdAt: 'desc' } },
+            education: { orderBy: { createdAt: 'desc' } },
+            certifications: { orderBy: { createdAt: 'desc' } },
+            projects: { orderBy: { createdAt: 'desc' } },
+            languages: { orderBy: { createdAt: 'desc' } },
+            awards: { orderBy: { createdAt: 'desc' } },
+            references: { orderBy: { createdAt: 'desc' } },
+        }
+    });
+
+    if (!resume) {
+        throw new AppError(status.NOT_FOUND, "Resume not found. Please create your resume first.");
+    }
+
+    return generateResumePdf(resume as unknown as Parameters<typeof generateResumePdf>[0]);
+};
+
+const getResumePdfForApplication = async (userId: string) => {
+    const resume = await prisma.resume.findUnique({
+        where: { userId },
+        include: {
+            workExperience: { orderBy: { createdAt: 'desc' } },
+            education: { orderBy: { createdAt: 'desc' } },
+            certifications: { orderBy: { createdAt: 'desc' } },
+            projects: { orderBy: { createdAt: 'desc' } },
+            languages: { orderBy: { createdAt: 'desc' } },
+            awards: { orderBy: { createdAt: 'desc' } },
+            references: { orderBy: { createdAt: 'desc' } },
+        }
+    });
+
+    if (!resume) return null;
+    return generateResumePdf(resume as unknown as Parameters<typeof generateResumePdf>[0]);
+};
+
+const uploadProfilePhoto = async (user: IRequestUser, fileBuffer: Buffer, fileName: string) => {
+    const result = await uploadFileToCloudinary(fileBuffer, fileName);
+
+    const resume = await prisma.resume.upsert({
+        where: { userId: user.userId },
+        update: { profilePhoto: result.secure_url },
+        create: { userId: user.userId, profilePhoto: result.secure_url },
+    });
+
+    return { profilePhoto: resume.profilePhoto };
+};
+
 export const ResumeService = {
     getMyResume,
     updateMyResume,
@@ -571,5 +640,7 @@ export const ResumeService = {
     getAtsScore,
     searchCandidates,
     deleteMyResume,
-
+    downloadResumePdf,
+    getResumePdfForApplication,
+    uploadProfilePhoto,
 }

@@ -5,6 +5,7 @@ import { IRequestUser } from "../../interfaces/requestUser.interface";
 import { prisma } from "../../lib/prisma";
 import { sendEmail } from "../../utils/email";
 import { getUserProfileCompletion } from "../../utils/profileCompletion";
+import { ResumeService } from "../resume/resume.service";
 
 const applyJob = async (user: IRequestUser, payload: { jobId: string; coverLetter?: string }) => {
     const { jobId, coverLetter } = payload;
@@ -99,6 +100,65 @@ const applyJob = async (user: IRequestUser, payload: { jobId: string; coverLette
         }
     }).catch(() => { /* email delivery is best-effort */ });
 
+    // Send email to recruiter with applicant details + CV (if recruiter is premium)
+    (async () => {
+        try {
+            const recruiterUser = await prisma.user.findUnique({
+                where: { id: job.recruiter.userId },
+                select: { email: true, isPremium: true, premiumUntil: true },
+            });
+            if (!recruiterUser) return;
+
+            const recruiterIsPremium = recruiterUser.isPremium &&
+                (!recruiterUser.premiumUntil || new Date(recruiterUser.premiumUntil) > new Date());
+
+            // Get applicant resume for contact info
+            const applicantResume = await prisma.resume.findUnique({
+                where: { userId: user.userId },
+                select: { contactNumber: true },
+            });
+
+            // Generate CV PDF if applicant is premium (has paid for Career Boost)
+            const applicantUser = await prisma.user.findUnique({
+                where: { id: user.userId },
+                select: { isPremium: true, premiumUntil: true },
+            });
+            const applicantIsPremium = applicantUser?.isPremium &&
+                (!applicantUser.premiumUntil || new Date(applicantUser.premiumUntil) > new Date());
+
+            let cvAttachment: { filename: string; content: Buffer; contentType: string } | undefined;
+            if (recruiterIsPremium && applicantIsPremium) {
+                const pdfBuffer = await ResumeService.getResumePdfForApplication(user.userId);
+                if (pdfBuffer) {
+                    cvAttachment = {
+                        filename: `${application.user.name.replace(/\s+/g, "-")}-CV.pdf`,
+                        content: pdfBuffer,
+                        contentType: "application/pdf",
+                    };
+                }
+            }
+
+            await sendEmail({
+                to: recruiterUser.email,
+                subject: `New Applicant for "${job.title}" - ${application.user.name}`,
+                templateName: "newApplicant",
+                templateData: {
+                    jobTitle: job.title,
+                    applicantName: application.user.name,
+                    applicantEmail: recruiterIsPremium ? user.email : null,
+                    applicantPhone: recruiterIsPremium ? (applicantResume?.contactNumber || null) : null,
+                    showFullDetails: recruiterIsPremium,
+                    hasCvAttachment: !!cvAttachment,
+                    coverLetter: coverLetter || null,
+                    appliedAt: new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }),
+                },
+                ...(cvAttachment ? { attachments: [cvAttachment] } : {}),
+            });
+        } catch {
+            /* recruiter email is best-effort */
+        }
+    })();
+
     return application;
 }
 
@@ -140,6 +200,14 @@ const getJobApplications = async (user: IRequestUser, jobId: string) => {
         throw new AppError(status.FORBIDDEN, "You are not authorized to view these applications");
     }
 
+    // Check recruiter premium status
+    const recruiterUser = await prisma.user.findUnique({
+        where: { id: user.userId },
+        select: { isPremium: true, premiumUntil: true },
+    });
+    const isPremiumRecruiter = recruiterUser?.isPremium &&
+        (!recruiterUser.premiumUntil || new Date(recruiterUser.premiumUntil) > new Date());
+
     const applications = await prisma.application.findMany({
         where: { jobId },
         include: {
@@ -147,9 +215,15 @@ const getJobApplications = async (user: IRequestUser, jobId: string) => {
                 select: {
                     id: true,
                     name: true,
-                    email: true,
+                    email: isPremiumRecruiter,
                     image: true,
-                    resume: true,
+                    resume: isPremiumRecruiter ? {
+                        select: {
+                            contactNumber: true,
+                            professionalTitle: true,
+                            profilePhoto: true,
+                        }
+                    } : false,
                 }
             },
             job: true,
@@ -157,7 +231,7 @@ const getJobApplications = async (user: IRequestUser, jobId: string) => {
         orderBy: { createdAt: "desc" },
     })
 
-    return applications;
+    return { applications, isPremiumRecruiter };
 }
 
 const updateApplicationStatus = async (
