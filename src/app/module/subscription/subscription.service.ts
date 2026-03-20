@@ -260,9 +260,23 @@ const handleIpn = async (payload: ISSLCommerzIpnPayload) => {
     return { redirectUrl: `${envVars.FRONTEND_URL}/dashboard/subscriptions?payment=unknown` };
 }
 
-const cancelSubscription = async () => {
-    // In a pure duration-based model with SSLCommerz, cancelling usually just means 
+
+const cancelSubscription = async (user: IRequestUser, subscriptionId: string) => {
     // stopping auto-renewal. Since we don't have tokenized recurring yet, we can just return.
+    if (subscriptionId) {
+        const subscription = await prisma.subscription.findUnique({
+            where: { id: subscriptionId, userId: user.userId }
+        });
+
+        if (!subscription) {
+            throw new AppError(status.NOT_FOUND, "Subscription not found.");
+        }
+
+        if (subscription.status !== PaymentStatus.PAID) {
+            throw new AppError(status.BAD_REQUEST, "Only active subscriptions can be cancelled.");
+        }
+    }
+
     throw new AppError(status.BAD_REQUEST, "Direct cancellation is not supported. Subscriptions expire automatically.");
 }
 
@@ -286,7 +300,7 @@ const getMySubscriptions = async (user: IRequestUser) => {
     return subscriptions;
 }
 
-interface StripeWebhookRequest {
+export interface StripeWebhookRequest {
     body: Buffer;
     headers: Record<string, string>;
 }

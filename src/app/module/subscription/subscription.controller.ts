@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import status from "http-status";
 import { catchAsync } from "../../shared/catchAsync";
 import { sendResponse } from "../../shared/sendResponse";
+import type { StripeWebhookRequest } from "./subscription.service";
 import { SubscriptionService } from "./subscription.service";
 
 const initiatePayment = catchAsync(
@@ -78,7 +79,7 @@ const handleIpn = catchAsync(
 
 const handleStripeWebhook = catchAsync(
     async (req: Request, res: Response) => {
-        const result = await SubscriptionService.handleStripeWebhook(req);
+        const result = await SubscriptionService.handleStripeWebhook(req as unknown as StripeWebhookRequest);
         sendResponse(res, {
             httpStatusCode: status.OK,
             success: true,
