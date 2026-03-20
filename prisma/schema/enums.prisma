@@ -54,10 +54,6 @@ enum PaymentStatus {
 enum SubscriptionPlan {
   FREE
   PREMIUM
-  MONTHLY
-  QUARTERLY
-  BIANNUAL
-  YEARLY
 }
 
 enum CouponStatus {

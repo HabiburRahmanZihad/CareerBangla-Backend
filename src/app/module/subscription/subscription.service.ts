@@ -8,24 +8,36 @@ import { envVars } from "../../config/env";
 import AppError from "../../errorHelpers/AppError";
 import { IRequestUser } from "../../interfaces/requestUser.interface";
 import { prisma } from "../../lib/prisma";
-import { generateInvoicePdf } from "../../utils/invoice";
 import { sendEmail } from "../../utils/email";
+import { generateInvoicePdf } from "../../utils/invoice";
 
 const stripe = new Stripe(envVars.STRIPE.SECRET_KEY, { apiVersion: "2026-01-28.clover" });
 
-// Single Career Boost Plan - one-time lifetime upgrade
-const CAREER_BOOST_PLAN = {
-    name: "Career Boost",
-    planKey: "PREMIUM",
-    amount: 4999,
-    description: "Lifetime access to all Career Boost features. One-time payment, no recurring charges.",
-    features: [
-        "Download Custom ATS PDF",
-        "Unlimited Profile Editing",
-        "Priority Application Review",
-        "Career Boost Badge on Profile",
-        "Lifetime Access",
-    ],
+// Subscription Plans
+interface SubscriptionPlanConfig {
+    name: string;
+    planKey: string;
+    amount: number;
+    description: string;
+    durationDays: number | null; // null for lifetime
+    features: string[];
+}
+
+const SUBSCRIPTION_PLANS: Record<string, SubscriptionPlanConfig> = {
+    BOOST_LIFETIME: {
+        name: "Career Boost (Lifetime)",
+        planKey: "BOOST_LIFETIME",
+        amount: 4999,
+        description: "Lifetime access to all Career Boost features. One-time payment, no recurring charges.",
+        durationDays: null,
+        features: [
+            "Download Custom ATS PDF",
+            "Unlimited Profile Editing",
+            "Priority Application Review",
+            "Career Boost Badge on Profile",
+            "Lifetime Access",
+        ],
+    },
 };
 
 // Helper to calculate discount
@@ -39,8 +51,20 @@ const calculateDiscount = (amount: number, coupon: { discountPercent?: number | 
     return 0;
 };
 
-const initiatePayment = async (user: IRequestUser, payload: { planName?: string; couponCode?: string; referralCode?: string; gateway?: "STRIPE" | "SSLCOMMERZ" }) => {
+const getPlanConfig = (planKey: string): SubscriptionPlanConfig => {
+    const plan = SUBSCRIPTION_PLANS[planKey];
+    if (!plan) {
+        throw new AppError(status.BAD_REQUEST, `Invalid subscription plan: ${planKey}`);
+    }
+    return plan;
+};
+
+const initiatePayment = async (user: IRequestUser, payload: { planKey?: string; couponCode?: string; referralCode?: string; gateway?: "STRIPE" | "SSLCOMMERZ" }) => {
     const gateway = payload.gateway || "SSLCOMMERZ";
+    const planKey = payload.planKey || "BOOST_LIFETIME";
+
+    // Get plan configuration
+    const plan = getPlanConfig(planKey);
 
     // Check if user already has lifetime Career Boost
     const existingUser = await prisma.user.findUnique({ where: { id: user.userId } });
@@ -48,7 +72,7 @@ const initiatePayment = async (user: IRequestUser, payload: { planName?: string;
         throw new AppError(status.BAD_REQUEST, "You already have lifetime Career Boost access.");
     }
 
-    let finalAmount = CAREER_BOOST_PLAN.amount;
+    let finalAmount = plan.amount;
     let appliedCouponId: string | undefined;
     let discountAmount = 0;
 
@@ -57,8 +81,8 @@ const initiatePayment = async (user: IRequestUser, payload: { planName?: string;
         const coupon = await prisma.coupon.findUnique({ where: { code: payload.couponCode.toUpperCase() } });
         if (coupon && coupon.status === "ACTIVE" && (!coupon.expiresAt || new Date(coupon.expiresAt) > new Date()) && coupon.usageCount < coupon.maxUsage) {
             appliedCouponId = coupon.id;
-            discountAmount = calculateDiscount(CAREER_BOOST_PLAN.amount, coupon);
-            finalAmount = CAREER_BOOST_PLAN.amount - discountAmount;
+            discountAmount = calculateDiscount(plan.amount, coupon);
+            finalAmount = plan.amount - discountAmount;
             if (finalAmount < 1) finalAmount = 1;
         } else {
             throw new AppError(status.BAD_REQUEST, "Invalid or expired coupon code.");
@@ -84,7 +108,8 @@ const initiatePayment = async (user: IRequestUser, payload: { planName?: string;
             referralId,
             paymentGatewayData: {
                 gateway,
-                originalAmount: CAREER_BOOST_PLAN.amount,
+                planKey,
+                originalAmount: plan.amount,
                 discountAmount,
                 couponCode: payload.couponCode || null,
                 referralCode: payload.referralCode || null,
@@ -104,8 +129,8 @@ const initiatePayment = async (user: IRequestUser, payload: { planName?: string;
                         currency: "bdt",
                         unit_amount: finalAmount * 100,
                         product_data: {
-                            name: "CareerBangla Career Boost (Lifetime)",
-                            description: `Lifetime Career Boost Access.${discountAmount > 0 ? ` (Discount: ৳${discountAmount})` : ""}`,
+                            name: plan.name,
+                            description: `${plan.description}${discountAmount > 0 ? ` (Discount: ৳${discountAmount})` : ""}`,
                         },
                     },
                     quantity: 1,
@@ -455,11 +480,11 @@ const getSubscriptionPlans = async () => {
     return {
         plans: [
             {
-                name: CAREER_BOOST_PLAN.name,
-                planKey: CAREER_BOOST_PLAN.planKey,
-                amount: CAREER_BOOST_PLAN.amount,
-                description: CAREER_BOOST_PLAN.description,
-                features: CAREER_BOOST_PLAN.features,
+                name: SUBSCRIPTION_PLANS.BOOST_LIFETIME.name,
+                planKey: SUBSCRIPTION_PLANS.BOOST_LIFETIME.planKey,
+                amount: SUBSCRIPTION_PLANS.BOOST_LIFETIME.amount,
+                description: SUBSCRIPTION_PLANS.BOOST_LIFETIME.description,
+                features: SUBSCRIPTION_PLANS.BOOST_LIFETIME.features,
                 lifetime: true,
             },
         ],

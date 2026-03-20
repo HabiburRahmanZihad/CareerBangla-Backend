@@ -14,7 +14,7 @@
 */
 -- AlterEnum
 BEGIN;
-CREATE TYPE "SubscriptionPlan_new" AS ENUM ('FREE', 'MONTHLY', 'QUARTERLY', 'BIANNUAL', 'YEARLY');
+CREATE TYPE "SubscriptionPlan_new" AS ENUM ('FREE', 'PREMIUM');
 ALTER TABLE "public"."subscription" ALTER COLUMN "plan" DROP DEFAULT;
 ALTER TABLE "subscription" ALTER COLUMN "plan" TYPE "SubscriptionPlan_new" USING ("plan"::text::"SubscriptionPlan_new");
 ALTER TYPE "SubscriptionPlan" RENAME TO "SubscriptionPlan_old";
