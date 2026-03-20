@@ -27,16 +27,16 @@
 <body>
     <div class="header">
         <h1>CareerBangla</h1>
-        <p>Subscription Invoice</p>
+        <p>Career Boost Subscription Invoice</p>
     </div>
     <div class="content">
         <p>Hello <strong><%= name %></strong>,</p>
-        <p>Thank you for your purchase! Your premium subscription has been activated. Here are your invoice details:</p>
+        <p>Thank you for your purchase! Your Career Boost subscription has been activated. Here are your invoice details:</p>
 
         <table>
             <tr>
                 <td class="td-label">Plan</td>
-                <td class="td-value"><%= plan %> Premium</td>
+                <td class="td-value"><%= plan %></td>
             </tr>
             <tr>
                 <td class="td-label">Transaction ID</td>
@@ -44,7 +44,7 @@
             </tr>
             <tr>
                 <td class="td-label">Subscription Period</td>
-                <td class="td-value"><%= periodStart %> &mdash; <%= periodEnd %></td>
+                <td class="td-value"><%= periodStart %> &mdash; <%= periodEnd === "Lifetime" ? "Lifetime" : periodEnd %></td>
             </tr>
             <tr>
                 <td class="td-label">Original Amount</td>

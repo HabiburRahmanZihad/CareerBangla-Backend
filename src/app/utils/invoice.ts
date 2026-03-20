@@ -6,13 +6,11 @@ export interface InvoiceData {
     customerName: string;
     customerEmail: string;
     planName: string;
-    durationDays: number;
     originalAmount: number;
     discountAmount: number;
     finalAmount: number;
     couponCode: string | null;
     periodStart: Date | string;
-    periodEnd: Date | string;
 }
 
 const formatDate = (d: Date | string) => {
@@ -32,7 +30,7 @@ export const generateInvoicePdf = (data: InvoiceData): Promise<Buffer> => {
         // Header
         doc.fontSize(24).font("Helvetica-Bold").text("CareerBangla", 50, 50);
         doc.fontSize(10).font("Helvetica").fillColor("#666666")
-            .text("Premium Subscription Invoice", 50, 80);
+            .text("Career Boost Subscription Invoice", 50, 80);
 
         // Invoice details (right aligned)
         doc.fontSize(10).font("Helvetica-Bold").fillColor("#333333")
@@ -49,11 +47,11 @@ export const generateInvoicePdf = (data: InvoiceData): Promise<Buffer> => {
             .text(data.customerName, 50, 148)
             .text(data.customerEmail, 50, 163);
 
-        // Subscription Period
-        doc.fontSize(11).font("Helvetica-Bold").fillColor("#333333").text("Subscription Period:", 350, 130);
+        // Subscription Info
+        doc.fontSize(11).font("Helvetica-Bold").fillColor("#333333").text("Subscription:", 350, 130);
         doc.fontSize(10).font("Helvetica").fillColor("#555555")
-            .text(`${formatDate(data.periodStart)} - ${formatDate(data.periodEnd)}`, 350, 148)
-            .text(`${data.durationDays} days`, 350, 163);
+            .text(`Activated: ${formatDate(data.periodStart)}`, 350, 148)
+            .text("Duration: Lifetime", 350, 163);
 
         // Table header
         const tableTop = 210;
@@ -66,8 +64,8 @@ export const generateInvoicePdf = (data: InvoiceData): Promise<Buffer> => {
         // Table row
         const rowY = tableTop + 35;
         doc.font("Helvetica").fillColor("#555555");
-        doc.text(`${data.planName} Premium Plan`, 60, rowY);
-        doc.text(`${data.durationDays} days`, 300, rowY);
+        doc.text(data.planName, 60, rowY);
+        doc.text("Lifetime", 300, rowY);
         doc.text(`BDT ${data.originalAmount.toLocaleString()}`, 450, rowY, { align: "right" });
 
         // Subtotal section

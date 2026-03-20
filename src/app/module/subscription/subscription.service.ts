@@ -13,19 +13,20 @@ import { sendEmail } from "../../utils/email";
 
 const stripe = new Stripe(envVars.STRIPE.SECRET_KEY, { apiVersion: "2026-01-28.clover" });
 
-const SUBSCRIPTION_PLANS = {
-    MONTHLY: { durationDays: 30, amount: 500, plan: SubscriptionPlan.MONTHLY, description: "ATS-friendly CV, unlimited updates for 30 days" },
-    QUARTERLY: { durationDays: 90, amount: 1300, plan: SubscriptionPlan.QUARTERLY, description: "ATS-friendly CV, unlimited updates for 90 days" },
-    BIANNUAL: { durationDays: 180, amount: 2500, plan: SubscriptionPlan.BIANNUAL, description: "ATS-friendly CV, unlimited updates for 180 days" },
-    YEARLY: { durationDays: 365, amount: 4500, plan: SubscriptionPlan.YEARLY, description: "ATS-friendly CV, unlimited updates for 365 days" },
+// Single Career Boost Plan - one-time lifetime upgrade
+const CAREER_BOOST_PLAN = {
+    name: "Career Boost",
+    planKey: "PREMIUM",
+    amount: 4999,
+    description: "Lifetime access to all Career Boost features. One-time payment, no recurring charges.",
+    features: [
+        "Download Custom ATS PDF",
+        "Unlimited Profile Editing",
+        "Priority Application Review",
+        "Career Boost Badge on Profile",
+        "Lifetime Access",
+    ],
 };
-
-const PLAN_FEATURES = [
-    "Download Custom ATS PDF",
-    "Unlimited Profile Editing",
-    "Priority Application Review",
-    "Premium Badge on Profile",
-];
 
 // Helper to calculate discount
 const calculateDiscount = (amount: number, coupon: { discountPercent?: number | null; discountAmount?: number | null }) => {
@@ -38,16 +39,16 @@ const calculateDiscount = (amount: number, coupon: { discountPercent?: number | 
     return 0;
 };
 
-const initiatePayment = async (user: IRequestUser, payload: { planName: string; couponCode?: string; referralCode?: string; gateway?: "STRIPE" | "SSLCOMMERZ" }) => {
-    const planKey = payload.planName.toUpperCase() as keyof typeof SUBSCRIPTION_PLANS;
-    const planDetails = SUBSCRIPTION_PLANS[planKey];
+const initiatePayment = async (user: IRequestUser, payload: { planName?: string; couponCode?: string; referralCode?: string; gateway?: "STRIPE" | "SSLCOMMERZ" }) => {
     const gateway = payload.gateway || "SSLCOMMERZ";
 
-    if (!planDetails) {
-        throw new AppError(status.BAD_REQUEST, "Invalid subscription plan.");
+    // Check if user already has lifetime Career Boost
+    const existingUser = await prisma.user.findUnique({ where: { id: user.userId } });
+    if (existingUser?.isPremium && !existingUser.premiumUntil) {
+        throw new AppError(status.BAD_REQUEST, "You already have lifetime Career Boost access.");
     }
 
-    let finalAmount = planDetails.amount;
+    let finalAmount = CAREER_BOOST_PLAN.amount;
     let appliedCouponId: string | undefined;
     let discountAmount = 0;
 
@@ -56,9 +57,9 @@ const initiatePayment = async (user: IRequestUser, payload: { planName: string; 
         const coupon = await prisma.coupon.findUnique({ where: { code: payload.couponCode.toUpperCase() } });
         if (coupon && coupon.status === "ACTIVE" && (!coupon.expiresAt || new Date(coupon.expiresAt) > new Date()) && coupon.usageCount < coupon.maxUsage) {
             appliedCouponId = coupon.id;
-            discountAmount = calculateDiscount(planDetails.amount, coupon);
-            finalAmount = planDetails.amount - discountAmount;
-            if (finalAmount < 1) finalAmount = 1; // Minimum charge
+            discountAmount = calculateDiscount(CAREER_BOOST_PLAN.amount, coupon);
+            finalAmount = CAREER_BOOST_PLAN.amount - discountAmount;
+            if (finalAmount < 1) finalAmount = 1;
         } else {
             throw new AppError(status.BAD_REQUEST, "Invalid or expired coupon code.");
         }
@@ -66,7 +67,6 @@ const initiatePayment = async (user: IRequestUser, payload: { planName: string; 
 
     const transactionId = `TXN-${uuidv4().substring(0, 8)}-${Date.now()}`;
 
-    // Store referralId if referral code provided (for tracking)
     let referralId: string | undefined;
     if (payload.referralCode) {
         referralId = payload.referralCode;
@@ -76,7 +76,7 @@ const initiatePayment = async (user: IRequestUser, payload: { planName: string; 
     await prisma.subscription.create({
         data: {
             userId: user.userId,
-            plan: planDetails.plan,
+            plan: SubscriptionPlan.PREMIUM,
             amount: finalAmount,
             transactionId,
             status: PaymentStatus.UNPAID,
@@ -84,7 +84,7 @@ const initiatePayment = async (user: IRequestUser, payload: { planName: string; 
             referralId,
             paymentGatewayData: {
                 gateway,
-                originalAmount: planDetails.amount,
+                originalAmount: CAREER_BOOST_PLAN.amount,
                 discountAmount,
                 couponCode: payload.couponCode || null,
                 referralCode: payload.referralCode || null,
@@ -104,8 +104,8 @@ const initiatePayment = async (user: IRequestUser, payload: { planName: string; 
                         currency: "bdt",
                         unit_amount: finalAmount * 100,
                         product_data: {
-                            name: `CareerBangla ${payload.planName} Premium`,
-                            description: `Premium Subscription for ${planDetails.durationDays} days.${discountAmount > 0 ? ` (Discount: ৳${discountAmount})` : ""}`,
+                            name: "CareerBangla Career Boost (Lifetime)",
+                            description: `Lifetime Career Boost Access.${discountAmount > 0 ? ` (Discount: ৳${discountAmount})` : ""}`,
                         },
                     },
                     quantity: 1,
@@ -129,7 +129,7 @@ const initiatePayment = async (user: IRequestUser, payload: { planName: string; 
             cancel_url: `${envVars.BACKEND_URL}/api/v1/subscriptions/ipn`,
             ipn_url: `${envVars.BACKEND_URL}/api/v1/subscriptions/ipn`,
             shipping_method: 'No',
-            product_name: `CareerBangla ${payload.planName} Premium`,
+            product_name: 'CareerBangla Career Boost (Lifetime)',
             product_category: 'Subscription',
             product_profile: 'non-physical-goods',
             cus_name: (user as IRequestUser & { name?: string }).name || 'CareerBangla User',
@@ -178,31 +178,22 @@ const processSuccessfulPayment = async (
     gatewayLabel: string,
     extraUpdateData: Record<string, unknown> = {},
 ) => {
-    const planDetails = Object.values(SUBSCRIPTION_PLANS).find(p => p.plan === subscription.plan);
-    const durationDays = planDetails?.durationDays || 30;
-
-    const currentPremiumUntil = subscription.user.premiumUntil && subscription.user.premiumUntil > new Date()
-        ? subscription.user.premiumUntil
-        : new Date();
-    const newPremiumUntil = new Date(currentPremiumUntil);
-    newPremiumUntil.setDate(newPremiumUntil.getDate() + durationDays);
-
-    // 1. Mark subscription paid
+    // 1. Mark subscription paid (lifetime - no period end)
     await tx.subscription.update({
         where: { id: subscription.id },
         data: {
             status: PaymentStatus.PAID,
             paymentGatewayData: gatewayData,
             currentPeriodStart: new Date(),
-            currentPeriodEnd: newPremiumUntil,
+            currentPeriodEnd: null,
             ...extraUpdateData,
         }
     });
 
-    // 2. Upgrade user to Premium
+    // 2. Upgrade user to Lifetime Career Boost (premiumUntil = null means lifetime)
     await tx.user.update({
         where: { id: subscription.userId },
-        data: { isPremium: true, premiumUntil: newPremiumUntil }
+        data: { isPremium: true, premiumUntil: null }
     });
 
     // 3. Mark coupon used
@@ -248,33 +239,47 @@ const processSuccessfulPayment = async (
                 });
             }
 
-            // Reward: every 10 paid referrals = 30 days free premium
+            // Reward: every 10 paid referrals = 30 days free Career Boost
             const totalPaid = await tx.referralHistory.count({
                 where: { referrerId: referrer.id, hasPaid: true },
             });
             if (totalPaid > 0 && totalPaid % 10 === 0) {
                 const referrerData = await tx.user.findUnique({
                     where: { id: referrer.id },
-                    select: { premiumUntil: true },
+                    select: { premiumUntil: true, isPremium: true },
                 });
-                const baseDate = referrerData?.premiumUntil && new Date(referrerData.premiumUntil) > new Date()
-                    ? new Date(referrerData.premiumUntil)
-                    : new Date();
-                const rewardUntil = new Date(baseDate);
-                rewardUntil.setDate(rewardUntil.getDate() + 30);
 
-                await tx.user.update({
-                    where: { id: referrer.id },
-                    data: { isPremium: true, premiumUntil: rewardUntil },
-                });
-                await tx.notification.create({
-                    data: {
-                        userId: referrer.id,
-                        type: "GENERAL",
-                        title: "Referral Reward Earned!",
-                        message: `Congratulations! You've reached ${totalPaid} successful referrals. 30 days of free Premium has been added to your account!`,
-                    },
-                });
+                // If referrer already has lifetime Career Boost, track reward but don't change access
+                if (referrerData?.isPremium && !referrerData.premiumUntil) {
+                    await tx.notification.create({
+                        data: {
+                            userId: referrer.id,
+                            type: "GENERAL",
+                            title: "Referral Milestone Reached!",
+                            message: `Congratulations! You've reached ${totalPaid} successful referrals. Since you already have lifetime Career Boost, this milestone has been recorded. Thank you for spreading the word!`,
+                        },
+                    });
+                } else {
+                    // Give 30 days Career Boost (stack on existing if any)
+                    const baseDate = referrerData?.premiumUntil && new Date(referrerData.premiumUntil) > new Date()
+                        ? new Date(referrerData.premiumUntil)
+                        : new Date();
+                    const rewardUntil = new Date(baseDate);
+                    rewardUntil.setDate(rewardUntil.getDate() + 30);
+
+                    await tx.user.update({
+                        where: { id: referrer.id },
+                        data: { isPremium: true, premiumUntil: rewardUntil },
+                    });
+                    await tx.notification.create({
+                        data: {
+                            userId: referrer.id,
+                            type: "GENERAL",
+                            title: "Referral Reward Earned!",
+                            message: `Congratulations! You've reached ${totalPaid} successful referrals. 30 days of free Career Boost has been added to your account!`,
+                        },
+                    });
+                }
             }
         }
     }
@@ -284,8 +289,8 @@ const processSuccessfulPayment = async (
         data: {
             userId: subscription.userId,
             type: "GENERAL",
-            title: `Premium Activated${gatewayLabel ? ` via ${gatewayLabel}` : ""}`,
-            message: `Your ${subscription.plan} subscription has been activated until ${newPremiumUntil.toDateString()}. Enjoy all premium features!`,
+            title: `Career Boost Activated${gatewayLabel ? ` via ${gatewayLabel}` : ""}`,
+            message: `Your lifetime Career Boost subscription has been activated. Enjoy all Career Boost features forever!`,
             metadata: { subscriptionId: subscription.id },
         }
     });
@@ -300,20 +305,18 @@ const processSuccessfulPayment = async (
             data: {
                 userId: admin.id,
                 type: "GENERAL",
-                title: "New Subscription Purchase",
-                message: `${subscription.user.name} (${subscription.user.email}) purchased ${subscription.plan} plan for ৳${subscription.amount} via ${gatewayLabel || "Payment Gateway"}.`,
+                title: "New Career Boost Purchase",
+                message: `${subscription.user.name} (${subscription.user.email}) purchased Lifetime Career Boost for ৳${subscription.amount} via ${gatewayLabel || "Payment Gateway"}.`,
                 metadata: {
                     subscriptionId: subscription.id,
                     userId: subscription.userId,
-                    plan: subscription.plan,
+                    plan: "CAREER_BOOST",
                     amount: subscription.amount,
                     transactionId: subscription.transactionId,
                 },
             },
         });
     }
-
-    return { newPremiumUntil, durationDays };
 };
 
 // Send invoice email (fire and forget, non-blocking)
@@ -325,7 +328,6 @@ const sendInvoiceEmail = async (subscriptionId: string) => {
         });
         if (!subscription || subscription.status !== PaymentStatus.PAID) return;
 
-        const planDetails = Object.values(SUBSCRIPTION_PLANS).find(p => p.plan === subscription.plan);
         const gatewayInfo = subscription.paymentGatewayData as Record<string, unknown> | null;
 
         const invoiceData = {
@@ -333,32 +335,30 @@ const sendInvoiceEmail = async (subscriptionId: string) => {
             date: subscription.updatedAt || new Date(),
             customerName: subscription.user.name,
             customerEmail: subscription.user.email,
-            planName: subscription.plan,
-            durationDays: planDetails?.durationDays || 30,
+            planName: "Career Boost (Lifetime)",
             originalAmount: (gatewayInfo?.originalAmount as number) || subscription.amount,
             discountAmount: (gatewayInfo?.discountAmount as number) || 0,
             finalAmount: subscription.amount,
             couponCode: (gatewayInfo?.couponCode as string) || null,
             periodStart: subscription.currentPeriodStart || new Date(),
-            periodEnd: subscription.currentPeriodEnd || new Date(),
         };
 
         const pdfBuffer = await generateInvoicePdf(invoiceData);
 
         await sendEmail({
             to: subscription.user.email,
-            subject: `CareerBangla Invoice - ${subscription.plan} Subscription`,
+            subject: "CareerBangla Invoice - Career Boost Subscription",
             templateName: "invoice",
             templateData: {
                 name: subscription.user.name,
-                plan: subscription.plan,
+                plan: "Career Boost (Lifetime)",
                 amount: invoiceData.finalAmount,
                 originalAmount: invoiceData.originalAmount,
                 discount: invoiceData.discountAmount,
                 couponCode: invoiceData.couponCode,
                 transactionId: invoiceData.invoiceNumber,
                 periodStart: invoiceData.periodStart instanceof Date ? invoiceData.periodStart.toDateString() : new Date(invoiceData.periodStart).toDateString(),
-                periodEnd: invoiceData.periodEnd instanceof Date ? invoiceData.periodEnd.toDateString() : new Date(invoiceData.periodEnd).toDateString(),
+                periodEnd: "Lifetime",
             },
             attachments: [
                 {
@@ -418,7 +418,6 @@ const handleIpn = async (payload: ISSLCommerzIpnPayload) => {
                 );
             });
 
-            // Send invoice email (non-blocking)
             sendInvoiceEmail(subscription.id).catch(console.error);
 
             return { redirectUrl: `${envVars.FRONTEND_URL}/dashboard/subscriptions?payment=success` };
@@ -433,7 +432,6 @@ const handleIpn = async (payload: ISSLCommerzIpnPayload) => {
 
     return { redirectUrl: `${envVars.FRONTEND_URL}/dashboard/subscriptions?payment=unknown` };
 }
-
 
 const cancelSubscription = async (user: IRequestUser, subscriptionId: string) => {
     if (subscriptionId) {
@@ -450,20 +448,21 @@ const cancelSubscription = async (user: IRequestUser, subscriptionId: string) =>
         }
     }
 
-    throw new AppError(status.BAD_REQUEST, "Direct cancellation is not supported. Subscriptions expire automatically.");
+    throw new AppError(status.BAD_REQUEST, "Lifetime Career Boost subscriptions cannot be cancelled.");
 }
 
 const getSubscriptionPlans = async () => {
     return {
-        plans: Object.entries(SUBSCRIPTION_PLANS).map(([key, val]) => ({
-            name: key.charAt(0) + key.slice(1).toLowerCase(),
-            planKey: key,
-            amount: val.amount,
-            durationDays: val.durationDays,
-            description: val.description,
-            features: PLAN_FEATURES,
-            popular: key === "QUARTERLY",
-        })),
+        plans: [
+            {
+                name: CAREER_BOOST_PLAN.name,
+                planKey: CAREER_BOOST_PLAN.planKey,
+                amount: CAREER_BOOST_PLAN.amount,
+                description: CAREER_BOOST_PLAN.description,
+                features: CAREER_BOOST_PLAN.features,
+                lifetime: true,
+            },
+        ],
     };
 }
 
@@ -493,7 +492,6 @@ const getInvoice = async (user: IRequestUser, subscriptionId: string) => {
         throw new AppError(status.BAD_REQUEST, "Invoice is only available for paid subscriptions.");
     }
 
-    const planDetails = Object.values(SUBSCRIPTION_PLANS).find(p => p.plan === subscription.plan);
     const gatewayInfo = subscription.paymentGatewayData as Record<string, unknown> | null;
 
     const invoiceData = {
@@ -501,14 +499,12 @@ const getInvoice = async (user: IRequestUser, subscriptionId: string) => {
         date: subscription.updatedAt || new Date(),
         customerName: subscription.user.name,
         customerEmail: subscription.user.email,
-        planName: subscription.plan,
-        durationDays: planDetails?.durationDays || 30,
+        planName: "Career Boost (Lifetime)",
         originalAmount: (gatewayInfo?.originalAmount as number) || subscription.amount,
         discountAmount: (gatewayInfo?.discountAmount as number) || 0,
         finalAmount: subscription.amount,
         couponCode: (gatewayInfo?.couponCode as string) || null,
         periodStart: subscription.currentPeriodStart || new Date(),
-        periodEnd: subscription.currentPeriodEnd || new Date(),
     };
 
     return generateInvoicePdf(invoiceData);
@@ -557,7 +553,6 @@ const handleStripeWebhook = async (req: StripeWebhookRequest) => {
                     );
                 });
 
-                // Send invoice email (non-blocking)
                 sendInvoiceEmail(subscription.id).catch(console.error);
             }
         }
