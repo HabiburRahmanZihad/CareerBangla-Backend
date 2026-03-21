@@ -261,9 +261,15 @@ const googleLoginSuccess = catchAsync(async (req: Request, res: Response) => {
     const finalRedirectPath = isValidRedirectPath ? redirectPath : "/dashboard";
 
     // Clear all Better-Auth cookies set during OAuth flow on the backend domain
-    // The frontend callback will set only the 3 needed cookies on the frontend domain
-    res.clearCookie("better-auth.session_token", { path: "/" });
-    res.clearCookie("better-auth.session_data", { path: "/" });
+    // Must match exact attributes Better-Auth used when setting them
+    const clearOptions = {
+        path: "/",
+        httpOnly: true,
+        secure: envVars.NODE_ENV === "production",
+        sameSite: (envVars.NODE_ENV === "production" ? "none" : "lax") as "none" | "lax",
+    };
+    res.clearCookie("better-auth.session_token", clearOptions);
+    res.clearCookie("better-auth.session_data", clearOptions);
 
     // Redirect to frontend callback route which sets cookies on the frontend domain
     const callbackParams = new URLSearchParams({
