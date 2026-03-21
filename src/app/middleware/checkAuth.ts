@@ -14,11 +14,11 @@ export const checkAuth = (...authRoles: Role[]) => async (req: Request, res: Res
             throw new AppError(status.UNAUTHORIZED, "Unauthorized access! No session token provided.");
         }
 
-        // Use better-auth's getSession to validate the token
+        // Use better-auth's getSession to validate the token via Cookie header
         // (better-auth hashes tokens before storing, so raw DB lookup won't match)
         const sessionData = await auth.api.getSession({
             headers: new Headers({
-                Authorization: `Bearer ${sessionToken}`
+                Cookie: `better-auth.session_token=${sessionToken}`
             })
         });
 

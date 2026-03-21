@@ -287,7 +287,7 @@ const getAtsScore = async (user: IRequestUser, jobId?: string) => {
     });
 
     if (!resume) {
-        throw new AppError(status.BAD_REQUEST, "You must create a resume before checking your ATS score.");
+        return null;
     }
 
     const profileCompletion = getUserProfileCompletion(resume);
