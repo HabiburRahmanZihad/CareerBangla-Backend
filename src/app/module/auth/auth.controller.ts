@@ -157,9 +157,9 @@ const verifyEmail = catchAsync(
 
         const { accessToken, refreshToken, token, ...rest } = result
 
-        tokenUtils.setAccessTokenCookie(res, accessToken);
-        tokenUtils.setRefreshTokenCookie(res, refreshToken);
-        tokenUtils.setBetterAuthSessionCookie(res, token as string);
+        if (accessToken) tokenUtils.setAccessTokenCookie(res, accessToken);
+        if (refreshToken) tokenUtils.setRefreshTokenCookie(res, refreshToken);
+        if (token) tokenUtils.setBetterAuthSessionCookie(res, token);
 
         sendResponse(res, {
             httpStatusCode: status.OK,
