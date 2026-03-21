@@ -256,22 +256,45 @@ const googleLoginSuccess = catchAsync(async (req: Request, res: Response) => {
 
     const { accessToken, refreshToken } = result;
 
-    tokenUtils.setAccessTokenCookie(res, accessToken);
-    tokenUtils.setRefreshTokenCookie(res, refreshToken);
-    // Re-set session cookie with our consistent options so it works cross-port
-    tokenUtils.setBetterAuthSessionCookie(res, sessionToken);
-
     // ?redirect=//profile -> /profile
     const isValidRedirectPath = redirectPath.startsWith("/") && !redirectPath.startsWith("//");
     const finalRedirectPath = isValidRedirectPath ? redirectPath : "/dashboard";
 
-    res.redirect(`${envVars.FRONTEND_URL}${finalRedirectPath}`);
+    // Clear all Better-Auth cookies set during OAuth flow on the backend domain
+    // The frontend callback will set only the 3 needed cookies on the frontend domain
+    res.clearCookie("better-auth.session_token", { path: "/" });
+    res.clearCookie("better-auth.session_data", { path: "/" });
+
+    // Redirect to frontend callback route which sets cookies on the frontend domain
+    const callbackParams = new URLSearchParams({
+        accessToken,
+        refreshToken,
+        sessionToken,
+        redirect: finalRedirectPath,
+    });
+
+    res.redirect(`${envVars.FRONTEND_URL}/api/auth/social-callback?${callbackParams.toString()}`);
 })
 
 const handleOAuthError = catchAsync((req: Request, res: Response) => {
     const error = req.query.error as string || "oauth_failed";
     res.redirect(`${envVars.FRONTEND_URL}/login?error=${error}`);
 })
+
+const updateProfile = catchAsync(
+    async (req: Request, res: Response) => {
+        const user = req.user;
+        const payload = req.body;
+        const result = await AuthService.updateProfile(user, payload);
+
+        sendResponse(res, {
+            httpStatusCode: status.OK,
+            success: true,
+            message: "Profile updated successfully",
+            data: result,
+        })
+    }
+)
 
 export const AuthController = {
     registerUser,
@@ -287,4 +310,5 @@ export const AuthController = {
     googleLogin,
     googleLoginSuccess,
     handleOAuthError,
+    updateProfile,
 };

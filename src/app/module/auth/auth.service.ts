@@ -7,7 +7,7 @@ import { auth } from "../../lib/auth";
 import { prisma } from "../../lib/prisma";
 import { jwtUtils } from "../../utils/jwt";
 import { tokenUtils } from "../../utils/token";
-import { IChangePasswordPayload, IForgetPasswordPayload, ILoginUserPayload, IRegisterUserPayload } from "./auth.interface";
+import { IChangePasswordPayload, IForgetPasswordPayload, ILoginUserPayload, IRegisterUserPayload, IUpdateProfilePayload } from "./auth.interface";
 import crypto from "crypto";
 
 const generateUniqueReferralCode = async (name?: string | null): Promise<string> => {
@@ -589,6 +589,38 @@ const googleLoginSuccess = async (session: Record<string, any>) => {
     }
 }
 
+const updateProfile = async (user: IRequestUser, payload: IUpdateProfilePayload) => {
+    const updateData: Record<string, string> = {};
+
+    if (payload.name) {
+        updateData.name = payload.name;
+    }
+
+    if (payload.phone !== undefined) {
+        // Check if phone is already taken by another user
+        if (payload.phone) {
+            const existingUser = await prisma.user.findUnique({
+                where: { phone: payload.phone }
+            });
+            if (existingUser && existingUser.id !== user.userId) {
+                throw new AppError(status.CONFLICT, "Phone number is already in use");
+            }
+        }
+        updateData.phone = payload.phone;
+    }
+
+    if (Object.keys(updateData).length === 0) {
+        throw new AppError(status.BAD_REQUEST, "No valid fields to update");
+    }
+
+    const updatedUser = await prisma.user.update({
+        where: { id: user.userId },
+        data: updateData,
+    });
+
+    return updatedUser;
+}
+
 export const AuthService = {
     registerUser,
     loginUser,
@@ -601,4 +633,5 @@ export const AuthService = {
     forgetPassword,
     resetPassword,
     googleLoginSuccess,
+    updateProfile,
 };

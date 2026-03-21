@@ -20,3 +20,8 @@ export interface IChangePasswordPayload {
     currentPassword: string;
     newPassword: string;
 }
+
+export interface IUpdateProfilePayload {
+    name?: string;
+    phone?: string;
+}

@@ -30,6 +30,7 @@ export const auth = betterAuth({
         google: {
             clientId: envVars.GOOGLE_CLIENT_ID,
             clientSecret: envVars.GOOGLE_CLIENT_SECRET,
+            prompt: "select_account",
             mapProfileToUser: () => {
                 return {
                     role: Role.USER,
