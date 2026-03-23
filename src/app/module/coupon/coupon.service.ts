@@ -2,8 +2,10 @@ import status from "http-status";
 import { CouponStatus } from "../../../generated/prisma/enums";
 import AppError from "../../errorHelpers/AppError";
 import { prisma } from "../../lib/prisma";
+import { logger } from "../../utils/logger";
 
 const createCoupon = async (payload: { code: string; discountPercent?: number; discountAmount?: number; maxUsage?: number; expiresAt?: string }) => {
+    logger.create(`Coupon creation requested → code: ${payload.code}`);
     const existingCoupon = await prisma.coupon.findUnique({
         where: { code: payload.code.toUpperCase() }
     })
@@ -26,10 +28,12 @@ const createCoupon = async (payload: { code: string; discountPercent?: number; d
         }
     })
 
+    logger.create(`Coupon created → id: ${coupon.id}, code: ${coupon.code}`);
     return coupon;
 }
 
 const validateCoupon = async (code: string) => {
+    logger.read(`Validating coupon → code: ${code}`);
     const coupon = await prisma.coupon.findUnique({
         where: { code: code.toUpperCase() }
     })
@@ -64,13 +68,16 @@ const validateCoupon = async (code: string) => {
 }
 
 const getAllCoupons = async () => {
+    logger.read("Fetching all coupons");
     return prisma.coupon.findMany({
         orderBy: { createdAt: "desc" },
     })
 }
 
 const deleteCoupon = async (id: string) => {
+    logger.delete(`Coupon delete requested → id: ${id}`);
     await prisma.coupon.delete({ where: { id } })
+    logger.delete(`Coupon deleted → id: ${id}`);
     return { message: "Coupon deleted successfully" }
 }
 

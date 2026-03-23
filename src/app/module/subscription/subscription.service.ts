@@ -10,6 +10,7 @@ import { IRequestUser } from "../../interfaces/requestUser.interface";
 import { prisma } from "../../lib/prisma";
 import { sendEmail } from "../../utils/email";
 import { generateInvoicePdf } from "../../utils/invoice";
+import { logger } from "../../utils/logger";
 
 const stripe = new Stripe(envVars.STRIPE.SECRET_KEY, { apiVersion: "2026-01-28.clover" });
 
@@ -62,6 +63,7 @@ const getPlanConfig = (planKey: string): SubscriptionPlanConfig => {
 const initiatePayment = async (user: IRequestUser, payload: { planKey?: string; couponCode?: string; referralCode?: string; gateway?: "STRIPE" | "SSLCOMMERZ" }) => {
     const gateway = payload.gateway || "SSLCOMMERZ";
     const planKey = payload.planKey || "BOOST_LIFETIME";
+    logger.create(`Payment initiation → userId: ${user.userId}, plan: ${planKey}, gateway: ${gateway}`);
 
     // Get plan configuration
     const plan = getPlanConfig(planKey);
@@ -408,6 +410,7 @@ interface ISSLCommerzIpnPayload {
 }
 
 const handleIpn = async (payload: ISSLCommerzIpnPayload) => {
+    logger.update(`SSLCommerz IPN received → tran_id: ${payload.tran_id}, status: ${payload.status}`);
     const { tran_id, status: paymentStatus, val_id, bank_tran_id, card_type } = payload;
 
     if (!tran_id) {
@@ -459,6 +462,7 @@ const handleIpn = async (payload: ISSLCommerzIpnPayload) => {
 }
 
 const cancelSubscription = async (user: IRequestUser, subscriptionId: string) => {
+    logger.update(`Subscription cancel requested → userId: ${user.userId}, subscriptionId: ${subscriptionId}`);
     if (subscriptionId) {
         const subscription = await prisma.subscription.findUnique({
             where: { id: subscriptionId, userId: user.userId }
@@ -477,6 +481,7 @@ const cancelSubscription = async (user: IRequestUser, subscriptionId: string) =>
 }
 
 const getSubscriptionPlans = async () => {
+    logger.read("Fetching subscription plans");
     return {
         plans: [
             {
@@ -492,6 +497,7 @@ const getSubscriptionPlans = async () => {
 }
 
 const getMySubscriptions = async (user: IRequestUser) => {
+    logger.read(`Fetching user subscriptions → userId: ${user.userId}`);
     const subscriptions = await prisma.subscription.findMany({
         where: { userId: user.userId },
         orderBy: { createdAt: "desc" },
@@ -500,6 +506,7 @@ const getMySubscriptions = async (user: IRequestUser) => {
 }
 
 const getInvoice = async (user: IRequestUser, subscriptionId: string) => {
+    logger.read(`Fetching invoice → userId: ${user.userId}, subscriptionId: ${subscriptionId}`);
     const subscription = await prisma.subscription.findUnique({
         where: { id: subscriptionId },
         include: { user: true },
@@ -546,6 +553,7 @@ interface StripeCheckoutSession {
 }
 
 const handleStripeWebhook = async (req: StripeWebhookRequest) => {
+    logger.update("Stripe webhook received");
     const payload = req.body;
     const sig = req.headers["stripe-signature"] as string;
 

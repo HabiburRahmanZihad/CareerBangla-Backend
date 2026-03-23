@@ -4,9 +4,11 @@ import { Role } from "../../../generated/prisma/client";
 import AppError from "../../errorHelpers/AppError";
 import { auth } from "../../lib/auth";
 import { prisma } from "../../lib/prisma";
+import { logger } from "../../utils/logger";
 import { ICreateAdminPayload, ICreateRecruiterPayload } from "./user.interface";
 
 const createRecruiter = async (payload: ICreateRecruiterPayload) => {
+    logger.create(`Recruiter creation requested → email: ${payload.recruiter.email}`);
     const userExists = await prisma.user.findUnique({
         where: {
             email: payload.recruiter.email
@@ -60,11 +62,13 @@ const createRecruiter = async (payload: ICreateRecruiterPayload) => {
                 }
             })
 
+            logger.create(`Recruiter created → id: ${recruiterData.id}`);
             return recruiter;
         })
 
         return result;
     } catch (error) {
+        logger.error(`Failed to create recruiter → email: ${payload.recruiter.email}`, error);
         await prisma.user.delete({
             where: {
                 id: userData.user.id
@@ -75,6 +79,7 @@ const createRecruiter = async (payload: ICreateRecruiterPayload) => {
 }
 
 const createAdmin = async (payload: ICreateAdminPayload) => {
+    logger.create(`Admin creation requested → email: ${payload.admin.email}`);
     const userExists = await prisma.user.findUnique({
         where: {
             email: payload.admin.email
@@ -107,12 +112,14 @@ const createAdmin = async (payload: ICreateAdminPayload) => {
 
 
 
+            logger.create(`Admin created → id: ${adminData.id}`);
             return adminData;
         })
 
         return result;
 
     } catch (error) {
+        logger.error(`Failed to create admin → email: ${payload.admin.email}`, error);
         await prisma.user.delete({
             where: {
                 id: userData.user.id

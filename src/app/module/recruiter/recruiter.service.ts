@@ -9,8 +9,10 @@ import { QueryBuilder } from "../../utils/QueryBuilder";
 import { sendEmail } from "../../utils/email";
 import { recruiterFilterableFields, recruiterSearchableFields } from "./recruiter.constant";
 import { IUpdateRecruiterPayload } from "./recruiter.interface";
+import { logger } from "../../utils/logger";
 
 const getAllRecruiters = async (query: IQueryParams) => {
+    logger.read("Fetching all recruiters", { filters: query });
     const queryBuilder = new QueryBuilder<Recruiter>(
         prisma.recruiter,
         query,
@@ -34,6 +36,7 @@ const getAllRecruiters = async (query: IQueryParams) => {
 }
 
 const getRecruiterById = async (id: string) => {
+    logger.read(`Fetching recruiter → id: ${id}`);
     const recruiter = await prisma.recruiter.findUnique({
         where: { id, isDeleted: false },
         include: {
@@ -53,6 +56,7 @@ const getRecruiterById = async (id: string) => {
 }
 
 const getMyProfile = async (user: IRequestUser) => {
+    logger.read(`Fetching recruiter profile → userId: ${user.userId}`);
     const recruiter = await prisma.recruiter.findUnique({
         where: { userId: user.userId },
         include: {
@@ -75,6 +79,7 @@ const getMyProfile = async (user: IRequestUser) => {
 }
 
 const updateRecruiter = async (id: string, payload: IUpdateRecruiterPayload) => {
+    logger.update(`Recruiter update requested → id: ${id}`);
     const isRecruiterExist = await prisma.recruiter.findUnique({
         where: { id }
     })
@@ -90,11 +95,13 @@ const updateRecruiter = async (id: string, payload: IUpdateRecruiterPayload) => 
         data: { ...recruiter },
         include: { user: true },
     })
+    logger.update(`Recruiter updated → id: ${id}`);
 
     return updatedRecruiter;
 }
 
 const updateMyProfile = async (user: IRequestUser, payload: IUpdateRecruiterPayload) => {
+    logger.update(`Recruiter self-update → userId: ${user.userId}`);
     const recruiter = await prisma.recruiter.findUnique({
         where: { userId: user.userId }
     })
@@ -108,11 +115,13 @@ const updateMyProfile = async (user: IRequestUser, payload: IUpdateRecruiterPayl
         data: { ...payload.recruiter },
         include: { user: true },
     })
+    logger.update(`Recruiter profile updated → userId: ${user.userId}`);
 
     return updatedRecruiter;
 }
 
 const deleteRecruiter = async (id: string) => {
+    logger.delete(`Recruiter delete requested → id: ${id}`);
     const isRecruiterExist = await prisma.recruiter.findUnique({
         where: { id },
         include: { user: true }
@@ -144,11 +153,13 @@ const deleteRecruiter = async (id: string) => {
             where: { userId: isRecruiterExist.userId }
         })
     })
+    logger.delete(`Recruiter deleted → id: ${id}`);
 
     return { message: "Recruiter deleted successfully" };
 }
 
 const approveRecruiter = async (id: string) => {
+    logger.update(`Recruiter approval requested → id: ${id}`);
     const recruiter = await prisma.recruiter.findUnique({
         where: { id },
         include: { user: true }
@@ -167,6 +178,7 @@ const approveRecruiter = async (id: string) => {
         data: { status: RecruiterStatus.APPROVED },
         include: { user: true },
     })
+    logger.update(`Recruiter approved → id: ${id}`);
 
     // Create notification for recruiter
     await prisma.notification.create({
@@ -200,6 +212,7 @@ const approveRecruiter = async (id: string) => {
 }
 
 const rejectRecruiter = async (id: string) => {
+    logger.update(`Recruiter rejection requested → id: ${id}`);
     const recruiter = await prisma.recruiter.findUnique({
         where: { id },
         include: { user: true }
@@ -214,6 +227,7 @@ const rejectRecruiter = async (id: string) => {
         data: { status: RecruiterStatus.REJECTED },
         include: { user: true },
     })
+    logger.update(`Recruiter rejected → id: ${id}`);
 
     await prisma.notification.create({
         data: {
@@ -246,6 +260,7 @@ const rejectRecruiter = async (id: string) => {
 }
 
 const viewRecruiterEmail = async (user: IRequestUser, recruiterId: string) => {
+    logger.read(`Viewing recruiter email → recruiterId: ${recruiterId}`);
     const recruiter = await prisma.recruiter.findUnique({
         where: { id: recruiterId },
         include: { user: true }

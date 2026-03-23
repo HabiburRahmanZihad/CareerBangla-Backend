@@ -6,6 +6,7 @@ import { IRequestUser } from "../../interfaces/requestUser.interface";
 import { auth } from "../../lib/auth";
 import { prisma } from "../../lib/prisma";
 import { jwtUtils } from "../../utils/jwt";
+import { logger } from "../../utils/logger";
 import { tokenUtils } from "../../utils/token";
 import { IChangePasswordPayload, IForgetPasswordPayload, ILoginUserPayload, IRegisterUserPayload, IUpdateProfilePayload } from "./auth.interface";
 import crypto from "crypto";
@@ -35,6 +36,7 @@ const generateUniqueReferralCode = async (name?: string | null): Promise<string>
 const BD_PHONE_REGEX = /^01[3-9]\d{8}$/;
 
 const registerUser = async (payload: IRegisterUserPayload) => {
+    logger.create(`User registration requested → email: ${payload.email}`);
     const { name, email, phone, password, referralCode: incomingReferralCode } = payload;
 
     // Validate phone format
@@ -56,9 +58,7 @@ const registerUser = async (payload: IRegisterUserPayload) => {
         }
     })
 
-    console.log("[registerUser] better-auth response keys:", Object.keys(data));
-    console.log("[registerUser] data.token:", data.token !== undefined ? "exists" : "undefined");
-    console.log("[registerUser] data.user exists:", !!data.user);
+    logger.create(`User registered via better-auth → userId: ${data.user?.id}`);
 
     if (!data.user) {
         throw new AppError(status.BAD_REQUEST, "Failed to register user");
@@ -138,10 +138,7 @@ const registerUser = async (payload: IRegisterUserPayload) => {
             emailVerified: data.user.emailVerified,
         });
 
-        console.log("[registerUser] about to return:", {
-            hasToken: !!data.token,
-            tokenPreview: data.token ? data.token.substring(0, 20) : "null"
-        });
+        logger.create(`User registration complete → userId: ${data.user.id}, email: ${email}`);
 
         return {
             user: data.user,
@@ -151,6 +148,7 @@ const registerUser = async (payload: IRegisterUserPayload) => {
         }
 
     } catch (error) {
+        logger.error(`Failed to register user → email: ${email}`, error);
         await prisma.user.delete({
             where: {
                 id: data.user.id
@@ -163,6 +161,7 @@ const registerUser = async (payload: IRegisterUserPayload) => {
 
 
 const loginUser = async (payload: ILoginUserPayload) => {
+    logger.read(`Login attempt → identifier: ${payload.identifier}`);
     const { identifier, password } = payload;
 
     // Detect if identifier is a phone number or email
@@ -187,9 +186,7 @@ const loginUser = async (payload: ILoginUserPayload) => {
         }
     })
 
-    console.log("[loginUser] better-auth response keys:", Object.keys(data));
-    console.log("[loginUser] data.token:", data.token !== undefined ? "exists" : "undefined");
-    console.log("[loginUser] data.user exists:", !!data.user);
+    logger.read(`Login successful → userId: ${data.user?.id}`);
 
     if (data.user.status === UserStatus.BLOCKED) {
         throw new AppError(status.FORBIDDEN, "User is blocked");
@@ -234,6 +231,7 @@ const loginUser = async (payload: ILoginUserPayload) => {
 }
 
 const getMe = async (user: IRequestUser) => {
+    logger.read(`Fetching user profile → userId: ${user.userId}`);
     const isUserExists = await prisma.user.findUnique({
         where: {
             id: user.userId,
@@ -268,6 +266,7 @@ const getMe = async (user: IRequestUser) => {
 }
 
 const getNewToken = async (refreshToken: string, sessionToken?: string) => {
+    logger.read("Token refresh requested");
     if (!sessionToken) {
         throw new AppError(status.UNAUTHORIZED, "Session token is missing");
     }
@@ -332,6 +331,7 @@ const getNewToken = async (refreshToken: string, sessionToken?: string) => {
 }
 
 const changePassword = async (payload: IChangePasswordPayload, sessionToken?: string) => {
+    logger.update("Password change requested");
     if (!sessionToken) {
         throw new AppError(status.UNAUTHORIZED, "Session token is missing");
     }
@@ -399,6 +399,7 @@ const changePassword = async (payload: IChangePasswordPayload, sessionToken?: st
 }
 
 const logoutUser = async (sessionToken?: string) => {
+    logger.read("Logout requested");
     if (!sessionToken) {
         throw new AppError(status.UNAUTHORIZED, "Session token is missing");
     }
@@ -413,6 +414,7 @@ const logoutUser = async (sessionToken?: string) => {
 }
 
 const verifyEmail = async (email: string, otp: string) => {
+    logger.update(`Email verification requested → email: ${email}`);
 
     const result = await auth.api.verifyEmailOTP({
         body: {
@@ -463,6 +465,7 @@ const verifyEmail = async (email: string, otp: string) => {
 }
 
 const resendVerificationEmail = async (email: string) => {
+    logger.create(`Resending verification email → email: ${email}`);
     const isUserExist = await prisma.user.findUnique({
         where: { email },
     });
@@ -484,6 +487,7 @@ const resendVerificationEmail = async (email: string) => {
 };
 
 const forgetPassword = async (payload: IForgetPasswordPayload) => {
+    logger.read(`Forget password requested → email: ${payload.email}`);
     const { email, phone } = payload;
 
     const isUserExist = await prisma.user.findUnique({
@@ -517,6 +521,7 @@ const forgetPassword = async (payload: IForgetPasswordPayload) => {
 }
 
 const resetPassword = async (email: string, otp: string, newPassword: string) => {
+    logger.update(`Password reset requested → email: ${email}`);
     const isUserExist = await prisma.user.findUnique({
         where: {
             email,
@@ -563,6 +568,7 @@ const resetPassword = async (email: string, otp: string, newPassword: string) =>
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const googleLoginSuccess = async (session: Record<string, any>) => {
+    logger.read(`Google login success → userId: ${session.user?.id}`);
     // Ensure user has a referral code
     const dbUser = await prisma.user.findUnique({
         where: { id: session.user.id }
@@ -604,6 +610,7 @@ const googleLoginSuccess = async (session: Record<string, any>) => {
 }
 
 const updateProfile = async (user: IRequestUser, payload: IUpdateProfilePayload) => {
+    logger.update(`Profile update requested → userId: ${user.userId}`, { fields: Object.keys(payload) });
     const updateData: Record<string, string> = {};
 
     if (payload.name) {
@@ -632,6 +639,7 @@ const updateProfile = async (user: IRequestUser, payload: IUpdateProfilePayload)
         data: updateData,
     });
 
+    logger.update(`Profile updated → userId: ${user.userId}`);
     return updatedUser;
 }
 

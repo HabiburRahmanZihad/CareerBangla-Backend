@@ -5,12 +5,14 @@ import AppError from "../../errorHelpers/AppError";
 import { IRequestUser } from "../../interfaces/requestUser.interface";
 import { IQueryParams } from "../../interfaces/query.interface";
 import { prisma } from "../../lib/prisma";
+import { logger } from "../../utils/logger";
 import { QueryBuilder } from "../../utils/QueryBuilder";
 import { getRecruiterProfileCompletion } from "../../utils/profileCompletion";
 import { jobFilterableFields, jobSearchableFields } from "./job.constant";
 import { ICreateJobPayload, IUpdateJobPayload } from "./job.interface";
 
 const createJob = async (user: IRequestUser, payload: ICreateJobPayload) => {
+    logger.create(`Job creation requested → userId: ${user.userId}, title: ${payload.title}`);
     const recruiter = await prisma.recruiter.findUnique({
         where: { userId: user.userId }
     })
@@ -53,6 +55,7 @@ const createJob = async (user: IRequestUser, payload: ICreateJobPayload) => {
             }
         })
 
+        logger.create(`Job created → id: ${job.id}, title: ${payload.title}`);
         return job;
     })
 
@@ -60,6 +63,7 @@ const createJob = async (user: IRequestUser, payload: ICreateJobPayload) => {
 }
 
 const getAllJobs = async (query: IQueryParams) => {
+    logger.read("Fetching all jobs", { filters: query });
     const queryBuilder = new QueryBuilder<Job>(
         prisma.job,
         query,
@@ -97,6 +101,7 @@ const getAllJobs = async (query: IQueryParams) => {
 }
 
 const getJobById = async (id: string) => {
+    logger.read(`Fetching job → id: ${id}`);
     const job = await prisma.job.findUnique({
         where: { id, isDeleted: false },
         include: {
@@ -128,6 +133,7 @@ const getJobById = async (id: string) => {
 }
 
 const getMyJobs = async (user: IRequestUser, query: IQueryParams) => {
+    logger.read(`Fetching recruiter jobs → userId: ${user.userId}`, { filters: query });
     const recruiter = await prisma.recruiter.findUnique({
         where: { userId: user.userId }
     })
@@ -171,6 +177,7 @@ const getMyJobs = async (user: IRequestUser, query: IQueryParams) => {
 }
 
 const updateJob = async (id: string, user: IRequestUser, payload: IUpdateJobPayload) => {
+    logger.update(`Job update requested → id: ${id}, userId: ${user.userId}`);
     const job = await prisma.job.findUnique({
         where: { id },
         include: { recruiter: true }
@@ -196,10 +203,12 @@ const updateJob = async (id: string, user: IRequestUser, payload: IUpdateJobPayl
         include: { recruiter: true, category: true },
     })
 
+    logger.update(`Job updated → id: ${id}`);
     return updatedJob;
 }
 
 const deleteJob = async (id: string, user: IRequestUser) => {
+    logger.delete(`Job delete requested → id: ${id}, userId: ${user.userId}`);
     const job = await prisma.job.findUnique({
         where: { id },
         include: { recruiter: true }
@@ -221,18 +230,22 @@ const deleteJob = async (id: string, user: IRequestUser) => {
         },
     })
 
+    logger.delete(`Job deleted → id: ${id}`);
     return { message: "Job deleted successfully" };
 }
 
 // Job Categories
 const createCategory = async (title: string, icon?: string) => {
+    logger.create(`Category creation requested → title: ${title}`);
     const category = await prisma.jobCategory.create({
         data: { title, icon },
     })
+    logger.create(`Category created → id: ${category.id}, title: ${title}`);
     return category;
 }
 
 const getAllCategories = async () => {
+    logger.read("Fetching all job categories");
     const categories = await prisma.jobCategory.findMany({
         include: {
             _count: {
@@ -245,9 +258,11 @@ const getAllCategories = async () => {
 }
 
 const deleteCategory = async (id: string) => {
+    logger.delete(`Category delete requested → id: ${id}`);
     await prisma.jobCategory.delete({
         where: { id },
     })
+    logger.delete(`Category deleted → id: ${id}`);
     return { message: "Category deleted successfully" };
 }
 

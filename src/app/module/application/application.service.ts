@@ -4,11 +4,13 @@ import AppError from "../../errorHelpers/AppError";
 import { IRequestUser } from "../../interfaces/requestUser.interface";
 import { prisma } from "../../lib/prisma";
 import { sendEmail } from "../../utils/email";
+import { logger } from "../../utils/logger";
 import { getUserProfileCompletion } from "../../utils/profileCompletion";
 import { ResumeService } from "../resume/resume.service";
 
 const applyJob = async (user: IRequestUser, payload: { jobId: string; coverLetter?: string }) => {
     const { jobId, coverLetter } = payload;
+    logger.create(`Job application requested → userId: ${user.userId}, jobId: ${jobId}`);
 
     // Check if user has completed their resume/ATS profile before applying
     const resume = await prisma.resume.findUnique({
@@ -74,6 +76,7 @@ const applyJob = async (user: IRequestUser, payload: { jobId: string; coverLette
             }
         }
     });
+    logger.create(`Job application created → id: ${application.id}, jobId: ${jobId}`);
 
     // Create notification for recruiter
     await prisma.notification.create({
@@ -163,6 +166,7 @@ const applyJob = async (user: IRequestUser, payload: { jobId: string; coverLette
 }
 
 const getMyApplications = async (user: IRequestUser) => {
+    logger.read(`Fetching user applications → userId: ${user.userId}`);
     const applications = await prisma.application.findMany({
         where: { userId: user.userId },
         include: {
@@ -187,6 +191,7 @@ const getMyApplications = async (user: IRequestUser) => {
 }
 
 const getJobApplications = async (user: IRequestUser, jobId: string) => {
+    logger.read(`Fetching job applications → jobId: ${jobId}, userId: ${user.userId}`);
     const job = await prisma.job.findUnique({
         where: { id: jobId },
         include: { recruiter: true }
@@ -239,6 +244,7 @@ const updateApplicationStatus = async (
     applicationId: string,
     payload: { status: ApplicationStatus; interviewDate?: string; interviewNote?: string }
 ) => {
+    logger.update(`Application status update → id: ${applicationId}, newStatus: ${payload.status}`);
     const application = await prisma.application.findUnique({
         where: { id: applicationId },
         include: {
@@ -318,6 +324,7 @@ const updateApplicationStatus = async (
 
         return updated;
     })
+    logger.update(`Application status updated → id: ${applicationId}, status: ${payload.status}`);
 
     // Send email notification (best-effort)
     const statusMessages: Record<string, string> = {
@@ -344,6 +351,7 @@ const updateApplicationStatus = async (
 }
 
 const getAllApplications = async () => {
+    logger.read("Fetching all applications (admin)");
     const applications = await prisma.application.findMany({
         include: {
             user: {

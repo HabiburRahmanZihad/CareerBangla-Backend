@@ -7,6 +7,7 @@ import { prisma } from "../../lib/prisma";
 import { getUserProfileCompletion } from "../../utils/profileCompletion";
 import { generateResumePdf } from "../../utils/resumePdf";
 import { uploadFileToCloudinary } from "../../config/cloudinary.config";
+import { logger } from "../../utils/logger";
 
 type ResumeUpdatePayload = Partial<Omit<Resume, 'id' | 'userId' | 'createdAt' | 'updatedAt'>> & {
     workExperience?: Partial<WorkExperience>[];
@@ -19,6 +20,7 @@ type ResumeUpdatePayload = Partial<Omit<Resume, 'id' | 'userId' | 'createdAt' | 
 };
 
 const getMyResume = async (user: IRequestUser) => {
+    logger.read(`Fetching resume → userId: ${user.userId}`);
     const resume = await prisma.resume.findUnique({
         where: { userId: user.userId },
         include: {
@@ -58,6 +60,7 @@ const getMyResume = async (user: IRequestUser) => {
 }
 
 const updateMyResume = async (user: IRequestUser, payload: ResumeUpdatePayload) => {
+    logger.update(`Resume update requested → userId: ${user.userId}`);
     const existingResume = await prisma.resume.findUnique({
         where: { userId: user.userId },
         include: { education: true, user: { select: { isPremium: true } } }
@@ -219,6 +222,8 @@ const updateMyResume = async (user: IRequestUser, payload: ResumeUpdatePayload) 
         return fullResume;
     }, { maxWait: 10000, timeout: 30000 });
 
+    logger.update(`Resume updated → userId: ${user.userId}`);
+
     const profileCompletion = getUserProfileCompletion(resume as Parameters<typeof getUserProfileCompletion>[0]);
 
     return {
@@ -228,6 +233,7 @@ const updateMyResume = async (user: IRequestUser, payload: ResumeUpdatePayload) 
 }
 
 const getResumeByUserId = async (userId: string, requestUser: IRequestUser) => {
+    logger.read(`Fetching resume by userId → userId: ${userId}`);
     // Only recruiters and admins can view other users' resumes
     if (requestUser.role !== "RECRUITER" && requestUser.role !== "ADMIN" && requestUser.role !== "SUPER_ADMIN") {
         throw new AppError(status.FORBIDDEN, "You are not authorized to view this resume");
@@ -273,6 +279,7 @@ const getResumeByUserId = async (userId: string, requestUser: IRequestUser) => {
 }
 
 const getAtsScore = async (user: IRequestUser, jobId?: string) => {
+    logger.read(`Calculating ATS score → userId: ${user.userId}`);
     const resume = await prisma.resume.findUnique({
         where: { userId: user.userId },
         include: {
@@ -471,6 +478,7 @@ const searchCandidates = async (user: IRequestUser, query: IQueryParams) => {
     }
 
     const { searchTerm, skills, experience, location, education, page = "1", limit = "10" } = query;
+    logger.read("Searching candidates", { searchTerm, skills, location });
     const pageNum = parseInt(page);
     const limitNum = parseInt(limit);
     const skip = (pageNum - 1) * limitNum;
@@ -551,6 +559,7 @@ const searchCandidates = async (user: IRequestUser, query: IQueryParams) => {
 }
 
 const deleteMyResume = async (user: IRequestUser) => {
+    logger.delete(`Resume delete requested → userId: ${user.userId}`);
     const resume = await prisma.resume.findUnique({
         where: { userId: user.userId },
     });
@@ -563,10 +572,13 @@ const deleteMyResume = async (user: IRequestUser) => {
         where: { id: resume.id },
     });
 
+    logger.delete(`Resume deleted → userId: ${user.userId}`);
+
     return null;
 }
 
 const downloadResumePdf = async (user: IRequestUser, targetUserId?: string) => {
+    logger.read(`Resume PDF download requested → userId: ${user.userId}`);
     // Check premium status of the requesting user
     const dbUser = await prisma.user.findUnique({
         where: { id: user.userId },
@@ -604,6 +616,7 @@ const downloadResumePdf = async (user: IRequestUser, targetUserId?: string) => {
 };
 
 const getResumePdfForApplication = async (userId: string) => {
+    logger.read(`Generating resume PDF for application → userId: ${userId}`);
     const resume = await prisma.resume.findUnique({
         where: { userId },
         include: {
@@ -622,6 +635,7 @@ const getResumePdfForApplication = async (userId: string) => {
 };
 
 const uploadProfilePhoto = async (user: IRequestUser, fileBuffer: Buffer, fileName: string) => {
+    logger.update(`Profile photo upload → userId: ${user.userId}`);
     const result = await uploadFileToCloudinary(fileBuffer, fileName);
 
     const resume = await prisma.resume.upsert({
@@ -629,6 +643,8 @@ const uploadProfilePhoto = async (user: IRequestUser, fileBuffer: Buffer, fileNa
         update: { profilePhoto: result.secure_url },
         create: { userId: user.userId, profilePhoto: result.secure_url },
     });
+
+    logger.update(`Profile photo uploaded → userId: ${user.userId}`);
 
     return { profilePhoto: resume.profilePhoto };
 };

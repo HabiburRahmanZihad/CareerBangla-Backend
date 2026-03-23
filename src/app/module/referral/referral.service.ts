@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import { IRequestUser } from "../../interfaces/requestUser.interface";
 import { prisma } from "../../lib/prisma";
+import { logger } from "../../utils/logger";
 
 const generateUniqueReferralCode = async (name?: string | null): Promise<string> => {
     const prefix = name
@@ -23,6 +24,7 @@ const generateUniqueReferralCode = async (name?: string | null): Promise<string>
 };
 
 const getMyReferralStats = async (user: IRequestUser) => {
+    logger.read(`Fetching referral stats → userId: ${user.userId}`);
     let dbUser = await prisma.user.findUnique({
         where: { id: user.userId },
         select: { referralCode: true, name: true, isPremium: true, premiumUntil: true },

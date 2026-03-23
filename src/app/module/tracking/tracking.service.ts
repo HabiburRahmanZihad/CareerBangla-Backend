@@ -1,6 +1,8 @@
 import { prisma } from "../../lib/prisma";
+import { logger } from "../../utils/logger";
 
 const getReferralTracking = async (page: number = 1, limit: number = 20) => {
+    logger.read(`Fetching referral tracking → page: ${page}, limit: ${limit}`);
     const skip = (page - 1) * limit;
 
     const data = await prisma.referralHistory.findMany({
@@ -31,6 +33,7 @@ const getReferralTracking = async (page: number = 1, limit: number = 20) => {
 }
 
 const getCouponUsageTracking = async (page: number = 1, limit: number = 20) => {
+    logger.read(`Fetching coupon usage tracking → page: ${page}, limit: ${limit}`);
     const skip = (page - 1) * limit;
 
     // A simple query to show coupons that have usage > 0, or just all coupons' usage.

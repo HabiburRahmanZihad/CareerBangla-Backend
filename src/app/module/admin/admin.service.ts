@@ -4,8 +4,10 @@ import AppError from "../../errorHelpers/AppError";
 import { IRequestUser } from "../../interfaces/requestUser.interface";
 import { prisma } from "../../lib/prisma";
 import { IChangeUserRolePayload, IChangeUserStatusPayload, IUpdateAdminPayload } from "./admin.interface";
+import { logger } from "../../utils/logger";
 
 const getAllAdmins = async () => {
+    logger.read("Fetching all admins");
     const admins = await prisma.admin.findMany({
         include: {
             user: true,
@@ -15,6 +17,7 @@ const getAllAdmins = async () => {
 }
 
 const getAdminById = async (id: string) => {
+    logger.read(`Fetching admin → id: ${id}`);
     const admin = await prisma.admin.findUnique({
         where: {
             id,
@@ -27,6 +30,7 @@ const getAdminById = async (id: string) => {
 }
 
 const updateAdmin = async (id: string, payload: IUpdateAdminPayload) => {
+    logger.update(`Admin update requested → id: ${id}`);
     const isAdminExist = await prisma.admin.findUnique({
         where: {
             id,
@@ -47,11 +51,13 @@ const updateAdmin = async (id: string, payload: IUpdateAdminPayload) => {
             ...admin,
         }
     })
+    logger.update(`Admin updated → id: ${id}`);
 
     return updatedAdmin;
 }
 
 const deleteAdmin = async (id: string, user: IRequestUser) => {
+    logger.delete(`Admin delete requested → id: ${id}`);
     const isAdminExist = await prisma.admin.findUnique({
         where: {
             id,
@@ -97,6 +103,7 @@ const deleteAdmin = async (id: string, user: IRequestUser) => {
         return admin;
     }
     )
+    logger.delete(`Admin deleted → id: ${id}`);
 
     return result;
 }
@@ -112,6 +119,7 @@ const changeUserStatus = async (user: IRequestUser, payload: IChangeUserStatusPa
     });
 
     const { userId, userStatus } = payload;
+    logger.update(`User status change → userId: ${userId}, newStatus: ${userStatus}`);
 
     const userToChangeStatus = await prisma.user.findUniqueOrThrow({
         where: {
@@ -144,6 +152,7 @@ const changeUserStatus = async (user: IRequestUser, payload: IChangeUserStatusPa
             status: userStatus,
         }
     })
+    logger.update(`User status changed → userId: ${userId}, status: ${userStatus}`);
 
     return updatedUser;
 }
@@ -162,6 +171,7 @@ const changeUserRole = async (user: IRequestUser, payload: IChangeUserRolePayloa
     });
 
     const { userId, role } = payload;
+    logger.update(`User role change → userId: ${userId}, newRole: ${role}`);
 
     const userToChangeRole = await prisma.user.findUniqueOrThrow({
         where: {
@@ -187,6 +197,7 @@ const changeUserRole = async (user: IRequestUser, payload: IChangeUserRolePayloa
             role,
         }
     })
+    logger.update(`User role changed → userId: ${userId}, role: ${role}`);
 
     return updatedUser;
 
@@ -194,6 +205,7 @@ const changeUserRole = async (user: IRequestUser, payload: IChangeUserRolePayloa
 
 // Admin-specific: manage all jobs
 const getAllJobs = async () => {
+    logger.read("Fetching all jobs (admin)");
     const jobs = await prisma.job.findMany({
         include: {
             recruiter: {
