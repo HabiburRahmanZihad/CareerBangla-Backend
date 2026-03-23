@@ -108,7 +108,7 @@ const updateMyResume = async (user: IRequestUser, payload: ResumeUpdatePayload) 
                 await tx.workExperience.createMany({
                     data: payload.workExperience.map((item) => {
                         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                        const { id, resumeId, createdAt, updatedAt, ...rest } = item;
+                        const { id, resumeId: _rid, createdAt, updatedAt, ...rest } = item;
                         return { ...rest, resumeId };
                     }) as Prisma.WorkExperienceCreateManyInput[]
                 });
@@ -120,7 +120,7 @@ const updateMyResume = async (user: IRequestUser, payload: ResumeUpdatePayload) 
                 await tx.education.createMany({
                     data: payload.education.map((item) => {
                         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                        const { id, resumeId, createdAt, updatedAt, ...rest } = item;
+                        const { id, resumeId: _rid, createdAt, updatedAt, ...rest } = item;
                         return { ...rest, resumeId };
                     }) as Prisma.EducationCreateManyInput[]
                 });
@@ -132,7 +132,7 @@ const updateMyResume = async (user: IRequestUser, payload: ResumeUpdatePayload) 
                 await tx.certification.createMany({
                     data: payload.certifications.map((item) => {
                         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                        const { id, resumeId, createdAt, updatedAt, ...rest } = item;
+                        const { id, resumeId: _rid, createdAt, updatedAt, ...rest } = item;
                         return { ...rest, resumeId };
                     }) as Prisma.CertificationCreateManyInput[]
                 });
@@ -144,7 +144,7 @@ const updateMyResume = async (user: IRequestUser, payload: ResumeUpdatePayload) 
                 await tx.project.createMany({
                     data: payload.projects.map((item) => {
                         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                        const { id, resumeId, createdAt, updatedAt, ...rest } = item;
+                        const { id, resumeId: _rid, createdAt, updatedAt, ...rest } = item;
                         return { ...rest, resumeId };
                     }) as Prisma.ProjectCreateManyInput[]
                 });
@@ -156,7 +156,7 @@ const updateMyResume = async (user: IRequestUser, payload: ResumeUpdatePayload) 
                 await tx.language.createMany({
                     data: payload.languages.map((item) => {
                         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                        const { id, resumeId, createdAt, updatedAt, ...rest } = item;
+                        const { id, resumeId: _rid, createdAt, updatedAt, ...rest } = item;
                         return { ...rest, resumeId };
                     }) as Prisma.LanguageCreateManyInput[]
                 });
@@ -168,7 +168,7 @@ const updateMyResume = async (user: IRequestUser, payload: ResumeUpdatePayload) 
                 await tx.award.createMany({
                     data: payload.awards.map((item) => {
                         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                        const { id, resumeId, createdAt, updatedAt, ...rest } = item;
+                        const { id, resumeId: _rid, createdAt, updatedAt, ...rest } = item;
                         return { ...rest, resumeId };
                     }) as Prisma.AwardCreateManyInput[]
                 });
@@ -180,7 +180,7 @@ const updateMyResume = async (user: IRequestUser, payload: ResumeUpdatePayload) 
                 await tx.reference.createMany({
                     data: payload.references.map((item) => {
                         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                        const { id, resumeId, createdAt, updatedAt, ...rest } = item;
+                        const { id, resumeId: _rid, createdAt, updatedAt, ...rest } = item;
                         return { ...rest, resumeId };
                     }) as Prisma.ReferenceCreateManyInput[]
                 });
