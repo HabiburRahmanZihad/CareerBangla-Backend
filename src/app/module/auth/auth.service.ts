@@ -201,7 +201,7 @@ const loginUser = async (payload: ILoginUserPayload) => {
 
     // Check if email is verified
     if (!data.user.emailVerified) {
-        throw new AppError(status.UNAUTHORIZED, "Email not verified");
+        throw new AppError(status.UNAUTHORIZED, "Email not verified").setData({ email: data.user.email });
     }
 
     const accessToken = tokenUtils.getAccessToken({
@@ -272,14 +272,16 @@ const getNewToken = async (refreshToken: string, sessionToken?: string) => {
         throw new AppError(status.UNAUTHORIZED, "Session token is missing");
     }
 
-    // Validate session using better-auth API (handles token hashing internally)
-    const sessionData = await auth.api.getSession({
-        headers: new Headers({
-            Authorization: `Bearer ${sessionToken}`
-        })
+    const isSessionTokenExists = await prisma.session.findUnique({
+        where: {
+            token: sessionToken,
+        },
+        include: {
+            user: true,
+        }
     });
 
-    if (!sessionData || !sessionData.user) {
+    if (!isSessionTokenExists) {
         throw new AppError(status.UNAUTHORIZED, "Invalid session token");
     }
 
@@ -289,7 +291,7 @@ const getNewToken = async (refreshToken: string, sessionToken?: string) => {
         throw new AppError(status.UNAUTHORIZED, "Invalid refresh token");
     }
 
-    const user = sessionData.user;
+    const user = isSessionTokenExists.user;
 
     const newAccessToken = tokenUtils.getAccessToken({
         userId: user.id,
@@ -311,12 +313,22 @@ const getNewToken = async (refreshToken: string, sessionToken?: string) => {
         emailVerified: user.emailVerified,
     });
 
+    const { token } = await prisma.session.update({
+        where: {
+            token: sessionToken
+        },
+        data: {
+            token: sessionToken,
+            expiresAt: new Date(Date.now() + 60 * 60 * 24 * 1000),
+            updatedAt: new Date(),
+        }
+    });
+
     return {
         accessToken: newAccessToken,
         refreshToken: newRefreshToken,
-        sessionToken: sessionToken,
+        sessionToken: token,
     }
-
 }
 
 const changePassword = async (payload: IChangePasswordPayload, sessionToken?: string) => {
@@ -440,9 +452,36 @@ const verifyEmail = async (email: string, otp: string) => {
         emailVerified: result.user.emailVerified,
     });
 
+    let sessionToken = result.token;
+
+    // Better-Auth with requireEmailVerification=true may not return a session
+    // token automatically even if autoSignInAfterVerification is true.
+    // If we don't have a token, we create a valid session manually.
+    if (!sessionToken) {
+        // Generate a random 32-character token to match better-auth format
+        const crypto = require("crypto");
+        const rawToken = crypto.randomBytes(16).toString("hex");
+        
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + 1); // 1 day expiration
+        
+        await prisma.session.create({
+            data: {
+                id: crypto.randomUUID(),
+                userId: result.user.id,
+                token: rawToken,
+                expiresAt,
+                ipAddress: null,
+                userAgent: null,
+            }
+        });
+        
+        sessionToken = rawToken;
+    }
+
     return {
         user: result.user,
-        token: result.token,
+        token: sessionToken,
         accessToken,
         refreshToken,
     }

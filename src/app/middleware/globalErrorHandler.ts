@@ -118,12 +118,16 @@ export const globalErrorHandler = async (err: any, req: Request, res: Response, 
     // In production, hide internal error details but preserve intentional error messages
     // AppError messages are developer-set and safe to expose (e.g. "Email not verified", "User is blocked")
     const isIntentionalError = err instanceof AppError || err instanceof z.ZodError;
-    const errorResponse: TErrorResponse = {
+    const errorResponse: any = {
         success: false,
         message: isDevelopment || isIntentionalError ? message : 'An error occurred. Please try again later.',
         errorSources: isDevelopment ? errorSources : [],
         error: isDevelopment ? err : undefined,
         stack: isDevelopment ? stack : undefined,
+    }
+
+    if (err instanceof AppError && err.data) {
+        Object.assign(errorResponse, err.data);
     }
 
     res.status(statusCode).json(errorResponse);

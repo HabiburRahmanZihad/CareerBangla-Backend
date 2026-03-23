@@ -10,17 +10,33 @@ export const checkAuth = (...authRoles: Role[]) => async (req: Request, res: Res
         // Session Token Verification
         const sessionToken = CookieUtils.getCookie(req, "better-auth.session_token");
 
+        console.log("[checkAuth] Extracting better-auth.session_token cookie:", sessionToken ? "Present" : "Missing");
+        console.log("[checkAuth] Full cookie header passed to better-auth:", req.headers.cookie);
+
         if (!sessionToken) {
             throw new AppError(status.UNAUTHORIZED, "Unauthorized access! No session token provided.");
         }
 
-        // Use better-auth's getSession to validate the token via Cookie header
-        // (better-auth hashes tokens before storing, so raw DB lookup won't match)
-        const sessionData = await auth.api.getSession({
-            headers: new Headers({
-                Cookie: `better-auth.session_token=${sessionToken}`
-            })
+        // Use better-auth's getSession to validate the token.
+        // Pass both cookie and authorization headers so the bearer() plugin
+        // can convert the raw token into a properly signed cookie.
+        const reqHeaders = new Headers({
+            cookie: req.headers.cookie || ""
         });
+        // Forward Authorization header so the bearer plugin can sign the token
+        if (req.headers.authorization) {
+            reqHeaders.set("authorization", req.headers.authorization);
+        } else if (sessionToken) {
+            // If no Authorization header but we have the raw session token,
+            // send it as Bearer so the bearer plugin can sign it properly
+            reqHeaders.set("authorization", `Bearer ${sessionToken}`);
+        }
+
+        const sessionData = await auth.api.getSession({
+            headers: reqHeaders
+        });
+
+        console.log("[checkAuth] getSession result:", sessionData ? "Session Found" : "Null/Invalid");
 
         if (!sessionData || !sessionData.user) {
             throw new AppError(status.UNAUTHORIZED, "Unauthorized access! Invalid or expired session.");
