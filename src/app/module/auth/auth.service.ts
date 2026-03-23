@@ -11,6 +11,27 @@ import { tokenUtils } from "../../utils/token";
 import { IChangePasswordPayload, IForgetPasswordPayload, ILoginUserPayload, IRegisterUserPayload, IUpdateProfilePayload } from "./auth.interface";
 import crypto from "crypto";
 
+/** Build the token payload from a user record — single source of truth */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const buildTokenPayload = (user: { id: string; role: string; name: string; email: string; status: string; isDeleted: boolean; emailVerified: boolean } & Record<string, any>) => ({
+    userId: user.id,
+    role: user.role,
+    name: user.name,
+    email: user.email,
+    status: user.status,
+    isDeleted: user.isDeleted,
+    emailVerified: user.emailVerified,
+});
+
+/** Generate access + refresh token pair for a user */
+const generateTokenPair = (user: Parameters<typeof buildTokenPayload>[0]) => {
+    const payload = buildTokenPayload(user);
+    return {
+        accessToken: tokenUtils.getAccessToken(payload),
+        refreshToken: tokenUtils.getRefreshToken(payload),
+    };
+};
+
 const generateUniqueReferralCode = async (name?: string | null): Promise<string> => {
     const prefix = name
         ? name.substring(0, 4).toUpperCase().replace(/[^A-Z]/g, "").padEnd(2, "X")
@@ -118,25 +139,7 @@ const registerUser = async (payload: IRegisterUserPayload) => {
             })
         });
 
-        const accessToken = tokenUtils.getAccessToken({
-            userId: data.user.id,
-            role: data.user.role,
-            name: data.user.name,
-            email: data.user.email,
-            status: data.user.status,
-            isDeleted: data.user.isDeleted,
-            emailVerified: data.user.emailVerified,
-        });
-
-        const refreshToken = tokenUtils.getRefreshToken({
-            userId: data.user.id,
-            role: data.user.role,
-            name: data.user.name,
-            email: data.user.email,
-            status: data.user.status,
-            isDeleted: data.user.isDeleted,
-            emailVerified: data.user.emailVerified,
-        });
+        const { accessToken, refreshToken } = generateTokenPair(data.user);
 
         logger.create(`User registration complete → userId: ${data.user.id}, email: ${email}`);
 
@@ -201,25 +204,7 @@ const loginUser = async (payload: ILoginUserPayload) => {
         throw new AppError(status.UNAUTHORIZED, "Email not verified").setData({ email: data.user.email });
     }
 
-    const accessToken = tokenUtils.getAccessToken({
-        userId: data.user.id,
-        role: data.user.role,
-        name: data.user.name,
-        email: data.user.email,
-        status: data.user.status,
-        isDeleted: data.user.isDeleted,
-        emailVerified: data.user.emailVerified,
-    });
-
-    const refreshToken = tokenUtils.getRefreshToken({
-        userId: data.user.id,
-        role: data.user.role,
-        name: data.user.name,
-        email: data.user.email,
-        status: data.user.status,
-        isDeleted: data.user.isDeleted,
-        emailVerified: data.user.emailVerified,
-    });
+    const { accessToken, refreshToken } = generateTokenPair(data.user);
 
     return {
         user: data.user,
@@ -238,17 +223,30 @@ const getMe = async (user: IRequestUser) => {
         },
         include: {
             recruiter: {
-                include: {
-                    jobs: true,
+                select: {
+                    id: true,
+                    name: true,
+                    companyName: true,
+                    companyLogo: true,
+                    status: true,
+                    designation: true,
+                    _count: { select: { jobs: { where: { isDeleted: false } } } },
                 }
             },
-            admin: true,
-            resume: true,
+            admin: { select: { id: true, name: true, email: true } },
+            resume: { select: { id: true, profilePhoto: true, professionalTitle: true, profileCompletedAt: true } },
             applications: {
-                include: {
+                select: {
+                    id: true,
+                    status: true,
+                    createdAt: true,
                     job: {
-                        include: {
-                            recruiter: true,
+                        select: {
+                            id: true,
+                            title: true,
+                            recruiter: {
+                                select: { id: true, companyName: true, companyLogo: true }
+                            },
                         }
                     },
                 },
@@ -292,25 +290,7 @@ const getNewToken = async (refreshToken: string, sessionToken?: string) => {
 
     const user = isSessionTokenExists.user;
 
-    const newAccessToken = tokenUtils.getAccessToken({
-        userId: user.id,
-        role: user.role,
-        name: user.name,
-        email: user.email,
-        status: user.status,
-        isDeleted: user.isDeleted,
-        emailVerified: user.emailVerified,
-    });
-
-    const newRefreshToken = tokenUtils.getRefreshToken({
-        userId: user.id,
-        role: user.role,
-        name: user.name,
-        email: user.email,
-        status: user.status,
-        isDeleted: user.isDeleted,
-        emailVerified: user.emailVerified,
-    });
+    const { accessToken: newAccessToken, refreshToken: newRefreshToken } = generateTokenPair(user);
 
     const { token } = await prisma.session.update({
         where: {
@@ -370,26 +350,7 @@ const changePassword = async (payload: IChangePasswordPayload, sessionToken?: st
         })
     }
 
-    const accessToken = tokenUtils.getAccessToken({
-        userId: session.user.id,
-        role: session.user.role,
-        name: session.user.name,
-        email: session.user.email,
-        status: session.user.status,
-        isDeleted: session.user.isDeleted,
-        emailVerified: session.user.emailVerified,
-    });
-
-    const refreshToken = tokenUtils.getRefreshToken({
-        userId: session.user.id,
-        role: session.user.role,
-        name: session.user.name,
-        email: session.user.email,
-        status: session.user.status,
-        isDeleted: session.user.isDeleted,
-        emailVerified: session.user.emailVerified,
-    });
-
+    const { accessToken, refreshToken } = generateTokenPair(session.user);
 
     return {
         ...result,
@@ -434,26 +395,9 @@ const verifyEmail = async (email: string, otp: string) => {
         })
     }
 
-    const accessToken = tokenUtils.getAccessToken({
-        userId: result.user.id,
-        role: result.user.role,
-        name: result.user.name,
-        email: result.user.email,
-        status: result.user.status,
-        isDeleted: result.user.isDeleted,
-        emailVerified: result.user.emailVerified,
-    });
-
-    const refreshToken = tokenUtils.getRefreshToken({
-        userId: result.user.id,
-        role: result.user.role,
-        name: result.user.name,
-        email: result.user.email,
-        status: result.user.status,
-        isDeleted: result.user.isDeleted,
-        emailVerified: result.user.emailVerified,
-    });
-
+    // better-auth user type doesn't include custom fields (role, status, isDeleted) in its TS type
+    // but they exist at runtime due to the additionalFields config in auth.ts
+    const { accessToken, refreshToken } = generateTokenPair(result.user as unknown as Parameters<typeof buildTokenPayload>[0]);
     const sessionToken = result.token;
 
     return {
@@ -583,30 +527,7 @@ const googleLoginSuccess = async (session: Record<string, any>) => {
         });
     }
 
-    const accessToken = tokenUtils.getAccessToken({
-        userId: session.user.id,
-        role: session.user.role,
-        name: session.user.name,
-        email: session.user.email,
-        status: session.user.status,
-        isDeleted: session.user.isDeleted,
-        emailVerified: session.user.emailVerified,
-    });
-
-    const refreshToken = tokenUtils.getRefreshToken({
-        userId: session.user.id,
-        role: session.user.role,
-        name: session.user.name,
-        email: session.user.email,
-        status: session.user.status,
-        isDeleted: session.user.isDeleted,
-        emailVerified: session.user.emailVerified,
-    });
-
-    return {
-        accessToken,
-        refreshToken,
-    }
+    return generateTokenPair(session.user);
 }
 
 const updateProfile = async (user: IRequestUser, payload: IUpdateProfilePayload) => {

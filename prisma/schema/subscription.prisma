@@ -24,5 +24,7 @@ model Subscription {
 
   @@index([userId])
   @@index([status])
+  @@index([userId, status])
+  @@index([createdAt])
   @@map("subscription")
 }

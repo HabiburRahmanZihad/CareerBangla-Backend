@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Request } from "express";
 import { deleteFileFromCloudinary } from "../config/cloudinary.config";
+import { logger } from "./logger";
 
 export const deleteUploadedFilesFromGlobalErrorHandler = async (req: Request) => {
     try {
@@ -32,11 +33,11 @@ export const deleteUploadedFilesFromGlobalErrorHandler = async (req: Request) =>
             await Promise.all(
                 filesToDelete.map(url => deleteFileFromCloudinary(url))
             )
-            console.log(`\nDeleted ${filesToDelete.length} uploaded file(s) from Cloudinary due to an error during request processing.\n`);
+            logger.delete(`Deleted ${filesToDelete.length} uploaded file(s) from Cloudinary due to an error during request processing.`);
         }
         
     } catch (error : any) {
-        console.error("Error deleting uploaded files from Global Error Handler", error);
+        logger.error("Error deleting uploaded files from Global Error Handler", error);
         
     }
 }

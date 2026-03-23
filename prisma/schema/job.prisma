@@ -33,6 +33,9 @@ model Job {
   @@index([isDeleted], name: "idx_job_isDeleted")
   @@index([jobType], name: "idx_job_jobType")
   @@index([categoryId], name: "idx_job_categoryId")
+  @@index([createdAt], name: "idx_job_createdAt")
+  @@index([isDeleted, status], name: "idx_job_active")
+  @@index([recruiterId, isDeleted], name: "idx_job_recruiter_active")
   @@map("job")
 }
 

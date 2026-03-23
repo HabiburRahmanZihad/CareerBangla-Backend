@@ -322,16 +322,16 @@ const processSuccessfulPayment = async (
         }
     });
 
-    // 6. Admin notification
+    // 6. Admin notifications (batch insert)
     const admins = await tx.user.findMany({
         where: { role: { in: ["ADMIN", "SUPER_ADMIN"] } },
         select: { id: true },
     });
-    for (const admin of admins) {
-        await tx.notification.create({
-            data: {
+    if (admins.length > 0) {
+        await tx.notification.createMany({
+            data: admins.map((admin: { id: string }) => ({
                 userId: admin.id,
-                type: "GENERAL",
+                type: "GENERAL" as const,
                 title: "New Career Boost Purchase",
                 message: `${subscription.user.name} (${subscription.user.email}) purchased Lifetime Career Boost for ৳${subscription.amount} via ${gatewayLabel || "Payment Gateway"}.`,
                 metadata: {
@@ -341,7 +341,7 @@ const processSuccessfulPayment = async (
                     amount: subscription.amount,
                     transactionId: subscription.transactionId,
                 },
-            },
+            })),
         });
     }
 };
@@ -396,7 +396,7 @@ const sendInvoiceEmail = async (subscriptionId: string) => {
             ],
         });
     } catch (err) {
-        console.error("[Invoice Email Error]", err);
+        logger.error("Invoice email failed", err);
     }
 };
 
@@ -446,7 +446,7 @@ const handleIpn = async (payload: ISSLCommerzIpnPayload) => {
                 );
             });
 
-            sendInvoiceEmail(subscription.id).catch(console.error);
+            sendInvoiceEmail(subscription.id).catch((err) => logger.error("Invoice email failed", err));
 
             return { redirectUrl: `${envVars.FRONTEND_URL}/dashboard/subscriptions?payment=success` };
         }
@@ -586,7 +586,7 @@ const handleStripeWebhook = async (req: StripeWebhookRequest) => {
                     );
                 });
 
-                sendInvoiceEmail(subscription.id).catch(console.error);
+                sendInvoiceEmail(subscription.id).catch((err) => logger.error("Invoice email failed", err));
             }
         }
     }

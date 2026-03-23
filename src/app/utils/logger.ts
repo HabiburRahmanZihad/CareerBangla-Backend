@@ -1,6 +1,6 @@
 import { isDevelopment } from "../config/environment";
 
-type CrudOperation = "CREATE" | "READ" | "UPDATE" | "DELETE";
+type CrudOperation = "CREATE" | "READ" | "UPDATE" | "DELETE" | "AUTH";
 
 const SENSITIVE_KEYS = [
     "password", "token", "secret", "accesstoken", "refreshtoken",
@@ -48,5 +48,6 @@ export const logger = {
     read: (message: string, data?: unknown) => log("READ", message, data),
     update: (message: string, data?: unknown) => log("UPDATE", message, data),
     delete: (message: string, data?: unknown) => log("DELETE", message, data),
+    auth: (message: string, data?: unknown) => log("AUTH", message, data),
     error: (message: string, context?: unknown) => logError(message, context),
 };

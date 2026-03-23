@@ -5,6 +5,26 @@ import { logEnvironmentConfig } from "./app/config/environment";
 import { seedSuperAdmin } from "./app/utils/seed";
 
 let server: Server;
+
+const gracefulShutdown = (signal: string, exitCode: number) => {
+    console.log(`⚠️  ${signal} received. Shutting down gracefully...`);
+
+    if (server) {
+        server.close(() => {
+            console.log("✅ Server closed gracefully.");
+            process.exit(exitCode);
+        });
+    } else {
+        process.exit(exitCode);
+    }
+
+    // Force exit if graceful shutdown takes too long
+    setTimeout(() => {
+        console.error("❌ Forced shutdown after timeout");
+        process.exit(1);
+    }, 30000);
+};
+
 const bootstrap = async () => {
     try {
         logEnvironmentConfig();
@@ -21,71 +41,17 @@ const bootstrap = async () => {
     }
 }
 
-// SIGTERM signal handler
-process.on("SIGTERM", () => {
-    console.log("⚠️  SIGTERM signal received. Shutting down server gracefully...");
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM", 0));
+process.on("SIGINT", () => gracefulShutdown("SIGINT", 0));
 
-    if (server) {
-        server.close(() => {
-            console.log("✅ Server closed gracefully.");
-            process.exit(0);
-        });
-    } else {
-        process.exit(0);
-    }
-
-    // Force exit if graceful shutdown takes too long
-    setTimeout(() => {
-        console.error("❌ Forced shutdown after timeout");
-        process.exit(1);
-    }, 30000); // 30 seconds
-})
-
-// SIGINT signal handler
-process.on("SIGINT", () => {
-    console.log("⚠️  SIGINT signal received. Shutting down server gracefully...");
-
-    if (server) {
-        server.close(() => {
-            console.log("✅ Server closed gracefully.");
-            process.exit(0);
-        });
-    } else {
-        process.exit(0);
-    }
-
-    // Force exit if graceful shutdown takes too long
-    setTimeout(() => {
-        console.error("❌ Forced shutdown after timeout");
-        process.exit(1);
-    }, 30000);
-});
-
-//uncaught exception handler
 process.on('uncaughtException', (error) => {
-    console.error("💥 Uncaught Exception Detected. Shutting down server...");
-    console.error(error);
-
-    if (server) {
-        server.close(() => {
-            process.exit(1);
-        })
-    } else {
-        process.exit(1);
-    }
+    console.error("💥 Uncaught Exception Detected:", error);
+    gracefulShutdown("uncaughtException", 1);
 })
 
 process.on("unhandledRejection", (error) => {
-    console.error("💥 Unhandled Rejection Detected. Shutting down server...");
-    console.error(error);
-
-    if (server) {
-        server.close(() => {
-            process.exit(1);
-        })
-    } else {
-        process.exit(1);
-    }
+    console.error("💥 Unhandled Rejection Detected:", error);
+    gracefulShutdown("unhandledRejection", 1);
 })
 
 bootstrap();

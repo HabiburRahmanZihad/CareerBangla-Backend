@@ -9,6 +9,7 @@ import { handlePrismaClientKnownRequestError, handlePrismaClientUnknownError, ha
 import { handleZodError } from "../errorHelpers/handleZodError";
 import { TErrorResponse, TErrorSources } from "../interfaces/error.interface";
 import { deleteUploadedFilesFromGlobalErrorHandler } from "../utils/deleteUploadedFilesFromGlobalErrorHandler";
+import { logger } from "../utils/logger";
 
 
 
@@ -16,13 +17,7 @@ import { deleteUploadedFilesFromGlobalErrorHandler } from "../utils/deleteUpload
 export const globalErrorHandler = async (err: any, req: Request, res: Response, next: NextFunction) => {
     const isDevelopment = envVars.NODE_ENV === 'development';
 
-    if (isDevelopment) {
-        console.log("🔴 [GlobalErrorHandler] Error caught:", {
-            name: err?.name,
-            message: err?.message,
-            code: err?.code,
-        });
-    }
+    logger.error("Error caught", { name: err?.name, message: err?.message, code: err?.code });
 
     // Clean up uploaded files on error
     await deleteUploadedFilesFromGlobalErrorHandler(req);
@@ -105,12 +100,13 @@ export const globalErrorHandler = async (err: any, req: Request, res: Response, 
     }
     else if (err instanceof Error) {
         statusCode = status.INTERNAL_SERVER_ERROR;
-        message = err.message
+        // In production, never expose raw Error messages — they may contain internal details
+        message = isDevelopment ? err.message : "Internal Server Error";
         stack = err.stack;
         errorSources = [
             {
                 path: '',
-                message: err.message
+                message: isDevelopment ? err.message : "Internal Server Error",
             }
         ]
     }
@@ -127,7 +123,7 @@ export const globalErrorHandler = async (err: any, req: Request, res: Response, 
     }
 
     if (err instanceof AppError && err.data) {
-        Object.assign(errorResponse, err.data);
+        errorResponse.data = err.data;
     }
 
     res.status(statusCode).json(errorResponse);

@@ -29,62 +29,64 @@ const getDashboardStatsData = async (user: IRequestUser) => {
     return statsData;
 }
 
-const getSuperAdminStatsData = async () => {
-    const jobCount = await prisma.job.count({ where: { isDeleted: false } });
-    const applicationCount = await prisma.application.count();
-    const recruiterCount = await prisma.recruiter.count({ where: { isDeleted: false } });
-    const userCount = await prisma.user.count();
-    const adminCount = await prisma.admin.count();
-    const activeJobCount = await prisma.job.count({ where: { status: "ACTIVE", isDeleted: false } });
-
-    const totalRevenue = await prisma.subscription.aggregate({
-        _sum: { amount: true },
-        where: { status: PaymentStatus.PAID }
-    });
-
-    const pieChartData = await getApplicationStatusDistribution();
-    const barChartData = await getApplicationsByMonth();
+const getCommonStatsData = async () => {
+    const [
+        jobCount,
+        applicationCount,
+        recruiterCount,
+        userCount,
+        activeJobCount,
+        totalRevenue,
+        pieChartData,
+        barChartData
+    ] = await Promise.all([
+        prisma.job.count({ where: { isDeleted: false } }),
+        prisma.application.count(),
+        prisma.recruiter.count({ where: { isDeleted: false } }),
+        prisma.user.count(),
+        prisma.job.count({ where: { status: "ACTIVE", isDeleted: false } }),
+        prisma.subscription.aggregate({
+            _sum: { amount: true },
+            where: { status: PaymentStatus.PAID }
+        }),
+        getApplicationStatusDistribution(),
+        getApplicationsByMonth()
+    ]);
 
     return {
         jobCount,
         applicationCount,
         recruiterCount,
         userCount,
-        adminCount,
         activeJobCount,
         totalRevenue: totalRevenue._sum.amount || 0,
         pieChartData,
         barChartData
-    }
+    };
+}
+
+const getSuperAdminStatsData = async () => {
+    const [commonStats, adminCount] = await Promise.all([
+        getCommonStatsData(),
+        prisma.admin.count()
+    ]);
+
+    return {
+        ...commonStats,
+        adminCount
+    };
 }
 
 const getAdminStatsData = async () => {
-    const jobCount = await prisma.job.count({ where: { isDeleted: false } });
-    const applicationCount = await prisma.application.count();
-    const recruiterCount = await prisma.recruiter.count({ where: { isDeleted: false } });
-    const userCount = await prisma.user.count();
-    const activeJobCount = await prisma.job.count({ where: { status: "ACTIVE", isDeleted: false } });
-    const pendingRecruiters = await prisma.recruiter.count({ where: { status: "PENDING" } });
-
-    const totalRevenue = await prisma.subscription.aggregate({
-        _sum: { amount: true },
-        where: { status: PaymentStatus.PAID }
-    });
-
-    const pieChartData = await getApplicationStatusDistribution();
-    const barChartData = await getApplicationsByMonth();
+    const [commonStats, pendingRecruiters] = await Promise.all([
+        getCommonStatsData(),
+        prisma.recruiter.count({ where: { status: "PENDING" } })
+    ]);
 
     return {
-        jobCount,
-        applicationCount,
-        recruiterCount,
-        userCount,
-        activeJobCount,
-        pendingRecruiters,
-        totalRevenue: totalRevenue._sum.amount || 0,
-        pieChartData,
-        barChartData
-    }
+        ...commonStats,
+        pendingRecruiters
+    };
 }
 
 const getRecruiterStatsData = async (user: IRequestUser) => {
@@ -92,29 +94,33 @@ const getRecruiterStatsData = async (user: IRequestUser) => {
         where: { userId: user.userId }
     });
 
-    const jobCount = await prisma.job.count({
-        where: { recruiterId: recruiterData.id, isDeleted: false }
-    })
-
-    const applicationCount = await prisma.application.count({
-        where: { job: { recruiterId: recruiterData.id } }
-    })
-
-    const activeJobCount = await prisma.job.count({
-        where: { recruiterId: recruiterData.id, status: "ACTIVE", isDeleted: false }
-    })
-
-    const uniqueApplicants = await prisma.application.groupBy({
-        by: ["userId"],
-        where: { job: { recruiterId: recruiterData.id } },
-        _count: { id: true }
-    })
-
-    const applicationStatusDistribution = await prisma.application.groupBy({
-        by: ["status"],
-        _count: { id: true },
-        where: { job: { recruiterId: recruiterData.id } }
-    })
+    const [
+        jobCount,
+        applicationCount,
+        activeJobCount,
+        uniqueApplicants,
+        applicationStatusDistribution
+    ] = await Promise.all([
+        prisma.job.count({
+            where: { recruiterId: recruiterData.id, isDeleted: false }
+        }),
+        prisma.application.count({
+            where: { job: { recruiterId: recruiterData.id } }
+        }),
+        prisma.job.count({
+            where: { recruiterId: recruiterData.id, status: "ACTIVE", isDeleted: false }
+        }),
+        prisma.application.groupBy({
+            by: ["userId"],
+            where: { job: { recruiterId: recruiterData.id } },
+            _count: { id: true }
+        }),
+        prisma.application.groupBy({
+            by: ["status"],
+            _count: { id: true },
+            where: { job: { recruiterId: recruiterData.id } }
+        })
+    ]);
 
     const formattedStatusDistribution = applicationStatusDistribution.map(({ _count, status }) => ({
         status,
@@ -131,15 +137,16 @@ const getRecruiterStatsData = async (user: IRequestUser) => {
 }
 
 const getUserStatsData = async (user: IRequestUser) => {
-    const applicationCount = await prisma.application.count({
-        where: { userId: user.userId }
-    })
-
-    const applicationStatusDistribution = await prisma.application.groupBy({
-        by: ["status"],
-        _count: { id: true },
-        where: { userId: user.userId }
-    })
+    const [applicationCount, applicationStatusDistribution] = await Promise.all([
+        prisma.application.count({
+            where: { userId: user.userId }
+        }),
+        prisma.application.groupBy({
+            by: ["status"],
+            _count: { id: true },
+            where: { userId: user.userId }
+        })
+    ]);
 
     const formattedStatusDistribution = applicationStatusDistribution.map(({ _count, status }) => ({
         status,

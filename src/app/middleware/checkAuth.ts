@@ -4,14 +4,14 @@ import { Role, UserStatus } from "../../generated/prisma/enums";
 import AppError from "../errorHelpers/AppError";
 import { auth } from "../lib/auth";
 import { CookieUtils } from "../utils/cookie";
+import { logger } from "../utils/logger";
 
 export const checkAuth = (...authRoles: Role[]) => async (req: Request, res: Response, next: NextFunction) => {
     try {
         // Session Token Verification
         const sessionToken = CookieUtils.getCookie(req, "better-auth.session_token");
 
-        console.log("[checkAuth] Extracting better-auth.session_token cookie:", sessionToken ? "Present" : "Missing");
-        console.log("[checkAuth] Full cookie header passed to better-auth:", req.headers.cookie);
+        logger.auth("Session token check", { present: !!sessionToken });
 
         if (!sessionToken) {
             throw new AppError(status.UNAUTHORIZED, "Unauthorized access! No session token provided.");
@@ -36,7 +36,7 @@ export const checkAuth = (...authRoles: Role[]) => async (req: Request, res: Res
             headers: reqHeaders
         });
 
-        console.log("[checkAuth] getSession result:", sessionData ? "Session Found" : "Null/Invalid");
+        logger.auth("Session validation", { valid: !!sessionData });
 
         if (!sessionData || !sessionData.user) {
             throw new AppError(status.UNAUTHORIZED, "Unauthorized access! Invalid or expired session.");
@@ -81,7 +81,7 @@ export const checkAuth = (...authRoles: Role[]) => async (req: Request, res: Res
 
         next();
     } catch (error) {
-        console.error("checkAuth error:", error);
+        logger.error("Auth middleware error", error);
         next(error);
     }
 };

@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import status from "http-status";
+import { IQueryParams } from "../../interfaces/query.interface";
 import { catchAsync } from "../../shared/catchAsync";
 import { sendResponse } from "../../shared/sendResponse";
 import { ApplicationService } from "./application.service";
@@ -22,13 +23,14 @@ const applyJob = catchAsync(
 const getMyApplications = catchAsync(
     async (req: Request, res: Response) => {
         const user = req.user;
-        const result = await ApplicationService.getMyApplications(user);
+        const result = await ApplicationService.getMyApplications(user, req.query as IQueryParams);
 
         sendResponse(res, {
             httpStatusCode: status.OK,
             success: true,
             message: "My applications fetched successfully",
-            data: result,
+            data: result.data,
+            meta: result.meta,
         })
     }
 )
@@ -66,13 +68,14 @@ const updateApplicationStatus = catchAsync(
 
 const getAllApplications = catchAsync(
     async (req: Request, res: Response) => {
-        const result = await ApplicationService.getAllApplications();
+        const result = await ApplicationService.getAllApplications(req.query as IQueryParams);
 
         sendResponse(res, {
             httpStatusCode: status.OK,
             success: true,
             message: "All applications fetched successfully",
-            data: result,
+            data: result.data,
+            meta: result.meta,
         })
     }
 )

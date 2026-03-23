@@ -8,6 +8,18 @@ import { getUserProfileCompletion } from "../../utils/profileCompletion";
 import { generateResumePdf } from "../../utils/resumePdf";
 import { uploadFileToCloudinary } from "../../config/cloudinary.config";
 import { logger } from "../../utils/logger";
+import { hasActivePremium } from "../../utils/premium";
+
+/** Standard include for full resume with all relations, ordered by createdAt desc */
+const FULL_RESUME_INCLUDE = {
+    workExperience: { orderBy: { createdAt: 'desc' as const } },
+    education: { orderBy: { createdAt: 'desc' as const } },
+    certifications: { orderBy: { createdAt: 'desc' as const } },
+    projects: { orderBy: { createdAt: 'desc' as const } },
+    languages: { orderBy: { createdAt: 'desc' as const } },
+    awards: { orderBy: { createdAt: 'desc' as const } },
+    references: { orderBy: { createdAt: 'desc' as const } },
+} as const;
 
 type ResumeUpdatePayload = Partial<Omit<Resume, 'id' | 'userId' | 'createdAt' | 'updatedAt'>> & {
     workExperience?: Partial<WorkExperience>[];
@@ -27,27 +39,7 @@ const getMyResume = async (user: IRequestUser) => {
             user: {
                 select: { id: true, name: true, email: true, image: true, isPremium: true }
             },
-            workExperience: {
-                orderBy: { createdAt: 'desc' }
-            },
-            education: {
-                orderBy: { createdAt: 'desc' }
-            },
-            certifications: {
-                orderBy: { createdAt: 'desc' }
-            },
-            projects: {
-                orderBy: { createdAt: 'desc' }
-            },
-            languages: {
-                orderBy: { createdAt: 'desc' }
-            },
-            awards: {
-                orderBy: { createdAt: 'desc' }
-            },
-            references: {
-                orderBy: { createdAt: 'desc' }
-            }
+            ...FULL_RESUME_INCLUDE,
         }
     })
 
@@ -89,13 +81,7 @@ const updateMyResume = async (user: IRequestUser, payload: ResumeUpdatePayload) 
 
     const resumeInclude = {
         user: { select: { id: true, name: true, email: true, image: true } },
-        workExperience: { orderBy: { createdAt: 'desc' as const } },
-        education: { orderBy: { createdAt: 'desc' as const } },
-        certifications: { orderBy: { createdAt: 'desc' as const } },
-        projects: { orderBy: { createdAt: 'desc' as const } },
-        languages: { orderBy: { createdAt: 'desc' as const } },
-        awards: { orderBy: { createdAt: 'desc' as const } },
-        references: { orderBy: { createdAt: 'desc' as const } }
+        ...FULL_RESUME_INCLUDE,
     };
 
     const handleArrays = async (tx: Omit<Prisma.TransactionClient, "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends">, resumeId: string) => {
@@ -246,27 +232,7 @@ const getResumeByUserId = async (userId: string, requestUser: IRequestUser) => {
             user: {
                 select: { id: true, name: true, email: true, image: true }
             },
-            workExperience: {
-                orderBy: { createdAt: 'desc' }
-            },
-            education: {
-                orderBy: { createdAt: 'desc' }
-            },
-            certifications: {
-                orderBy: { createdAt: 'desc' }
-            },
-            projects: {
-                orderBy: { createdAt: 'desc' }
-            },
-            languages: {
-                orderBy: { createdAt: 'desc' }
-            },
-            awards: {
-                orderBy: { createdAt: 'desc' }
-            },
-            references: {
-                orderBy: { createdAt: 'desc' }
-            }
+            ...FULL_RESUME_INCLUDE,
         }
     })
 
@@ -274,7 +240,6 @@ const getResumeByUserId = async (userId: string, requestUser: IRequestUser) => {
         throw new AppError(status.NOT_FOUND, "Resume not found");
     }
 
-    // Removing coin charge logic. Recruiters can view resumes for free under the new model.
     return resume;
 }
 
@@ -585,7 +550,7 @@ const downloadResumePdf = async (user: IRequestUser, targetUserId?: string) => {
         select: { isPremium: true, premiumUntil: true, role: true },
     });
 
-    const hasPremium = dbUser?.isPremium && (!dbUser.premiumUntil || new Date(dbUser.premiumUntil) > new Date());
+    const hasPremium = dbUser ? hasActivePremium(dbUser) : false;
     if (!hasPremium) {
         throw new AppError(status.FORBIDDEN, "Resume PDF download is a Career Boost feature. Upgrade to access this.");
     }
@@ -597,15 +562,7 @@ const downloadResumePdf = async (user: IRequestUser, targetUserId?: string) => {
 
     const resume = await prisma.resume.findUnique({
         where: { userId: resolvedUserId },
-        include: {
-            workExperience: { orderBy: { createdAt: 'desc' } },
-            education: { orderBy: { createdAt: 'desc' } },
-            certifications: { orderBy: { createdAt: 'desc' } },
-            projects: { orderBy: { createdAt: 'desc' } },
-            languages: { orderBy: { createdAt: 'desc' } },
-            awards: { orderBy: { createdAt: 'desc' } },
-            references: { orderBy: { createdAt: 'desc' } },
-        }
+        include: FULL_RESUME_INCLUDE,
     });
 
     if (!resume) {
@@ -619,15 +576,7 @@ const getResumePdfForApplication = async (userId: string) => {
     logger.read(`Generating resume PDF for application → userId: ${userId}`);
     const resume = await prisma.resume.findUnique({
         where: { userId },
-        include: {
-            workExperience: { orderBy: { createdAt: 'desc' } },
-            education: { orderBy: { createdAt: 'desc' } },
-            certifications: { orderBy: { createdAt: 'desc' } },
-            projects: { orderBy: { createdAt: 'desc' } },
-            languages: { orderBy: { createdAt: 'desc' } },
-            awards: { orderBy: { createdAt: 'desc' } },
-            references: { orderBy: { createdAt: 'desc' } },
-        }
+        include: FULL_RESUME_INCLUDE,
     });
 
     if (!resume) return null;

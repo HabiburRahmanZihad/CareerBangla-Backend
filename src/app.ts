@@ -8,9 +8,21 @@ import { envVars } from "./app/config/env";
 import { auth } from "./app/lib/auth";
 import { globalErrorHandler } from "./app/middleware/globalErrorHandler";
 import { notFound } from "./app/middleware/notFound";
+import { apiRateLimiter } from "./app/middleware/rateLimiter";
 import { IndexRoutes } from "./app/routes";
 
 const app: Application = express();
+
+// Security headers
+app.use((_req, res, next) => {
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("X-Frame-Options", "DENY");
+    res.setHeader("X-XSS-Protection", "1; mode=block");
+    res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+    res.removeHeader("X-Powered-By");
+    next();
+});
+
 app.set("query parser", (str: string) => qs.parse(str));
 
 app.set("view engine", "ejs");
@@ -45,19 +57,19 @@ app.use(cors({
 app.use(cookieParser())
 
 // Enable URL-encoded form data parsing
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 
 // STRIPE WEBHOOK MUST BE PARSED AS RAW BUFFER
 import { SubscriptionController } from "./app/module/subscription/subscription.controller";
 app.post("/api/v1/subscriptions/webhook", express.raw({ type: 'application/json' }), SubscriptionController.handleStripeWebhook);
 
 // Middleware to parse JSON bodies
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '2mb' }));
 
 // Better-auth handles its own routes (/api/auth/*)
 app.use("/api/auth", toNodeHandler(auth))
 
-app.use("/api/v1", IndexRoutes);
+app.use("/api/v1", apiRateLimiter, IndexRoutes);
 
 // Basic route - health check
 app.get('/', async (req: Request, res: Response) => {

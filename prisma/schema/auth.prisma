@@ -30,6 +30,12 @@ model User {
   referralsReceived ReferralHistory[] @relation("ReferredUser")
 
   @@unique([email])
+  @@index([role])
+  @@index([status])
+  @@index([isDeleted])
+  @@index([referredBy])
+  @@index([isPremium])
+  @@index([createdAt])
   @@map("user")
 }
 
@@ -92,5 +98,6 @@ model ReferralHistory {
   createdAt      DateTime  @default(now())
 
   @@index([referrerId])
+  @@index([referrerId, hasPaid])
   @@map("referral_history")
 }

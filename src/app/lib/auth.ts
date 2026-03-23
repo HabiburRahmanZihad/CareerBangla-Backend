@@ -4,13 +4,14 @@ import { bearer, emailOTP } from "better-auth/plugins";
 import { Role, UserStatus } from "../../generated/prisma/enums";
 import { envVars } from "../config/env";
 import { sendEmail } from "../utils/email";
+import { logger } from "../utils/logger";
 import { prisma } from "./prisma";
 
 const sendOtpEmailSafely = async (emailOptions: Parameters<typeof sendEmail>[0]) => {
     try {
         await sendEmail(emailOptions);
     } catch (error) {
-        console.error("OTP email delivery failed:", error);
+        logger.error("OTP email delivery failed", error);
     }
 };
 
@@ -97,12 +98,12 @@ export const auth = betterAuth({
                     })
 
                     if (!user) {
-                        console.error(`User with email ${email} not found. Cannot send verification OTP.`);
+                        logger.error("User not found for verification OTP", { email });
                         return;
                     }
 
                     if (user && user.role === Role.SUPER_ADMIN) {
-                        console.log(`User with email ${email} is a super admin. Skipping sending verification OTP.`);
+                        logger.read("Skipping OTP for super admin", { email });
                         return;
                     }
 

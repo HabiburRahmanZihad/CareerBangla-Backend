@@ -17,5 +17,7 @@ model Application {
   @@index([userId])
   @@index([jobId])
   @@index([status])
+  @@index([createdAt])
+  @@index([jobId, createdAt])
   @@map("application")
 }

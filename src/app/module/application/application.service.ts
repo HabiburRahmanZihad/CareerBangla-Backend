@@ -1,10 +1,12 @@
 import status from "http-status";
 import { ApplicationStatus } from "../../../generated/prisma/enums";
 import AppError from "../../errorHelpers/AppError";
+import { IQueryParams } from "../../interfaces/query.interface";
 import { IRequestUser } from "../../interfaces/requestUser.interface";
 import { prisma } from "../../lib/prisma";
 import { sendEmail } from "../../utils/email";
 import { logger } from "../../utils/logger";
+import { hasActivePremium } from "../../utils/premium";
 import { getUserProfileCompletion } from "../../utils/profileCompletion";
 import { ResumeService } from "../resume/resume.service";
 
@@ -106,28 +108,25 @@ const applyJob = async (user: IRequestUser, payload: { jobId: string; coverLette
     // Send email to recruiter with applicant details + CV (if recruiter is premium)
     (async () => {
         try {
-            const recruiterUser = await prisma.user.findUnique({
-                where: { id: job.recruiter.userId },
-                select: { email: true, isPremium: true, premiumUntil: true },
-            });
+            // Parallel fetch: recruiter user, applicant resume, applicant premium status
+            const [recruiterUser, applicantResume, applicantUser] = await Promise.all([
+                prisma.user.findUnique({
+                    where: { id: job.recruiter.userId },
+                    select: { email: true, isPremium: true, premiumUntil: true },
+                }),
+                prisma.resume.findUnique({
+                    where: { userId: user.userId },
+                    select: { contactNumber: true },
+                }),
+                prisma.user.findUnique({
+                    where: { id: user.userId },
+                    select: { isPremium: true, premiumUntil: true },
+                }),
+            ]);
             if (!recruiterUser) return;
 
-            const recruiterIsPremium = recruiterUser.isPremium &&
-                (!recruiterUser.premiumUntil || new Date(recruiterUser.premiumUntil) > new Date());
-
-            // Get applicant resume for contact info
-            const applicantResume = await prisma.resume.findUnique({
-                where: { userId: user.userId },
-                select: { contactNumber: true },
-            });
-
-            // Generate CV PDF if applicant is premium (has paid for Career Boost)
-            const applicantUser = await prisma.user.findUnique({
-                where: { id: user.userId },
-                select: { isPremium: true, premiumUntil: true },
-            });
-            const applicantIsPremium = applicantUser?.isPremium &&
-                (!applicantUser.premiumUntil || new Date(applicantUser.premiumUntil) > new Date());
+            const recruiterIsPremium = hasActivePremium(recruiterUser);
+            const applicantIsPremium = applicantUser ? hasActivePremium(applicantUser) : false;
 
             let cvAttachment: { filename: string; content: Buffer; contentType: string } | undefined;
             if (recruiterIsPremium && applicantIsPremium) {
@@ -165,29 +164,43 @@ const applyJob = async (user: IRequestUser, payload: { jobId: string; coverLette
     return application;
 }
 
-const getMyApplications = async (user: IRequestUser) => {
+const getMyApplications = async (user: IRequestUser, query?: IQueryParams) => {
     logger.read(`Fetching user applications → userId: ${user.userId}`);
-    const applications = await prisma.application.findMany({
-        where: { userId: user.userId },
-        include: {
-            job: {
-                include: {
-                    recruiter: {
-                        select: {
-                            id: true,
-                            name: true,
-                            companyName: true,
-                            companyLogo: true,
-                        }
-                    },
-                    category: true,
-                }
-            },
-        },
-        orderBy: { createdAt: "desc" },
-    })
+    const page = parseInt(query?.page || "1");
+    const limit = parseInt(query?.limit || "20");
+    const skip = (page - 1) * limit;
 
-    return applications;
+    const where = { userId: user.userId };
+
+    const [applications, total] = await Promise.all([
+        prisma.application.findMany({
+            where,
+            include: {
+                job: {
+                    include: {
+                        recruiter: {
+                            select: {
+                                id: true,
+                                name: true,
+                                companyName: true,
+                                companyLogo: true,
+                            }
+                        },
+                        category: true,
+                    }
+                },
+            },
+            orderBy: { createdAt: "desc" },
+            skip,
+            take: limit,
+        }),
+        prisma.application.count({ where }),
+    ]);
+
+    return {
+        data: applications,
+        meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    };
 }
 
 const getJobApplications = async (user: IRequestUser, jobId: string) => {
@@ -210,8 +223,7 @@ const getJobApplications = async (user: IRequestUser, jobId: string) => {
         where: { id: user.userId },
         select: { isPremium: true, premiumUntil: true },
     });
-    const isPremiumRecruiter = recruiterUser?.isPremium &&
-        (!recruiterUser.premiumUntil || new Date(recruiterUser.premiumUntil) > new Date());
+    const isPremiumRecruiter = recruiterUser ? hasActivePremium(recruiterUser) : false;
 
     const applications = await prisma.application.findMany({
         where: { jobId },
@@ -350,25 +362,37 @@ const updateApplicationStatus = async (
     return updatedApplication;
 }
 
-const getAllApplications = async () => {
+const getAllApplications = async (query?: IQueryParams) => {
     logger.read("Fetching all applications (admin)");
-    const applications = await prisma.application.findMany({
-        include: {
-            user: {
-                select: { id: true, name: true, email: true, image: true }
-            },
-            job: {
-                include: {
-                    recruiter: {
-                        select: { id: true, name: true, companyName: true }
-                    }
-                }
-            },
-        },
-        orderBy: { createdAt: "desc" },
-    })
+    const page = parseInt(query?.page || "1");
+    const limit = parseInt(query?.limit || "20");
+    const skip = (page - 1) * limit;
 
-    return applications;
+    const [applications, total] = await Promise.all([
+        prisma.application.findMany({
+            include: {
+                user: {
+                    select: { id: true, name: true, email: true, image: true }
+                },
+                job: {
+                    include: {
+                        recruiter: {
+                            select: { id: true, name: true, companyName: true }
+                        }
+                    }
+                },
+            },
+            orderBy: { createdAt: "desc" },
+            skip,
+            take: limit,
+        }),
+        prisma.application.count(),
+    ]);
+
+    return {
+        data: applications,
+        meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    };
 }
 
 export const ApplicationService = {

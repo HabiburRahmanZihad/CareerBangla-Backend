@@ -4,6 +4,7 @@ import nodemailer from "nodemailer";
 import path from "path";
 import { envVars } from "../config/env";
 import AppError from "../errorHelpers/AppError";
+import { logger } from "./logger";
 
 const transporter = nodemailer.createTransport({
     host : envVars.EMAIL_SENDER.SMTP_HOST,
@@ -45,7 +46,7 @@ export const sendEmail = async ({subject, templateData, templateName, to, attach
             }))
         })
     } catch (error) {
-        console.error(error);
+        logger.error("Failed to send email", error);
         throw new AppError(status.INTERNAL_SERVER_ERROR, "Failed to send email");
     }
 }
