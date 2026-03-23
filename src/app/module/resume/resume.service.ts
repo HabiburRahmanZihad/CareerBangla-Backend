@@ -69,12 +69,29 @@ const updateMyResume = async (user: IRequestUser, payload: ResumeUpdatePayload) 
     }
 
     const buildPayload = () => {
+        // Relation arrays are handled separately by handleArrays — exclude them
+        // from the scalar payload so Prisma doesn't reject plain arrays on relations.
         const {
             experience,
+            workExperience,
+            education,
+            certifications,
+            projects,
+            languages,
+            awards,
+            references,
             ...rest
         } = payload;
+
+        // Convert empty strings to null for optional fields so Prisma doesn't
+        // reject them (e.g. DateTime fields like dateOfBirth expect ISO-8601 or null).
+        const sanitised: Record<string, unknown> = {};
+        for (const [key, value] of Object.entries(rest)) {
+            sanitised[key] = typeof value === "string" && value.trim() === "" ? null : value;
+        }
+
         return {
-            ...rest,
+            ...sanitised,
             ...(experience !== undefined ? { experience: experience as Prisma.InputJsonValue[] } : {}),
         };
     };
