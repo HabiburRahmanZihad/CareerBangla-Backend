@@ -16,17 +16,18 @@ const registerUser = catchAsync(
         const result = await AuthService.registerUser(payload);
 
         const { accessToken, refreshToken, token, ...rest } = result
+        const signedToken = token ? tokenUtils.signSessionToken(token) : token;
 
         tokenUtils.setAccessTokenCookie(res, accessToken);
         tokenUtils.setRefreshTokenCookie(res, refreshToken);
-        tokenUtils.setBetterAuthSessionCookie(res, token as string);
+        if (signedToken) tokenUtils.setBetterAuthSessionCookie(res, signedToken);
 
         sendResponse(res, {
             httpStatusCode: status.CREATED,
             success: true,
             message: "User registered successfully",
             data: {
-                token,
+                token: signedToken,
                 accessToken,
                 refreshToken,
                 ...rest,
@@ -40,21 +41,21 @@ const loginUser = catchAsync(
         const payload = req.body;
         const result = await AuthService.loginUser(payload);
         const { accessToken, refreshToken, token, ...rest } = result
+        const signedToken = tokenUtils.signSessionToken(token);
 
         tokenUtils.setAccessTokenCookie(res, accessToken);
         tokenUtils.setRefreshTokenCookie(res, refreshToken);
-        tokenUtils.setBetterAuthSessionCookie(res, token);
+        tokenUtils.setBetterAuthSessionCookie(res, signedToken);
 
         sendResponse(res, {
             httpStatusCode: status.OK,
             success: true,
             message: "User logged in successfully",
             data: {
-                token,
+                token: signedToken,
                 accessToken,
                 refreshToken,
                 ...rest,
-
             },
         })
     }
@@ -83,13 +84,16 @@ const getNewToken = catchAsync(
         if (!betterAuthSessionToken) {
             throw new AppError(status.UNAUTHORIZED, "Session token is missing");
         }
-        const result = await AuthService.getNewToken(refreshToken, betterAuthSessionToken);
+        // Extract raw token from signed cookie for DB lookups
+        const rawSessionToken = tokenUtils.extractRawSessionToken(betterAuthSessionToken);
+        const result = await AuthService.getNewToken(refreshToken, rawSessionToken);
 
         const { accessToken, refreshToken: newRefreshToken, sessionToken } = result;
+        const signedSessionToken = tokenUtils.signSessionToken(sessionToken);
 
         tokenUtils.setAccessTokenCookie(res, accessToken);
         tokenUtils.setRefreshTokenCookie(res, newRefreshToken);
-        tokenUtils.setBetterAuthSessionCookie(res, sessionToken);
+        tokenUtils.setBetterAuthSessionCookie(res, signedSessionToken);
 
         sendResponse(res, {
             httpStatusCode: status.OK,
@@ -98,7 +102,7 @@ const getNewToken = catchAsync(
             data: {
                 accessToken,
                 refreshToken: newRefreshToken,
-                sessionToken,
+                sessionToken: signedSessionToken,
             },
         });
     }
@@ -108,20 +112,23 @@ const changePassword = catchAsync(
     async (req: Request, res: Response) => {
         const payload = req.body;
         const betterAuthSessionToken = req.cookies["better-auth.session_token"];
+        // Extract raw token for better-auth API calls
+        const rawSessionToken = tokenUtils.extractRawSessionToken(betterAuthSessionToken);
 
-        const result = await AuthService.changePassword(payload, betterAuthSessionToken);
+        const result = await AuthService.changePassword(payload, rawSessionToken);
 
         const { accessToken, refreshToken, token } = result;
+        const signedToken = token ? tokenUtils.signSessionToken(token as string) : token;
 
         tokenUtils.setAccessTokenCookie(res, accessToken);
         tokenUtils.setRefreshTokenCookie(res, refreshToken);
-        tokenUtils.setBetterAuthSessionCookie(res, token as string);
+        if (signedToken) tokenUtils.setBetterAuthSessionCookie(res, signedToken as string);
 
         sendResponse(res, {
             httpStatusCode: status.OK,
             success: true,
             message: "Password changed successfully",
-            data: result,
+            data: { ...result, token: signedToken },
         });
     }
 )
@@ -129,7 +136,9 @@ const changePassword = catchAsync(
 const logoutUser = catchAsync(
     async (req: Request, res: Response) => {
         const betterAuthSessionToken = req.cookies["better-auth.session_token"];
-        const result = await AuthService.logoutUser(betterAuthSessionToken);
+        // Extract raw token for better-auth API calls
+        const rawSessionToken = tokenUtils.extractRawSessionToken(betterAuthSessionToken);
+        const result = await AuthService.logoutUser(rawSessionToken);
         const isProduction = envVars.NODE_ENV === "production";
         const cookieClearOptions = {
             httpOnly: true,
@@ -156,17 +165,18 @@ const verifyEmail = catchAsync(
         const result = await AuthService.verifyEmail(email, otp);
 
         const { accessToken, refreshToken, token, ...rest } = result
+        const signedToken = token ? tokenUtils.signSessionToken(token) : token;
 
         if (accessToken) tokenUtils.setAccessTokenCookie(res, accessToken);
         if (refreshToken) tokenUtils.setRefreshTokenCookie(res, refreshToken);
-        if (token) tokenUtils.setBetterAuthSessionCookie(res, token);
+        if (signedToken) tokenUtils.setBetterAuthSessionCookie(res, signedToken);
 
         sendResponse(res, {
             httpStatusCode: status.OK,
             success: true,
             message: "Email verified successfully",
             data: {
-                token,
+                token: signedToken,
                 accessToken,
                 refreshToken,
                 ...rest,

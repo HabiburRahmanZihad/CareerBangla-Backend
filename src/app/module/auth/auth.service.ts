@@ -452,32 +452,7 @@ const verifyEmail = async (email: string, otp: string) => {
         emailVerified: result.user.emailVerified,
     });
 
-    let sessionToken = result.token;
-
-    // Better-Auth with requireEmailVerification=true may not return a session
-    // token automatically even if autoSignInAfterVerification is true.
-    // If we don't have a token, we create a valid session manually.
-    if (!sessionToken) {
-        // Generate a random 32-character token to match better-auth format
-        const crypto = require("crypto");
-        const rawToken = crypto.randomBytes(16).toString("hex");
-        
-        const expiresAt = new Date();
-        expiresAt.setDate(expiresAt.getDate() + 1); // 1 day expiration
-        
-        await prisma.session.create({
-            data: {
-                id: crypto.randomUUID(),
-                userId: result.user.id,
-                token: rawToken,
-                expiresAt,
-                ipAddress: null,
-                userAgent: null,
-            }
-        });
-        
-        sessionToken = rawToken;
-    }
+    const sessionToken = result.token;
 
     return {
         user: result.user,
