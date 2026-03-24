@@ -455,6 +455,20 @@ const handleIpn = async (payload: ISSLCommerzIpnPayload) => {
             where: { id: subscription.id },
             data: { status: PaymentStatus.FAILED }
         });
+
+        // Notify user about failed/cancelled payment
+        await prisma.notification.create({
+            data: {
+                userId: subscription.userId,
+                type: "GENERAL",
+                title: paymentStatus === "CANCELLED" ? "Payment Cancelled" : "Payment Failed",
+                message: paymentStatus === "CANCELLED"
+                    ? "Your Career Boost payment was cancelled. You can try again anytime from the subscriptions page."
+                    : "Your Career Boost payment failed. Please try again or use a different payment method.",
+                metadata: { subscriptionId: subscription.id, transactionId: subscription.transactionId },
+            }
+        });
+
         return { redirectUrl: `${envVars.FRONTEND_URL}/dashboard/subscriptions?payment=${paymentStatus.toLowerCase()}` };
     }
 
@@ -587,6 +601,34 @@ const handleStripeWebhook = async (req: StripeWebhookRequest) => {
                 });
 
                 sendInvoiceEmail(subscription.id).catch((err) => logger.error("Invoice email failed", err));
+            }
+        }
+    } else if (event.type === "checkout.session.expired") {
+        // User abandoned or session expired
+        const session = event.data.object as StripeCheckoutSession;
+        const transactionId = session.client_reference_id;
+
+        if (transactionId) {
+            const subscription = await prisma.subscription.findUnique({
+                where: { transactionId },
+                include: { user: true }
+            });
+
+            if (subscription && subscription.status === PaymentStatus.UNPAID) {
+                await prisma.subscription.update({
+                    where: { id: subscription.id },
+                    data: { status: PaymentStatus.FAILED }
+                });
+
+                await prisma.notification.create({
+                    data: {
+                        userId: subscription.userId,
+                        type: "GENERAL",
+                        title: "Payment Not Completed",
+                        message: "Your Career Boost payment was not completed. You can try again anytime from the subscriptions page.",
+                        metadata: { subscriptionId: subscription.id, transactionId: subscription.transactionId },
+                    }
+                });
             }
         }
     }

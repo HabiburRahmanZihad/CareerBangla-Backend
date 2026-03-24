@@ -28,6 +28,11 @@ app.set("query parser", (str: string) => qs.parse(str));
 app.set("view engine", "ejs");
 app.set("views", path.resolve(process.cwd(), `src/app/templates`))
 
+// EXTERNAL WEBHOOK/IPN ROUTES — must be registered BEFORE CORS
+import { SubscriptionController } from "./app/module/subscription/subscription.controller";
+app.post("/api/v1/subscriptions/webhook", express.raw({ type: 'application/json' }), SubscriptionController.handleStripeWebhook);
+app.post("/api/v1/subscriptions/ipn", express.urlencoded({ extended: true }), SubscriptionController.handleIpn);
+
 // CORS Configuration - Production Ready
 const allowedOrigins = [
     envVars.FRONTEND_URL,
@@ -58,10 +63,6 @@ app.use(cookieParser())
 
 // Enable URL-encoded form data parsing
 app.use(express.urlencoded({ extended: true, limit: '2mb' }));
-
-// STRIPE WEBHOOK MUST BE PARSED AS RAW BUFFER
-import { SubscriptionController } from "./app/module/subscription/subscription.controller";
-app.post("/api/v1/subscriptions/webhook", express.raw({ type: 'application/json' }), SubscriptionController.handleStripeWebhook);
 
 // Middleware to parse JSON bodies
 app.use(express.json({ limit: '2mb' }));

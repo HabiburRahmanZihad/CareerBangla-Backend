@@ -12,8 +12,7 @@ router.post("/purchase",
     checkAuth(Role.USER, Role.RECRUITER),
     SubscriptionController.initiatePayment);
 
-router.post("/ipn",
-    SubscriptionController.handleIpn);
+// IPN is mounted at app level (before CORS) in app.ts
 
 router.post("/cancel/:subscriptionId",
     checkAuth(Role.USER, Role.RECRUITER),
