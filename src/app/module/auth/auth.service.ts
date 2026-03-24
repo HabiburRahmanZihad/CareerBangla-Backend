@@ -720,6 +720,25 @@ const getActiveSessions = async (user: IRequestUser) => {
     return sessions;
 };
 
+const revokeSession = async (user: IRequestUser, sessionId: string) => {
+    logger.update(`Revoke session requested → userId: ${user.userId}, sessionId: ${sessionId}`);
+
+    const session = await prisma.session.findUnique({
+        where: { id: sessionId },
+    });
+
+    if (!session || session.userId !== user.userId) {
+        throw new AppError(status.NOT_FOUND, "Session not found.");
+    }
+
+    await prisma.session.delete({
+        where: { id: sessionId },
+    });
+
+    logger.update(`Session revoked → userId: ${user.userId}, sessionId: ${sessionId}`);
+    return { revokedSessionId: sessionId };
+};
+
 export const AuthService = {
     registerUser,
     loginUser,
@@ -729,6 +748,7 @@ export const AuthService = {
     logoutUser,
     logoutAllDevices,
     getActiveSessions,
+    revokeSession,
     verifyEmail,
     resendVerificationEmail,
     forgetPassword,

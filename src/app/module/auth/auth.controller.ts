@@ -350,6 +350,21 @@ const getActiveSessions = catchAsync(
     }
 )
 
+const revokeSession = catchAsync(
+    async (req: Request, res: Response) => {
+        const user = req.user;
+        const { sessionId } = req.params;
+        const result = await AuthService.revokeSession(user, sessionId as string);
+
+        sendResponse(res, {
+            httpStatusCode: status.OK,
+            success: true,
+            message: "Session revoked successfully",
+            data: result,
+        });
+    }
+)
+
 export const AuthController = {
     registerUser,
     loginUser,
@@ -359,6 +374,7 @@ export const AuthController = {
     logoutUser,
     logoutAllDevices,
     getActiveSessions,
+    revokeSession,
     verifyEmail,
     resendVerificationEmail,
     forgetPassword,

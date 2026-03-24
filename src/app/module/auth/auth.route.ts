@@ -15,6 +15,7 @@ router.patch("/update-profile", checkAuth(Role.ADMIN, Role.RECRUITER, Role.USER,
 router.post("/logout", checkAuth(Role.ADMIN, Role.RECRUITER, Role.USER, Role.SUPER_ADMIN), AuthController.logoutUser)
 router.post("/logout-all-devices", checkAuth(Role.ADMIN, Role.RECRUITER, Role.USER, Role.SUPER_ADMIN), AuthController.logoutAllDevices)
 router.get("/active-sessions", checkAuth(Role.ADMIN, Role.RECRUITER, Role.USER, Role.SUPER_ADMIN), AuthController.getActiveSessions)
+router.delete("/sessions/:sessionId", checkAuth(Role.ADMIN, Role.RECRUITER, Role.USER, Role.SUPER_ADMIN), AuthController.revokeSession)
 router.post("/verify-email", authRateLimiter, AuthController.verifyEmail)
 router.post("/resend-verify-email", authRateLimiter, AuthController.resendVerificationEmail)
 router.post("/forget-password", authRateLimiter, AuthController.forgetPassword)
