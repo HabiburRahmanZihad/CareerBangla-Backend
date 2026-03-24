@@ -1,6 +1,7 @@
 export interface ILoginUserPayload {
     identifier: string;
     password: string;
+    logoutAllDevices?: boolean;
 }
 
 export interface IRegisterUserPayload {

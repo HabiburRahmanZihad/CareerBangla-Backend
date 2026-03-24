@@ -312,6 +312,44 @@ const updateProfile = catchAsync(
     }
 )
 
+const logoutAllDevices = catchAsync(
+    async (req: Request, res: Response) => {
+        const user = req.user;
+        const result = await AuthService.logoutAllDevices(user);
+        const isProduction = envVars.NODE_ENV === "production";
+        const cookieClearOptions = {
+            httpOnly: true,
+            secure: isProduction,
+            sameSite: isProduction ? "none" as const : "lax" as const,
+            path: "/",
+        };
+        CookieUtils.clearCookie(res, 'accessToken', cookieClearOptions);
+        CookieUtils.clearCookie(res, 'refreshToken', cookieClearOptions);
+        CookieUtils.clearCookie(res, 'better-auth.session_token', cookieClearOptions);
+
+        sendResponse(res, {
+            httpStatusCode: status.OK,
+            success: true,
+            message: "Logged out from all devices successfully",
+            data: result,
+        });
+    }
+)
+
+const getActiveSessions = catchAsync(
+    async (req: Request, res: Response) => {
+        const user = req.user;
+        const result = await AuthService.getActiveSessions(user);
+
+        sendResponse(res, {
+            httpStatusCode: status.OK,
+            success: true,
+            message: "Active sessions fetched successfully",
+            data: result,
+        });
+    }
+)
+
 export const AuthController = {
     registerUser,
     loginUser,
@@ -319,6 +357,8 @@ export const AuthController = {
     getNewToken,
     changePassword,
     logoutUser,
+    logoutAllDevices,
+    getActiveSessions,
     verifyEmail,
     resendVerificationEmail,
     forgetPassword,

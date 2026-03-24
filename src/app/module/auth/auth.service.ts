@@ -1,4 +1,5 @@
 import status from "http-status";
+import jwt, { JwtPayload } from "jsonwebtoken";
 import { UserStatus } from "../../../generated/prisma/enums";
 import { envVars } from "../../config/env";
 import AppError from "../../errorHelpers/AppError";
@@ -10,6 +11,8 @@ import { logger } from "../../utils/logger";
 import { tokenUtils } from "../../utils/token";
 import { IChangePasswordPayload, IForgetPasswordPayload, ILoginUserPayload, IRegisterUserPayload, IUpdateProfilePayload } from "./auth.interface";
 import crypto from "crypto";
+
+const MAX_DEVICES = 2;
 
 /** Build the token payload from a user record — single source of truth */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -30,6 +33,45 @@ const generateTokenPair = (user: Parameters<typeof buildTokenPayload>[0]) => {
         accessToken: tokenUtils.getAccessToken(payload),
         refreshToken: tokenUtils.getRefreshToken(payload),
     };
+};
+
+/** Extract expiry Date from a JWT token */
+const getTokenExpiry = (token: string): Date | null => {
+    try {
+        const decoded = jwt.decode(token) as JwtPayload;
+        if (decoded?.exp) {
+            return new Date(decoded.exp * 1000);
+        }
+    } catch {
+        // ignore decode errors
+    }
+    return null;
+};
+
+/** Store access & refresh tokens in the session record */
+const storeTokensInSession = async (sessionToken: string, accessToken: string, refreshToken: string) => {
+    const accessTokenExpiresAt = getTokenExpiry(accessToken);
+    const refreshTokenExpiresAt = getTokenExpiry(refreshToken);
+
+    await prisma.session.update({
+        where: { token: sessionToken },
+        data: {
+            accessToken,
+            accessTokenExpiresAt,
+            refreshToken,
+            refreshTokenExpiresAt,
+        },
+    });
+};
+
+/** Count active (non-expired) sessions for a user */
+const countActiveSessions = async (userId: string): Promise<number> => {
+    return prisma.session.count({
+        where: {
+            userId,
+            expiresAt: { gt: new Date() },
+        },
+    });
 };
 
 const generateUniqueReferralCode = async (name?: string | null): Promise<string> => {
@@ -141,6 +183,11 @@ const registerUser = async (payload: IRegisterUserPayload) => {
 
         const { accessToken, refreshToken } = generateTokenPair(data.user);
 
+        // Store tokens in the session record
+        if (data.token) {
+            await storeTokensInSession(data.token, accessToken, refreshToken);
+        }
+
         logger.create(`User registration complete → userId: ${data.user.id}, email: ${email}`);
 
         return {
@@ -165,7 +212,7 @@ const registerUser = async (payload: IRegisterUserPayload) => {
 
 const loginUser = async (payload: ILoginUserPayload) => {
     logger.read(`Login attempt → identifier: ${payload.identifier}`);
-    const { identifier, password } = payload;
+    const { identifier, password, logoutAllDevices } = payload;
 
     // Detect if identifier is a phone number or email
     let email: string;
@@ -180,6 +227,31 @@ const loginUser = async (payload: ILoginUserPayload) => {
         email = userByPhone.email;
     } else {
         email = identifier;
+    }
+
+    // Check device limit before creating a new session
+    const existingUser = await prisma.user.findUnique({
+        where: { email },
+        select: { id: true },
+    });
+
+    if (existingUser) {
+        const activeSessions = await countActiveSessions(existingUser.id);
+
+        if (activeSessions >= MAX_DEVICES) {
+            if (logoutAllDevices) {
+                // User chose to logout from all devices — clear all sessions
+                await prisma.session.deleteMany({
+                    where: { userId: existingUser.id },
+                });
+                logger.update(`All sessions cleared for user → userId: ${existingUser.id}`);
+            } else {
+                throw new AppError(
+                    status.CONFLICT,
+                    `You are already logged in on ${MAX_DEVICES} devices. Please logout from all devices to continue.`
+                ).setData({ code: "DEVICE_LIMIT_EXCEEDED", activeSessions });
+            }
+        }
     }
 
     const data = await auth.api.signInEmail({
@@ -205,6 +277,11 @@ const loginUser = async (payload: ILoginUserPayload) => {
     }
 
     const { accessToken, refreshToken } = generateTokenPair(data.user);
+
+    // Store tokens in the session record
+    if (data.token) {
+        await storeTokensInSession(data.token, accessToken, refreshToken);
+    }
 
     return {
         user: data.user,
@@ -292,6 +369,9 @@ const getNewToken = async (refreshToken: string, sessionToken?: string) => {
 
     const { accessToken: newAccessToken, refreshToken: newRefreshToken } = generateTokenPair(user);
 
+    const accessTokenExpiresAt = getTokenExpiry(newAccessToken);
+    const refreshTokenExpiresAt = getTokenExpiry(newRefreshToken);
+
     const { token } = await prisma.session.update({
         where: {
             token: sessionToken
@@ -300,6 +380,10 @@ const getNewToken = async (refreshToken: string, sessionToken?: string) => {
             token: sessionToken,
             expiresAt: new Date(Date.now() + 60 * 60 * 24 * 1000),
             updatedAt: new Date(),
+            accessToken: newAccessToken,
+            accessTokenExpiresAt,
+            refreshToken: newRefreshToken,
+            refreshTokenExpiresAt,
         }
     });
 
@@ -352,6 +436,19 @@ const changePassword = async (payload: IChangePasswordPayload, sessionToken?: st
 
     const { accessToken, refreshToken } = generateTokenPair(session.user);
 
+    // Store fresh tokens in the current session
+    if (sessionToken) {
+        // After revokeOtherSessions, only the current session remains
+        // Find the remaining session for this user to store tokens
+        const currentSession = await prisma.session.findFirst({
+            where: { userId: session.user.id },
+            select: { token: true },
+        });
+        if (currentSession) {
+            await storeTokensInSession(currentSession.token, accessToken, refreshToken);
+        }
+    }
+
     return {
         ...result,
         accessToken,
@@ -399,6 +496,11 @@ const verifyEmail = async (email: string, otp: string) => {
     // but they exist at runtime due to the additionalFields config in auth.ts
     const { accessToken, refreshToken } = generateTokenPair(result.user as unknown as Parameters<typeof buildTokenPayload>[0]);
     const sessionToken = result.token;
+
+    // Store tokens in the session record
+    if (sessionToken) {
+        await storeTokensInSession(sessionToken, accessToken, refreshToken);
+    }
 
     return {
         user: result.user,
@@ -527,7 +629,27 @@ const googleLoginSuccess = async (session: Record<string, any>) => {
         });
     }
 
-    return generateTokenPair(session.user);
+    // Check device limit — the OAuth flow already created a session, so count includes it
+    const activeSessions = await countActiveSessions(session.user.id);
+    if (activeSessions > MAX_DEVICES) {
+        // Delete all sessions EXCEPT the current one, then allow login
+        await prisma.session.deleteMany({
+            where: {
+                userId: session.user.id,
+                id: { not: session.session.id },
+            },
+        });
+        logger.update(`Device limit exceeded for Google login, cleared old sessions → userId: ${session.user.id}`);
+    }
+
+    const tokens = generateTokenPair(session.user);
+
+    // Store tokens in the session record
+    if (session.session?.token) {
+        await storeTokensInSession(session.session.token, tokens.accessToken, tokens.refreshToken);
+    }
+
+    return tokens;
 }
 
 const updateProfile = async (user: IRequestUser, payload: IUpdateProfilePayload) => {
@@ -564,6 +686,40 @@ const updateProfile = async (user: IRequestUser, payload: IUpdateProfilePayload)
     return updatedUser;
 }
 
+const logoutAllDevices = async (user: IRequestUser) => {
+    logger.update(`Logout from all devices requested → userId: ${user.userId}`);
+
+    const deleted = await prisma.session.deleteMany({
+        where: { userId: user.userId },
+    });
+
+    logger.update(`All sessions cleared → userId: ${user.userId}, count: ${deleted.count}`);
+    return { deletedSessions: deleted.count };
+};
+
+const getActiveSessions = async (user: IRequestUser) => {
+    logger.read(`Fetching active sessions → userId: ${user.userId}`);
+
+    const sessions = await prisma.session.findMany({
+        where: {
+            userId: user.userId,
+            expiresAt: { gt: new Date() },
+        },
+        select: {
+            id: true,
+            createdAt: true,
+            expiresAt: true,
+            ipAddress: true,
+            userAgent: true,
+            accessTokenExpiresAt: true,
+            refreshTokenExpiresAt: true,
+        },
+        orderBy: { createdAt: "desc" },
+    });
+
+    return sessions;
+};
+
 export const AuthService = {
     registerUser,
     loginUser,
@@ -571,6 +727,8 @@ export const AuthService = {
     getNewToken,
     changePassword,
     logoutUser,
+    logoutAllDevices,
+    getActiveSessions,
     verifyEmail,
     resendVerificationEmail,
     forgetPassword,
