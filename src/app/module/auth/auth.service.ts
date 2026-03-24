@@ -49,19 +49,44 @@ const getTokenExpiry = (token: string): Date | null => {
 };
 
 /** Store access & refresh tokens in the session record */
-const storeTokensInSession = async (sessionToken: string, accessToken: string, refreshToken: string) => {
-    const accessTokenExpiresAt = getTokenExpiry(accessToken);
-    const refreshTokenExpiresAt = getTokenExpiry(refreshToken);
+const storeTokensInSession = async (sessionToken: string | null | undefined, userId: string, accessToken: string, refreshToken: string) => {
+    try {
+        const accessTokenExpiresAt = getTokenExpiry(accessToken);
+        const refreshTokenExpiresAt = getTokenExpiry(refreshToken);
 
-    await prisma.session.update({
-        where: { token: sessionToken },
-        data: {
-            accessToken,
-            accessTokenExpiresAt,
-            refreshToken,
-            refreshTokenExpiresAt,
-        },
-    });
+        let session = null;
+
+        // Try lookup by exact token first
+        if (sessionToken) {
+            session = await prisma.session.findFirst({ where: { token: sessionToken } });
+        }
+
+        // Fallback: find the most recent session for this user
+        if (!session) {
+            session = await prisma.session.findFirst({
+                where: { userId },
+                orderBy: { createdAt: "desc" },
+            });
+        }
+
+        if (!session) {
+            logger.error(`storeTokensInSession: no session found → userId: ${userId}`);
+            return;
+        }
+
+        await prisma.session.update({
+            where: { id: session.id },
+            data: {
+                accessToken,
+                accessTokenExpiresAt,
+                refreshToken,
+                refreshTokenExpiresAt,
+            },
+        });
+        logger.auth(`Tokens stored in session → sessionId: ${session.id}`);
+    } catch (error) {
+        logger.error("storeTokensInSession failed", error);
+    }
 };
 
 /** Count active (non-expired) sessions for a user */
@@ -184,9 +209,7 @@ const registerUser = async (payload: IRegisterUserPayload) => {
         const { accessToken, refreshToken } = generateTokenPair(data.user);
 
         // Store tokens in the session record
-        if (data.token) {
-            await storeTokensInSession(data.token, accessToken, refreshToken);
-        }
+        await storeTokensInSession(data.token, data.user.id, accessToken, refreshToken);
 
         logger.create(`User registration complete → userId: ${data.user.id}, email: ${email}`);
 
@@ -279,9 +302,7 @@ const loginUser = async (payload: ILoginUserPayload) => {
     const { accessToken, refreshToken } = generateTokenPair(data.user);
 
     // Store tokens in the session record
-    if (data.token) {
-        await storeTokensInSession(data.token, accessToken, refreshToken);
-    }
+    await storeTokensInSession(data.token, data.user.id, accessToken, refreshToken);
 
     return {
         user: data.user,
@@ -440,13 +461,7 @@ const changePassword = async (payload: IChangePasswordPayload, sessionToken?: st
     if (sessionToken) {
         // After revokeOtherSessions, only the current session remains
         // Find the remaining session for this user to store tokens
-        const currentSession = await prisma.session.findFirst({
-            where: { userId: session.user.id },
-            select: { token: true },
-        });
-        if (currentSession) {
-            await storeTokensInSession(currentSession.token, accessToken, refreshToken);
-        }
+        await storeTokensInSession(undefined, session.user.id, accessToken, refreshToken);
     }
 
     return {
@@ -498,9 +513,7 @@ const verifyEmail = async (email: string, otp: string) => {
     const sessionToken = result.token;
 
     // Store tokens in the session record
-    if (sessionToken) {
-        await storeTokensInSession(sessionToken, accessToken, refreshToken);
-    }
+    await storeTokensInSession(sessionToken, result.user.id, accessToken, refreshToken);
 
     return {
         user: result.user,
@@ -645,9 +658,7 @@ const googleLoginSuccess = async (session: Record<string, any>) => {
     const tokens = generateTokenPair(session.user);
 
     // Store tokens in the session record
-    if (session.session?.token) {
-        await storeTokensInSession(session.session.token, tokens.accessToken, tokens.refreshToken);
-    }
+    await storeTokensInSession(session.session?.token, session.user.id, tokens.accessToken, tokens.refreshToken);
 
     return tokens;
 }
