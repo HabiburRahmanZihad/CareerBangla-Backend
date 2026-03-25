@@ -40,6 +40,10 @@ const getMyReferralStats = async (user: IRequestUser) => {
         });
     }
 
+    const totalReferrals = await prisma.referralHistory.count({
+        where: { referrerId: user.userId },
+    });
+
     const totalPaidReferrals = await prisma.referralHistory.count({
         where: { referrerId: user.userId, hasPaid: true },
     });
@@ -60,6 +64,7 @@ const getMyReferralStats = async (user: IRequestUser) => {
 
     return {
         referralCode: dbUser?.referralCode || null,
+        totalReferrals,
         totalPaidReferrals,
         rewardsEarned,
         progressToNext,
