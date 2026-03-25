@@ -22,8 +22,9 @@ const createRecruiter = catchAsync(
 const createAdmin = catchAsync(
     async (req: Request, res: Response) => {
         const payload = req.body;
+        const authenticatedUser = req.user;
 
-        const result = await UserService.createAdmin(payload);
+        const result = await UserService.createAdmin(payload, authenticatedUser);
 
         sendResponse(res, {
             httpStatusCode: status.CREATED,

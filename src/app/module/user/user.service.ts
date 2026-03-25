@@ -77,8 +77,21 @@ const createRecruiter = async (payload: ICreateRecruiterPayload) => {
     }
 }
 
-const createAdmin = async (payload: ICreateAdminPayload) => {
+const createAdmin = async (payload: ICreateAdminPayload, authenticatedUser?: any) => {
     logger.create(`Admin creation requested → email: ${payload.admin.email}`);
+
+    // Authorization: Only SUPER_ADMIN can create admins
+    if (!authenticatedUser || authenticatedUser.role !== Role.SUPER_ADMIN) {
+        throw new AppError(
+            status.FORBIDDEN,
+            "Only Super Admin can create admin accounts"
+        );
+    }
+
+    // Security: Force role to ADMIN (prevent privilege escalation)
+    const { admin, password } = payload;
+    const role = Role.ADMIN;
+
     const userExists = await prisma.user.findUnique({
         where: {
             email: payload.admin.email
@@ -88,8 +101,6 @@ const createAdmin = async (payload: ICreateAdminPayload) => {
     if (userExists) {
         throw new AppError(status.CONFLICT, "User with this email already exists");
     }
-
-    const { admin, role, password } = payload;
 
     const userData = await auth.api.signUpEmail({
         body: {

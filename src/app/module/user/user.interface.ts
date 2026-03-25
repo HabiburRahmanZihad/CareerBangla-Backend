@@ -24,5 +24,5 @@ export interface ICreateAdminPayload {
         profilePhoto?: string;
         contactNumber?: string;
     }
-    role: "ADMIN" | "SUPER_ADMIN";
+    role: "ADMIN";
 }

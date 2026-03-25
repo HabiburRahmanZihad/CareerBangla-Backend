@@ -25,5 +25,5 @@ export const createAdminZodSchema = z.object({
         contactNumber: z.string("Contact number is required").min(11, "Contact number must be at least 11 characters").max(14, "Contact number must be at most 14 characters").optional(),
         profilePhoto: z.url("Profile photo must be a valid URL").optional(),
     }),
-    role: z.enum(["ADMIN", "SUPER_ADMIN"], "Role must be either ADMIN or SUPER_ADMIN")
+    role: z.enum(["ADMIN"], "Only ADMIN role can be assigned. Use Super Admin account for security.")
 })
