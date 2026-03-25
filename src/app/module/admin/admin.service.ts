@@ -364,13 +364,7 @@ const getAllUsersWithDetails = async (user: IRequestUser) => {
         where: whereClause,
         orderBy: { createdAt: "desc" },
         include: {
-            resume: {
-                select: {
-                    id: true,
-                    createdAt: true,
-                    updatedAt: true,
-                }
-            },
+            resume: true,
             recruiter: {
                 select: {
                     id: true,
