@@ -10,7 +10,7 @@ const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
 router.get("/my-resume",
-    checkAuth(Role.USER),
+    checkAuth(Role.USER, Role.ADMIN, Role.SUPER_ADMIN),
     ResumeController.getMyResume);
 
 router.patch("/my-resume",
