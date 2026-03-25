@@ -792,6 +792,9 @@ const revokeSession = async (user: IRequestUser, sessionId: string) => {
 const deleteMyAccount = async (user: IRequestUser) => {
     logger.delete(`Account deletion requested → userId: ${user.userId}`);
 
+    // Anonymize email and phone so the user can re-register with the same credentials
+    const deletedEmail = `deleted_${user.userId}_${Date.now()}@deleted.local`;
+
     await prisma.$transaction(async (tx) => {
         await tx.user.update({
             where: { id: user.userId },
@@ -799,6 +802,9 @@ const deleteMyAccount = async (user: IRequestUser) => {
                 isDeleted: true,
                 deletedAt: new Date(),
                 status: UserStatus.DELETED,
+                email: deletedEmail,
+                phone: null,
+                referralCode: null,
             },
         });
 
