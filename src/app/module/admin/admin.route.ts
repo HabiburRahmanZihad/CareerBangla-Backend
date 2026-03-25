@@ -13,6 +13,12 @@ router.get("/",
 router.get("/users",
     checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
     AdminController.getAllUsers);
+router.get("/users-with-details",
+    checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
+    AdminController.getAllUsersWithDetails);
+router.get("/recruiters-with-details",
+    checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
+    AdminController.getAllRecruitersWithDetails);
 router.get("/jobs",
     checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
     AdminController.getAllJobs);
@@ -22,6 +28,12 @@ router.patch("/change-user-status",
 router.patch("/change-user-role",
     checkAuth(Role.SUPER_ADMIN),
     AdminController.changeUserRole);
+router.patch("/users/:userId",
+    checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
+    AdminController.updateUser);
+router.patch("/recruiters/:recruiterId",
+    checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
+    AdminController.updateRecruiterData);
 
 router.get("/:id",
     checkAuth(Role.ADMIN, Role.SUPER_ADMIN),

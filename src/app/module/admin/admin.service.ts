@@ -6,27 +6,42 @@ import { cacheManager } from "../../lib/cache";
 import { prisma } from "../../lib/prisma";
 import { sendEmail } from "../../utils/email";
 import { logger } from "../../utils/logger";
-import { IChangeUserRolePayload, IChangeUserStatusPayload, IUpdateAdminPayload } from "./admin.interface";
+import { IChangeUserRolePayload, IChangeUserStatusPayload, IUpdateAdminPayload, IUpdateRecruiterDataPayload, IUpdateUserPayload } from "./admin.interface";
 
-const getAllAdmins = async () => {
+const getAllAdmins = async (user: IRequestUser) => {
     logger.read("Fetching all admins");
 
-    // Try to get from cache first
-    const cached = cacheManager.admin.getList();
-    if (cached) {
-        logger.read("✅ Admins list loaded from cache");
-        return cached;
+    // Regular Admins can only see other regular Admins
+    // Super Admins can see all Admins (including other Super Admins)
+    const isRegularAdmin = user.role === Role.ADMIN;
+
+    // Try to get from cache first (only if it's a Super Admin viewing)
+    if (!isRegularAdmin) {
+        const cached = cacheManager.admin.getList();
+        if (cached) {
+            logger.read("✅ Admins list loaded from cache");
+            return cached;
+        }
     }
 
     const admins = await prisma.admin.findMany({
+        where: isRegularAdmin ? {
+            user: {
+                role: Role.ADMIN  // Only show regular admins to regular admins
+            }
+        } : undefined,
         include: {
             user: true,
-        }
+        },
+        orderBy: { createdAt: "desc" }
     })
 
-    // Cache the admins list
-    cacheManager.admin.setList(admins);
+    // Cache the admins list (only for Super Admin queries)
+    if (!isRegularAdmin) {
+        cacheManager.admin.setList(admins);
+    }
 
+    logger.read(`Admins fetched → count: ${admins.length}, requestorRole: ${user.role}`);
     return admins;
 }
 
@@ -53,13 +68,21 @@ const getAllUsers = async () => {
     return users;
 }
 
-const getAdminById = async (id: string) => {
+const getAdminById = async (id: string, user?: IRequestUser) => {
     logger.read(`Fetching admin → id: ${id}`);
 
     // Try to get from cache first
     const cached = cacheManager.admin.get(id);
     if (cached) {
         logger.read(`✅ Admin loaded from cache → id: ${id}`);
+        const cachedData = cached as Record<string, unknown>;
+        const cachedUserData = cachedData?.user as Record<string, unknown>;
+
+        // Check access control if user is provided
+        if (user && cachedUserData && user.role === Role.ADMIN && cachedUserData?.role === Role.SUPER_ADMIN) {
+            throw new AppError(status.FORBIDDEN, "You do not have permission to view this admin account");
+        }
+
         return cached;
     }
 
@@ -71,6 +94,15 @@ const getAdminById = async (id: string) => {
             user: true,
         }
     })
+
+    if (!admin) {
+        throw new AppError(status.NOT_FOUND, "Admin not found");
+    }
+
+    // Check access control: Regular Admins cannot view Super Admin accounts
+    if (user && user.role === Role.ADMIN && admin.user.role === Role.SUPER_ADMIN) {
+        throw new AppError(status.FORBIDDEN, "You do not have permission to view this admin account");
+    }
 
     // Cache the admin
     if (admin) {
@@ -310,6 +342,158 @@ const getAllJobs = async () => {
     return jobs;
 }
 
+// Get all users with complete details - with access control
+const getAllUsersWithDetails = async (user: IRequestUser) => {
+    logger.read("Fetching all users with details (admin)");
+
+    const adminExists = await prisma.admin.findUniqueOrThrow({
+        where: { email: user.email },
+        include: { user: true }
+    });
+
+    // Build where clause based on role
+    const whereClause: Record<string, unknown> = { isDeleted: false };
+
+    if (adminExists.user.role === Role.ADMIN) {
+        // Admin can see: Regular users and recruiters, but NOT admins or super admins
+        whereClause.role = { in: [Role.USER, Role.RECRUITER] };
+    }
+    // Super Admin can see all users
+
+    const users = await prisma.user.findMany({
+        where: whereClause,
+        orderBy: { createdAt: "desc" },
+        include: {
+            resume: {
+                select: {
+                    id: true,
+                    createdAt: true,
+                    updatedAt: true,
+                }
+            },
+            recruiter: {
+                select: {
+                    id: true,
+                    companyName: true,
+                    status: true,
+                }
+            },
+            admin: {
+                select: {
+                    id: true,
+                    profilePhoto: true,
+                }
+            }
+        }
+    });
+
+    return users;
+}
+
+// Get all recruiters with complete details - with access control
+const getAllRecruitersWithDetails = async (user: IRequestUser) => {
+    logger.read("Fetching all recruiters with details (admin)");
+
+    // Validate user exists (will throw if not found)
+    await prisma.admin.findUniqueOrThrow({
+        where: { email: user.email }
+    });
+
+    const recruiters = await prisma.recruiter.findMany({
+        where: { isDeleted: false },
+        orderBy: { createdAt: "desc" },
+        include: {
+            user: true,
+            jobs: {
+                where: { isDeleted: false },
+                select: { id: true, title: true }
+            }
+        }
+    });
+
+    // If not Super Admin, filter out their access if needed
+    return recruiters;
+}
+
+// Update user data - Admin/Super Admin only
+const updateUser = async (user: IRequestUser, userId: string, payload: IUpdateUserPayload) => {
+    logger.update(`User update requested → userId: ${userId}`);
+
+    const admin = await prisma.admin.findUniqueOrThrow({
+        where: { email: user.email },
+        include: { user: true }
+    });
+
+    const userToUpdate = await prisma.user.findUniqueOrThrow({
+        where: { id: userId }
+    });
+
+    // Admin cannot update Admin or Super Admin accounts
+    if (admin.user.role === Role.ADMIN &&
+        (userToUpdate.role === Role.ADMIN || userToUpdate.role === Role.SUPER_ADMIN)) {
+        throw new AppError(status.FORBIDDEN, "You do not have permission to update this user");
+    }
+
+    const updatedUser = await prisma.user.update({
+        where: { id: userId },
+        data: {
+            ...(payload.name && { name: payload.name }),
+            ...(payload.email && { email: payload.email }),
+            ...(payload.image && { image: payload.image }),
+            ...(payload.phone && { phone: payload.phone }),
+            ...(payload.isPremium !== undefined && { isPremium: payload.isPremium }),
+        },
+        include: {
+            resume: true,
+            recruiter: true,
+            admin: true,
+        }
+    });
+
+    logger.update(`User updated → userId: ${userId}`);
+    return updatedUser;
+}
+
+// Update recruiter data - Admin/Super Admin only
+const updateRecruiterData = async (user: IRequestUser, recruiterId: string, payload: IUpdateRecruiterDataPayload) => {
+    logger.update(`Recruiter data update requested → recruiterId: ${recruiterId}`);
+
+    // Validate user exists (will throw if not found)
+    await prisma.admin.findUniqueOrThrow({
+        where: { email: user.email }
+    });
+
+    // Validate recruiter exists (will throw if not found)
+    await prisma.recruiter.findUniqueOrThrow({
+        where: { id: recruiterId }
+    });
+
+    const updatedRecruiter = await prisma.recruiter.update({
+        where: { id: recruiterId },
+        data: {
+            ...(payload.name && { name: payload.name }),
+            ...(payload.email && { email: payload.email }),
+            ...(payload.profilePhoto && { profilePhoto: payload.profilePhoto }),
+            ...(payload.contactNumber && { contactNumber: payload.contactNumber }),
+            ...(payload.companyName && { companyName: payload.companyName }),
+            ...(payload.companyLogo && { companyLogo: payload.companyLogo }),
+            ...(payload.companyWebsite && { companyWebsite: payload.companyWebsite }),
+            ...(payload.companyAddress && { companyAddress: payload.companyAddress }),
+            ...(payload.designation && { designation: payload.designation }),
+            ...(payload.industry && { industry: payload.industry }),
+            ...(payload.companySize && { companySize: payload.companySize }),
+            ...(payload.description && { description: payload.description }),
+        },
+        include: {
+            user: true,
+            jobs: true,
+        }
+    });
+
+    logger.update(`Recruiter data updated → recruiterId: ${recruiterId}`);
+    return updatedRecruiter;
+}
+
 export const AdminService = {
     getAllAdmins,
     getAllUsers,
@@ -319,4 +503,8 @@ export const AdminService = {
     changeUserStatus,
     changeUserRole,
     getAllJobs,
+    getAllUsersWithDetails,
+    getAllRecruitersWithDetails,
+    updateUser,
+    updateRecruiterData,
 }

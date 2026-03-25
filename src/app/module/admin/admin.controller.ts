@@ -6,7 +6,8 @@ import { AdminService } from "./admin.service";
 
 const getAllAdmins = catchAsync(
     async (req: Request, res: Response) => {
-        const result = await AdminService.getAllAdmins();
+        const user = req.user;
+        const result = await AdminService.getAllAdmins(user);
 
         sendResponse(res, {
             httpStatusCode: status.OK,
@@ -20,8 +21,9 @@ const getAllAdmins = catchAsync(
 const getAdminById = catchAsync(
     async (req: Request, res: Response) => {
         const { id } = req.params;
+        const user = req.user;
 
-        const admin = await AdminService.getAdminById(id as string);
+        const admin = await AdminService.getAdminById(id as string, user);
 
         sendResponse(res, {
             httpStatusCode: status.OK,
@@ -117,6 +119,64 @@ const getAllJobs = catchAsync(
     }
 );
 
+const getAllUsersWithDetails = catchAsync(
+    async (req: Request, res: Response) => {
+        const user = req.user;
+        const result = await AdminService.getAllUsersWithDetails(user);
+        sendResponse(res, {
+            httpStatusCode: status.OK,
+            success: true,
+            message: "All users with details fetched successfully",
+            data: result,
+        })
+    }
+);
+
+const getAllRecruitersWithDetails = catchAsync(
+    async (req: Request, res: Response) => {
+        const user = req.user;
+        const result = await AdminService.getAllRecruitersWithDetails(user);
+        sendResponse(res, {
+            httpStatusCode: status.OK,
+            success: true,
+            message: "All recruiters with details fetched successfully",
+            data: result,
+        })
+    }
+);
+
+const updateUser = catchAsync(
+    async (req: Request, res: Response) => {
+        const user = req.user;
+        const { userId } = req.params;
+        const payload = req.body;
+
+        const result = await AdminService.updateUser(user, userId as string, payload);
+        sendResponse(res, {
+            httpStatusCode: status.OK,
+            success: true,
+            message: "User updated successfully",
+            data: result,
+        })
+    }
+);
+
+const updateRecruiterData = catchAsync(
+    async (req: Request, res: Response) => {
+        const user = req.user;
+        const { recruiterId } = req.params;
+        const payload = req.body;
+
+        const result = await AdminService.updateRecruiterData(user, recruiterId as string, payload);
+        sendResponse(res, {
+            httpStatusCode: status.OK,
+            success: true,
+            message: "Recruiter data updated successfully",
+            data: result,
+        })
+    }
+);
+
 export const AdminController = {
     getAllAdmins,
     getAllUsers,
@@ -126,4 +186,8 @@ export const AdminController = {
     changeUserStatus,
     changeUserRole,
     getAllJobs,
+    getAllUsersWithDetails,
+    getAllRecruitersWithDetails,
+    updateUser,
+    updateRecruiterData,
 };
