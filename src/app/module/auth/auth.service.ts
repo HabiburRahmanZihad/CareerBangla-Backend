@@ -626,7 +626,7 @@ const resetPassword = async (email: string, otp: string, newPassword: string) =>
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const googleLoginSuccess = async (session: Record<string, any>) => {
+const googleLoginSuccess = async (session: Record<string, any>, incomingReferralCode?: string) => {
     logger.read(`Google login success → userId: ${session.user?.id}`);
     // Ensure user has a referral code
     const dbUser = await prisma.user.findUnique({
@@ -636,9 +636,42 @@ const googleLoginSuccess = async (session: Record<string, any>) => {
     if (dbUser && !dbUser.referralCode) {
         const referralCode = await generateUniqueReferralCode(dbUser.name);
 
-        await prisma.user.update({
-            where: { id: session.user.id },
-            data: { referralCode }
+        // Validate incoming referral code if provided and user has not been referred before
+        let validReferredBy: string | undefined;
+        if (incomingReferralCode && !dbUser.referredBy) {
+            const referrer = await prisma.user.findUnique({
+                where: { referralCode: incomingReferralCode },
+                select: { id: true },
+            });
+            if (referrer && referrer.id !== dbUser.id) {
+                validReferredBy = incomingReferralCode;
+            }
+        }
+
+        await prisma.$transaction(async (tx) => {
+            await tx.user.update({
+                where: { id: session.user.id },
+                data: {
+                    referralCode,
+                    ...(validReferredBy ? { referredBy: validReferredBy } : {}),
+                },
+            });
+
+            if (validReferredBy) {
+                const referrer = await tx.user.findUnique({
+                    where: { referralCode: validReferredBy },
+                    select: { id: true },
+                });
+                if (referrer) {
+                    await tx.referralHistory.create({
+                        data: {
+                            referrerId: referrer.id,
+                            referredUserId: dbUser.id,
+                            hasPaid: false,
+                        },
+                    });
+                }
+            }
         });
     }
 

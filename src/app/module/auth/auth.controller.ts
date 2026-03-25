@@ -227,10 +227,14 @@ const resetPassword = catchAsync(
 // /api/v1/auth/login/google?redirect=/profile
 const googleLogin = catchAsync((req: Request, res: Response) => {
     const redirectPath = req.query.redirect || "/dashboard";
+    const referralCode = req.query.ref as string | undefined;
 
     const encodedRedirectPath = encodeURIComponent(redirectPath as string);
 
-    const callbackURL = `${envVars.BETTER_AUTH_URL}/api/v1/auth/google/success?redirect=${encodedRedirectPath}`;
+    let callbackURL = `${envVars.BETTER_AUTH_URL}/api/v1/auth/google/success?redirect=${encodedRedirectPath}`;
+    if (referralCode) {
+        callbackURL += `&ref=${encodeURIComponent(referralCode)}`;
+    }
 
     res.render("googleRedirect", {
         callbackURL: callbackURL,
@@ -240,6 +244,7 @@ const googleLogin = catchAsync((req: Request, res: Response) => {
 
 const googleLoginSuccess = catchAsync(async (req: Request, res: Response) => {
     const redirectPath = req.query.redirect as string || "/dashboard";
+    const referralCode = req.query.ref as string | undefined;
 
     const sessionToken = req.cookies["better-auth.session_token"];
 
@@ -262,7 +267,7 @@ const googleLoginSuccess = catchAsync(async (req: Request, res: Response) => {
         return res.redirect(`${envVars.FRONTEND_URL}/login?error=no_user_found`);
     }
 
-    const result = await AuthService.googleLoginSuccess(session);
+    const result = await AuthService.googleLoginSuccess(session, referralCode);
 
     const { accessToken, refreshToken } = result;
 
