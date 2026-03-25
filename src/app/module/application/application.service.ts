@@ -1,5 +1,5 @@
 import status from "http-status";
-import { ApplicationStatus, TransactionPurpose, TransactionType } from "../../../generated/prisma/enums";
+import { ApplicationStatus } from "../../../generated/prisma/enums";
 import AppError from "../../errorHelpers/AppError";
 import { IQueryParams } from "../../interfaces/query.interface";
 import { IRequestUser } from "../../interfaces/requestUser.interface";
@@ -9,8 +9,6 @@ import { logger } from "../../utils/logger";
 import { hasActivePremium } from "../../utils/premium";
 import { getUserProfileCompletion } from "../../utils/profileCompletion";
 import { ResumeService } from "../resume/resume.service";
-
-const APPLICATION_COST = 10; // Cost in coins to apply for a job
 
 const applyJob = async (user: IRequestUser, payload: { jobId: string; coverLetter?: string }) => {
     const { jobId, coverLetter } = payload;
@@ -62,37 +60,8 @@ const applyJob = async (user: IRequestUser, payload: { jobId: string; coverLette
         throw new AppError(status.CONFLICT, "You have already applied for this job");
     }
 
-    // Check wallet balance BEFORE transaction
-    const wallet = await prisma.wallet.findUnique({
-        where: { userId: user.userId }
-    });
-
-    if (!wallet || wallet.coins < APPLICATION_COST) {
-        throw new AppError(
-            status.BAD_REQUEST,
-            `Insufficient coins. You need ${APPLICATION_COST} coins to apply for a job. You have ${wallet?.coins || 0} coins.`
-        );
-    }
-
-    // All validations passed — create application with coin deduction
+    // All validations passed — create application
     const application = await prisma.$transaction(async (tx) => {
-        // Deduct coins
-        await tx.wallet.update({
-            where: { id: wallet.id },
-            data: { coins: { decrement: APPLICATION_COST } },
-        });
-
-        // Create coin transaction record
-        await tx.coinTransaction.create({
-            data: {
-                type: TransactionType.DEBIT,
-                purpose: TransactionPurpose.APPLY_JOB,
-                amount: APPLICATION_COST,
-                message: `Applied for job: "${job.title}"`,
-                walletId: wallet.id,
-            },
-        });
-
         // Create application
         const app = await tx.application.create({
             data: {
@@ -120,16 +89,6 @@ const applyJob = async (user: IRequestUser, payload: { jobId: string; coverLette
                 title: "New Application Received",
                 message: `${user.email} applied for "${job.title}"`,
                 metadata: { applicationId: app.id, jobId: job.id },
-            }
-        });
-
-        // Coin deduction notification to applicant
-        await tx.notification.create({
-            data: {
-                userId: user.userId,
-                type: "COIN_DEBITED",
-                title: `${APPLICATION_COST} Coins Deducted`,
-                message: `${APPLICATION_COST} coins have been deducted for applying to "${job.title}". You now have ${wallet.coins - APPLICATION_COST} coins.`,
             }
         });
 

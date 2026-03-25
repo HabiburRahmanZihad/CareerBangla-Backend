@@ -1,6 +1,6 @@
 import status from "http-status";
 import { Job, Prisma } from "../../../generated/prisma/client";
-import { RecruiterStatus, TransactionPurpose, TransactionType } from "../../../generated/prisma/enums";
+import { PaymentStatus, RecruiterStatus, SubscriptionPlan } from "../../../generated/prisma/enums";
 import AppError from "../../errorHelpers/AppError";
 import { IQueryParams } from "../../interfaces/query.interface";
 import { IRequestUser } from "../../interfaces/requestUser.interface";
@@ -11,7 +11,28 @@ import { QueryBuilder } from "../../utils/QueryBuilder";
 import { jobFilterableFields, jobSearchableFields } from "./job.constant";
 import { ICreateJobPayload, IUpdateJobPayload } from "./job.interface";
 
-const JOB_POSTING_COST = 15; // Cost in coins to post a job
+// Helper function to check if recruiter has active subscription
+const hasActiveRecruiterSubscription = async (userId: string): Promise<boolean> => {
+    const subscription = await prisma.subscription.findFirst({
+        where: {
+            userId,
+            isRecruiterSubscription: true,
+            status: PaymentStatus.PAID,
+            plan: {
+                in: [SubscriptionPlan.RECRUITER_MONTHLY, SubscriptionPlan.RECRUITER_6_MONTHS, SubscriptionPlan.RECRUITER_YEARLY]
+            }
+        }
+    });
+
+    if (!subscription) return false;
+
+    // Check if subscription is still active (not expired)
+    if (subscription.currentPeriodEnd) {
+        return new Date() < new Date(subscription.currentPeriodEnd);
+    }
+
+    return true;
+};
 
 const createJob = async (user: IRequestUser, payload: ICreateJobPayload) => {
     logger.create(`Job creation requested → userId: ${user.userId}, title: ${payload.title}`);
@@ -33,56 +54,17 @@ const createJob = async (user: IRequestUser, payload: ICreateJobPayload) => {
         throw new AppError(status.BAD_REQUEST, `Your recruiter profile is ${profileCompletion}% complete. You must complete 100% of your profile before posting jobs.`);
     }
 
-    // Check wallet balance BEFORE transaction
-    const wallet = await prisma.wallet.findUnique({
-        where: { userId: user.userId }
-    });
-
-    if (!wallet || wallet.coins < JOB_POSTING_COST) {
+    // Check if recruiter has active subscription
+    const hasSubscription = await hasActiveRecruiterSubscription(user.userId);
+    if (!hasSubscription) {
         throw new AppError(
-            status.BAD_REQUEST,
-            `Insufficient coins. You need ${JOB_POSTING_COST} coins to post a job. You have ${wallet?.coins || 0} coins.`
+            status.PAYMENT_REQUIRED,
+            "You need an active recruiter subscription to post jobs. Please upgrade your subscription."
         );
     }
 
     const result = await prisma.$transaction(async (tx) => {
-        // Deduct coins
-        await tx.wallet.update({
-            where: { id: wallet.id },
-            data: { coins: { decrement: JOB_POSTING_COST } },
-        });
-
-        // Create coin transaction record
-        await tx.coinTransaction.create({
-            data: {
-                type: TransactionType.DEBIT,
-                purpose: TransactionPurpose.POST_JOB,
-                amount: JOB_POSTING_COST,
-                message: `Posted job: "${payload.title}"`,
-                walletId: wallet.id,
-            },
-        });
-
-        // Job posted notification
-        await tx.notification.create({
-            data: {
-                userId: user.userId,
-                type: "JOB_POSTED",
-                title: "Job Posted",
-                message: `Your job "${payload.title}" has been posted successfully. ${JOB_POSTING_COST} coins have been deducted from your account.`,
-            }
-        });
-
-        // Coin deduction notification
-        await tx.notification.create({
-            data: {
-                userId: user.userId,
-                type: "COIN_DEBITED",
-                title: `${JOB_POSTING_COST} Coins Deducted`,
-                message: `${JOB_POSTING_COST} coins have been deducted for posting a job. You now have ${wallet.coins - JOB_POSTING_COST} coins.`,
-            }
-        });
-
+        // Create job post notification
         const job = await tx.job.create({
             data: {
                 ...payload,
@@ -94,6 +76,16 @@ const createJob = async (user: IRequestUser, payload: ICreateJobPayload) => {
                 category: true,
             }
         })
+
+        // Job posted notification
+        await tx.notification.create({
+            data: {
+                userId: user.userId,
+                type: "JOB_POSTED",
+                title: "Job Posted Successfully",
+                message: `Your job "${payload.title}" has been posted successfully.`,
+            }
+        });
 
         logger.create(`Job created → id: ${job.id}, title: ${payload.title}`);
         return job;

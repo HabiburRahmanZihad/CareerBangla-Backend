@@ -16,6 +16,9 @@ model Subscription {
   couponId   String?
   referralId String?
 
+  // Indicates if this subscription is for a recruiter (vs user)
+  isRecruiterSubscription Boolean @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -26,5 +29,6 @@ model Subscription {
   @@index([status])
   @@index([userId, status])
   @@index([createdAt])
+  @@index([isRecruiterSubscription])
   @@map("subscription")
 }

@@ -179,14 +179,6 @@ const registerUser = async (payload: IRegisterUserPayload) => {
                 },
             });
 
-            // Create wallet for the new user
-            await tx.wallet.create({
-                data: {
-                    userId: data.user.id,
-                    coins: 50, // Starting balance
-                },
-            });
-
             // Create initial ReferralHistory entry (hasPaid = false until they purchase)
             if (validReferredBy) {
                 const referrer = await tx.user.findUnique({

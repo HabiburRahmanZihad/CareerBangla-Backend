@@ -4,8 +4,8 @@ import { Role } from "../../../generated/prisma/client";
 import AppError from "../../errorHelpers/AppError";
 import { auth } from "../../lib/auth";
 import { prisma } from "../../lib/prisma";
-import { logger } from "../../utils/logger";
 import { sendEmail } from "../../utils/email";
+import { logger } from "../../utils/logger";
 import { ICreateAdminPayload, ICreateRecruiterPayload } from "./user.interface";
 
 const createRecruiter = async (payload: ICreateRecruiterPayload) => {
@@ -38,14 +38,6 @@ const createRecruiter = async (payload: ICreateRecruiterPayload) => {
                     ...payload.recruiter,
                 }
             })
-
-            // Create wallet for the new recruiter
-            await tx.wallet.create({
-                data: {
-                    userId: userData.user.id,
-                    coins: 50, // Starting balance
-                },
-            });
 
             const recruiter = await tx.recruiter.findUnique({
                 where: {

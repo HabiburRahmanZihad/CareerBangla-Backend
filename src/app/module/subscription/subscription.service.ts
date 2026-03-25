@@ -39,6 +39,51 @@ const SUBSCRIPTION_PLANS: Record<string, SubscriptionPlanConfig> = {
             "Lifetime Access",
         ],
     },
+    RECRUITER_MONTHLY: {
+        name: "Recruiter Premium (Monthly)",
+        planKey: "RECRUITER_MONTHLY",
+        amount: 2999,
+        description: "Monthly access to all recruiter premium features. Renews every 30 days.",
+        durationDays: 30,
+        features: [
+            "Post unlimited jobs",
+            "View full applicant profiles and contact info",
+            "Download applicant CVs",
+            "Schedule interviews",
+            "Priority support",
+        ],
+    },
+    RECRUITER_6_MONTHS: {
+        name: "Recruiter Premium (6 Months)",
+        planKey: "RECRUITER_6_MONTHS",
+        amount: 14999,
+        description: "6 months of recruiter premium features. Save 17% compared to monthly.",
+        durationDays: 180,
+        features: [
+            "Post unlimited jobs",
+            "View full applicant profiles and contact info",
+            "Download applicant CVs",
+            "Schedule interviews",
+            "Priority support",
+            "Save 17% vs monthly",
+        ],
+    },
+    RECRUITER_YEARLY: {
+        name: "Recruiter Premium (Yearly)",
+        planKey: "RECRUITER_YEARLY",
+        amount: 29999,
+        description: "Full year of recruiter premium features. Save 33% compared to monthly.",
+        durationDays: 365,
+        features: [
+            "Post unlimited jobs",
+            "View full applicant profiles and contact info",
+            "Download applicant CVs",
+            "Schedule interviews",
+            "Priority support",
+            "Save 33% vs monthly",
+            "Annual billing discount",
+        ],
+    },
 };
 
 // Helper to calculate discount
@@ -68,10 +113,33 @@ const initiatePayment = async (user: IRequestUser, payload: { planKey?: string; 
     // Get plan configuration
     const plan = getPlanConfig(planKey);
 
+    // Determine if this is a recruiter subscription
+    const isRecruiterSubscription = planKey.startsWith("RECRUITER_");
+
+    // Get plan enum value
+    const planEnum = ({
+        BOOST_LIFETIME: SubscriptionPlan.PREMIUM,
+        RECRUITER_MONTHLY: SubscriptionPlan.RECRUITER_MONTHLY,
+        RECRUITER_6_MONTHS: SubscriptionPlan.RECRUITER_6_MONTHS,
+        RECRUITER_YEARLY: SubscriptionPlan.RECRUITER_YEARLY,
+    }[planKey] || SubscriptionPlan.PREMIUM) as SubscriptionPlan;
+
     // Check if user already has lifetime Career Boost
-    const existingUser = await prisma.user.findUnique({ where: { id: user.userId } });
-    if (existingUser?.isPremium && !existingUser.premiumUntil) {
-        throw new AppError(status.BAD_REQUEST, "You already have lifetime Career Boost access.");
+    if (planKey === "BOOST_LIFETIME") {
+        const existingUser = await prisma.user.findUnique({ where: { id: user.userId } });
+        if (existingUser?.isPremium && !existingUser.premiumUntil) {
+            throw new AppError(status.BAD_REQUEST, "You already have lifetime Career Boost access.");
+        }
+    }
+
+    // For recruiter subscriptions, check if recruiter profile exists
+    if (isRecruiterSubscription) {
+        const recruiter = await prisma.recruiter.findUnique({
+            where: { userId: user.userId }
+        });
+        if (!recruiter) {
+            throw new AppError(status.BAD_REQUEST, "Recruiter profile not found. Please complete recruiter registration first.");
+        }
     }
 
     let finalAmount = plan.amount;
@@ -98,11 +166,20 @@ const initiatePayment = async (user: IRequestUser, payload: { planKey?: string; 
         referralId = payload.referralCode;
     }
 
+    // Calculate subscription period dates
+    const currentPeriodStart = new Date();
+    const currentPeriodEnd = plan.durationDays
+        ? new Date(currentPeriodStart.getTime() + plan.durationDays * 24 * 60 * 60 * 1000)
+        : null;
+
     // Create subscription record
     await prisma.subscription.create({
         data: {
             userId: user.userId,
-            plan: SubscriptionPlan.PREMIUM,
+            plan: planEnum,
+            isRecruiterSubscription,
+            currentPeriodStart: planKey === "BOOST_LIFETIME" ? null : currentPeriodStart,
+            currentPeriodEnd,
             amount: finalAmount,
             transactionId,
             status: PaymentStatus.UNPAID,
