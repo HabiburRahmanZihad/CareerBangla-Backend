@@ -628,31 +628,37 @@ const resetPassword = async (email: string, otp: string, newPassword: string) =>
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const googleLoginSuccess = async (session: Record<string, any>, incomingReferralCode?: string) => {
     logger.read(`Google login success → userId: ${session.user?.id}`);
-    // Ensure user has a referral code
     const dbUser = await prisma.user.findUnique({
         where: { id: session.user.id }
     })
 
-    if (dbUser && !dbUser.referralCode) {
-        const referralCode = await generateUniqueReferralCode(dbUser.name);
+    if (!dbUser) return;
 
-        // Validate incoming referral code if provided and user has not been referred before
-        let validReferredBy: string | undefined;
-        if (incomingReferralCode && !dbUser.referredBy) {
-            const referrer = await prisma.user.findUnique({
-                where: { referralCode: incomingReferralCode },
-                select: { id: true },
-            });
-            if (referrer && referrer.id !== dbUser.id) {
-                validReferredBy = incomingReferralCode;
-            }
+    // Step 1: Generate referral code if missing
+    const needsReferralCode = !dbUser.referralCode;
+    const referralCode = needsReferralCode
+        ? await generateUniqueReferralCode(dbUser.name)
+        : undefined;
+
+    // Step 2: Validate incoming referral code if user hasn't been referred yet
+    let validReferredBy: string | undefined;
+    if (incomingReferralCode && !dbUser.referredBy) {
+        const referrer = await prisma.user.findUnique({
+            where: { referralCode: incomingReferralCode },
+            select: { id: true },
+        });
+        if (referrer && referrer.id !== dbUser.id) {
+            validReferredBy = incomingReferralCode;
         }
+    }
 
+    // Step 3: Apply updates in a transaction
+    if (referralCode || validReferredBy) {
         await prisma.$transaction(async (tx) => {
             await tx.user.update({
-                where: { id: session.user.id },
+                where: { id: dbUser.id },
                 data: {
-                    referralCode,
+                    ...(referralCode ? { referralCode } : {}),
                     ...(validReferredBy ? { referredBy: validReferredBy } : {}),
                 },
             });

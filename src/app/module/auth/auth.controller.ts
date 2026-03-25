@@ -231,9 +231,17 @@ const googleLogin = catchAsync((req: Request, res: Response) => {
 
     const encodedRedirectPath = encodeURIComponent(redirectPath as string);
 
-    let callbackURL = `${envVars.BETTER_AUTH_URL}/api/v1/auth/google/success?redirect=${encodedRedirectPath}`;
+    const callbackURL = `${envVars.BETTER_AUTH_URL}/api/v1/auth/google/success?redirect=${encodedRedirectPath}`;
+
+    // Store referral code in a cookie so it survives the OAuth redirect chain
+    // without modifying the callbackURL (which breaks better-auth state validation)
     if (referralCode) {
-        callbackURL += `&ref=${encodeURIComponent(referralCode)}`;
+        res.cookie("oauth_referral_code", referralCode, {
+            httpOnly: true,
+            maxAge: 10 * 60 * 1000, // 10 minutes
+            sameSite: "lax",
+            path: "/",
+        });
     }
 
     res.render("googleRedirect", {
@@ -244,7 +252,10 @@ const googleLogin = catchAsync((req: Request, res: Response) => {
 
 const googleLoginSuccess = catchAsync(async (req: Request, res: Response) => {
     const redirectPath = req.query.redirect as string || "/dashboard";
-    const referralCode = req.query.ref as string | undefined;
+    const referralCode = req.cookies.oauth_referral_code as string | undefined;
+
+    // Clear the referral cookie regardless of outcome
+    res.clearCookie("oauth_referral_code", { path: "/" });
 
     const sessionToken = req.cookies["better-auth.session_token"];
 
