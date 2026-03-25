@@ -2,7 +2,7 @@ import { Server } from "http";
 import app from "./app";
 import { envVars } from "./app/config/env";
 import { logEnvironmentConfig } from "./app/config/environment";
-import { seedSuperAdmin } from "./app/utils/seed";
+import { seedNormalAdmin, seedSuperAdmin } from "./app/utils/seed";
 
 let server: Server;
 
@@ -30,6 +30,7 @@ const bootstrap = async () => {
         logEnvironmentConfig();
 
         await seedSuperAdmin();
+        await seedNormalAdmin();
         server = app.listen(envVars.PORT, () => {
             console.log(`✅ Server is running on http://localhost:${envVars.PORT}`);
             console.log(`🔗 Environment: ${envVars.NODE_ENV.toUpperCase()}`);

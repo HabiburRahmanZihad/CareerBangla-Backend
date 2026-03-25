@@ -67,3 +67,67 @@ export const seedSuperAdmin = async () => {
         })
     }
 }
+
+export const seedNormalAdmin = async () => {
+    try {
+        const isAdminExist = await prisma.user.findFirst({
+            where: {
+                role: Role.ADMIN
+            }
+        })
+
+        if (isAdminExist) {
+            logger.read("Admin already exists. Skipping seeding normal admin.");
+            return;
+        }
+
+        const adminUser = await auth.api.signUpEmail({
+            body: {
+                email: envVars.ADMIN_EMAIL,
+                password: envVars.ADMIN_PASSWORD,
+                name: "Admin",
+                role: Role.ADMIN,
+                needPasswordChange: false,
+                rememberMe: false,
+            }
+        })
+
+        await prisma.$transaction(async (tx) => {
+            await tx.user.update({
+                where: {
+                    id: adminUser.user.id
+                },
+                data: {
+                    emailVerified: true,
+                }
+            });
+
+            await tx.admin.create({
+                data: {
+                    userId: adminUser.user.id,
+                    name: "Admin",
+                    email: envVars.ADMIN_EMAIL,
+                }
+            })
+
+        });
+
+        const admin = await prisma.admin.findFirst({
+            where: {
+                email: envVars.ADMIN_EMAIL,
+            },
+            include: {
+                user: true,
+            }
+        })
+
+        logger.create("Admin Created", admin);
+    } catch (error) {
+        logger.error("Error seeding admin", error);
+        await prisma.user.delete({
+            where: {
+                email: envVars.ADMIN_EMAIL,
+            }
+        })
+    }
+}

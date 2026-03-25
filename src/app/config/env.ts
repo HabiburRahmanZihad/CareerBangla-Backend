@@ -44,6 +44,8 @@ interface EnvConfig {
     },
     SUPER_ADMIN_EMAIL: string;
     SUPER_ADMIN_PASSWORD: string;
+    ADMIN_EMAIL: string;
+    ADMIN_PASSWORD: string;
 }
 
 
@@ -80,6 +82,8 @@ const loadEnvVariables = (): EnvConfig => {
         'STRIPE_WEBHOOK_SECRET',
         'SUPER_ADMIN_EMAIL',
         'SUPER_ADMIN_PASSWORD',
+        'ADMIN_EMAIL',
+        'ADMIN_PASSWORD',
     ]
 
     requireEnvVariable.forEach((variable) => {
@@ -129,6 +133,8 @@ const loadEnvVariables = (): EnvConfig => {
         },
         SUPER_ADMIN_EMAIL: process.env.SUPER_ADMIN_EMAIL as string,
         SUPER_ADMIN_PASSWORD: process.env.SUPER_ADMIN_PASSWORD as string,
+        ADMIN_EMAIL: process.env.ADMIN_EMAIL as string,
+        ADMIN_PASSWORD: process.env.ADMIN_PASSWORD as string,
     }
 }
 
