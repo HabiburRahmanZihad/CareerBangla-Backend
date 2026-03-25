@@ -266,6 +266,16 @@ const processSuccessfulPayment = async (
                 });
             }
 
+            // Notify referrer about successful referral
+            await tx.notification.create({
+                data: {
+                    userId: referrer.id,
+                    type: "GENERAL",
+                    title: "Successful Referral!",
+                    message: `Great news! ${subscription.user.name} signed up using your referral code and just purchased Career Boost. Keep sharing to earn rewards!`,
+                },
+            });
+
             // Reward: every 10 paid referrals = 30 days free Career Boost
             const totalPaid = await tx.referralHistory.count({
                 where: { referrerId: referrer.id, hasPaid: true },
