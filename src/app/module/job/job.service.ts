@@ -1,15 +1,17 @@
 import status from "http-status";
 import { Job, Prisma } from "../../../generated/prisma/client";
-import { RecruiterStatus } from "../../../generated/prisma/enums";
+import { RecruiterStatus, TransactionPurpose, TransactionType } from "../../../generated/prisma/enums";
 import AppError from "../../errorHelpers/AppError";
-import { IRequestUser } from "../../interfaces/requestUser.interface";
 import { IQueryParams } from "../../interfaces/query.interface";
+import { IRequestUser } from "../../interfaces/requestUser.interface";
 import { prisma } from "../../lib/prisma";
 import { logger } from "../../utils/logger";
-import { QueryBuilder } from "../../utils/QueryBuilder";
 import { getRecruiterProfileCompletion } from "../../utils/profileCompletion";
+import { QueryBuilder } from "../../utils/QueryBuilder";
 import { jobFilterableFields, jobSearchableFields } from "./job.constant";
 import { ICreateJobPayload, IUpdateJobPayload } from "./job.interface";
+
+const JOB_POSTING_COST = 15; // Cost in coins to post a job
 
 const createJob = async (user: IRequestUser, payload: ICreateJobPayload) => {
     logger.create(`Job creation requested → userId: ${user.userId}, title: ${payload.title}`);
@@ -31,7 +33,35 @@ const createJob = async (user: IRequestUser, payload: ICreateJobPayload) => {
         throw new AppError(status.BAD_REQUEST, `Your recruiter profile is ${profileCompletion}% complete. You must complete 100% of your profile before posting jobs.`);
     }
 
+    // Check wallet balance BEFORE transaction
+    const wallet = await prisma.wallet.findUnique({
+        where: { userId: user.userId }
+    });
+
+    if (!wallet || wallet.coins < JOB_POSTING_COST) {
+        throw new AppError(
+            status.BAD_REQUEST,
+            `Insufficient coins. You need ${JOB_POSTING_COST} coins to post a job. You have ${wallet?.coins || 0} coins.`
+        );
+    }
+
     const result = await prisma.$transaction(async (tx) => {
+        // Deduct coins
+        await tx.wallet.update({
+            where: { id: wallet.id },
+            data: { coins: { decrement: JOB_POSTING_COST } },
+        });
+
+        // Create coin transaction record
+        await tx.coinTransaction.create({
+            data: {
+                type: TransactionType.DEBIT,
+                purpose: TransactionPurpose.POST_JOB,
+                amount: JOB_POSTING_COST,
+                message: `Posted job: "${payload.title}"`,
+                walletId: wallet.id,
+            },
+        });
 
         // Job posted notification
         await tx.notification.create({
@@ -39,9 +69,19 @@ const createJob = async (user: IRequestUser, payload: ICreateJobPayload) => {
                 userId: user.userId,
                 type: "JOB_POSTED",
                 title: "Job Posted",
-                message: `Your job "${payload.title}" has been posted successfully.`,
+                message: `Your job "${payload.title}" has been posted successfully. ${JOB_POSTING_COST} coins have been deducted from your account.`,
             }
-        })
+        });
+
+        // Coin deduction notification
+        await tx.notification.create({
+            data: {
+                userId: user.userId,
+                type: "COIN_DEBITED",
+                title: `${JOB_POSTING_COST} Coins Deducted`,
+                message: `${JOB_POSTING_COST} coins have been deducted for posting a job. You now have ${wallet.coins - JOB_POSTING_COST} coins.`,
+            }
+        });
 
         const job = await tx.job.create({
             data: {

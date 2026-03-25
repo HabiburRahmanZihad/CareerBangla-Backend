@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import status from "http-status";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import { UserStatus } from "../../../generated/prisma/enums";
@@ -10,7 +11,6 @@ import { jwtUtils } from "../../utils/jwt";
 import { logger } from "../../utils/logger";
 import { tokenUtils } from "../../utils/token";
 import { IChangePasswordPayload, IForgetPasswordPayload, ILoginUserPayload, IRegisterUserPayload, IUpdateProfilePayload } from "./auth.interface";
-import crypto from "crypto";
 
 const MAX_DEVICES = 2;
 
@@ -179,6 +179,14 @@ const registerUser = async (payload: IRegisterUserPayload) => {
                 },
             });
 
+            // Create wallet for the new user
+            await tx.wallet.create({
+                data: {
+                    userId: data.user.id,
+                    coins: 50, // Starting balance
+                },
+            });
+
             // Create initial ReferralHistory entry (hasPaid = false until they purchase)
             if (validReferredBy) {
                 const referrer = await tx.user.findUnique({
@@ -201,7 +209,7 @@ const registerUser = async (payload: IRegisterUserPayload) => {
                     userId: data.user.id,
                     type: "GENERAL",
                     title: "Welcome to CareerBangla!",
-                    message: "Your account has been created successfully. Note down your referral code to invite friends and earn Premium!",
+                    message: "Your account has been created successfully. You've earned 50 coins! Note down your referral code to invite friends and earn Premium!",
                 }
             })
         });
@@ -538,9 +546,9 @@ const resendVerificationEmail = async (email: string) => {
     }
 
     await auth.api.sendVerificationOTP({
-        body: { 
-            email, 
-            type: "email-verification" 
+        body: {
+            email,
+            type: "email-verification"
         },
     });
 };

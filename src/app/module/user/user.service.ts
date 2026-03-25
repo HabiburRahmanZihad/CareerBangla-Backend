@@ -38,7 +38,13 @@ const createRecruiter = async (payload: ICreateRecruiterPayload) => {
                 }
             })
 
-
+            // Create wallet for the new recruiter
+            await tx.wallet.create({
+                data: {
+                    userId: userData.user.id,
+                    coins: 50, // Starting balance
+                },
+            });
 
             const recruiter = await tx.recruiter.findUnique({
                 where: {

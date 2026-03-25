@@ -6,12 +6,13 @@ import { CouponRoutes } from "../module/coupon/coupon.route";
 import { JobRoutes } from "../module/job/job.route";
 import { NotificationRoutes } from "../module/notification/notification.route";
 import { RecruiterRoutes } from "../module/recruiter/recruiter.route";
+import { ReferralRoutes } from "../module/referral/referral.route";
 import { ResumeRoutes } from "../module/resume/resume.route";
 import { StatsRoutes } from "../module/stats/stats.route";
 import { SubscriptionRoutes } from "../module/subscription/subscription.route";
-import { ReferralRoutes } from "../module/referral/referral.route";
 import { TrackingRoutes } from "../module/tracking/tracking.route";
 import { UserRoutes } from "../module/user/user.route";
+import { WalletRoutes } from "../module/wallet/wallet.route";
 
 const router = Router();
 
@@ -23,6 +24,7 @@ router.use("/jobs", JobRoutes);
 router.use("/applications", ApplicationRoutes);
 router.use("/resumes", ResumeRoutes);
 router.use("/subscriptions", SubscriptionRoutes);
+router.use("/wallet", WalletRoutes);
 router.use("/tracking", TrackingRoutes);
 router.use("/coupons", CouponRoutes);
 router.use("/notifications", NotificationRoutes);

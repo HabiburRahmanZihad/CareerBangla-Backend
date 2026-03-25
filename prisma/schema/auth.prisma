@@ -26,6 +26,7 @@ model User {
   applications      Application[]
   notifications     Notification[]
   subscriptions     Subscription[]
+  wallet            Wallet?
   referralsMade     ReferralHistory[] @relation("ReferredBy")
   referralsReceived ReferralHistory[] @relation("ReferredUser")
 

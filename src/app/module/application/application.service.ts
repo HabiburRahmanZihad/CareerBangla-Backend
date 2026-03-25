@@ -1,5 +1,5 @@
 import status from "http-status";
-import { ApplicationStatus } from "../../../generated/prisma/enums";
+import { ApplicationStatus, TransactionPurpose, TransactionType } from "../../../generated/prisma/enums";
 import AppError from "../../errorHelpers/AppError";
 import { IQueryParams } from "../../interfaces/query.interface";
 import { IRequestUser } from "../../interfaces/requestUser.interface";
@@ -9,6 +9,8 @@ import { logger } from "../../utils/logger";
 import { hasActivePremium } from "../../utils/premium";
 import { getUserProfileCompletion } from "../../utils/profileCompletion";
 import { ResumeService } from "../resume/resume.service";
+
+const APPLICATION_COST = 10; // Cost in coins to apply for a job
 
 const applyJob = async (user: IRequestUser, payload: { jobId: string; coverLetter?: string }) => {
     const { jobId, coverLetter } = payload;
@@ -60,35 +62,84 @@ const applyJob = async (user: IRequestUser, payload: { jobId: string; coverLette
         throw new AppError(status.CONFLICT, "You have already applied for this job");
     }
 
-    // All validations passed — create application
-    const application = await prisma.application.create({
-        data: {
-            userId: user.userId,
-            jobId,
-            coverLetter,
-        },
-        include: {
-            job: {
-                include: {
-                    recruiter: true,
-                }
-            },
-            user: {
-                select: { id: true, name: true, email: true, image: true }
-            }
-        }
+    // Check wallet balance BEFORE transaction
+    const wallet = await prisma.wallet.findUnique({
+        where: { userId: user.userId }
     });
-    logger.create(`Job application created → id: ${application.id}, jobId: ${jobId}`);
 
-    // Create notification for recruiter
-    await prisma.notification.create({
-        data: {
-            userId: job.recruiter.userId,
-            type: "APPLICATION_SUBMITTED",
-            title: "New Application Received",
-            message: `${user.email} applied for "${job.title}"`,
-            metadata: { applicationId: application.id, jobId: job.id },
-        }
+    if (!wallet || wallet.coins < APPLICATION_COST) {
+        throw new AppError(
+            status.BAD_REQUEST,
+            `Insufficient coins. You need ${APPLICATION_COST} coins to apply for a job. You have ${wallet?.coins || 0} coins.`
+        );
+    }
+
+    // All validations passed — create application with coin deduction
+    const application = await prisma.$transaction(async (tx) => {
+        // Deduct coins
+        await tx.wallet.update({
+            where: { id: wallet.id },
+            data: { coins: { decrement: APPLICATION_COST } },
+        });
+
+        // Create coin transaction record
+        await tx.coinTransaction.create({
+            data: {
+                type: TransactionType.DEBIT,
+                purpose: TransactionPurpose.APPLY_JOB,
+                amount: APPLICATION_COST,
+                message: `Applied for job: "${job.title}"`,
+                walletId: wallet.id,
+            },
+        });
+
+        // Create application
+        const app = await tx.application.create({
+            data: {
+                userId: user.userId,
+                jobId,
+                coverLetter,
+            },
+            include: {
+                job: {
+                    include: {
+                        recruiter: true,
+                    }
+                },
+                user: {
+                    select: { id: true, name: true, email: true, image: true }
+                }
+            }
+        });
+
+        // Create notification for recruiter
+        await tx.notification.create({
+            data: {
+                userId: job.recruiter.userId,
+                type: "APPLICATION_SUBMITTED",
+                title: "New Application Received",
+                message: `${user.email} applied for "${job.title}"`,
+                metadata: { applicationId: app.id, jobId: job.id },
+            }
+        });
+
+        // Coin deduction notification to applicant
+        await tx.notification.create({
+            data: {
+                userId: user.userId,
+                type: "COIN_DEBITED",
+                title: `${APPLICATION_COST} Coins Deducted`,
+                message: `${APPLICATION_COST} coins have been deducted for applying to "${job.title}". You now have ${wallet.coins - APPLICATION_COST} coins.`,
+            }
+        });
+
+        logger.create(`Job application created → id: ${app.id}, jobId: ${jobId}`);
+        return app;
+    });
+
+    const recruiterUser = await prisma.user.findUnique({
+        where: { id: job.recruiter.userId },
+        select: { email: true, isPremium: true, premiumUntil: true },
     });
 
     // Send email notification to applicant (fire-and-forget with error suppression)
@@ -103,6 +154,59 @@ const applyJob = async (user: IRequestUser, payload: { jobId: string; coverLette
             status: "submitted",
             message: "Your application has been submitted successfully. We will notify you of any updates.",
         }
+    }).catch(() => { /* email delivery is best-effort */ });
+
+    // Send email to recruiter with applicant details + CV (if recruiter is premium)
+    (async () => {
+        try {
+            if (!recruiterUser) return;
+
+            const recruiterIsPremium = hasActivePremium(recruiterUser);
+            const applicantUser = await prisma.user.findUnique({
+                where: { id: user.userId },
+                select: { isPremium: true, premiumUntil: true },
+            });
+            const applicantIsPremium = applicantUser ? hasActivePremium(applicantUser) : false;
+
+            const applicantResume = await prisma.resume.findUnique({
+                where: { userId: user.userId },
+                select: { contactNumber: true },
+            });
+
+            let cvAttachment: { filename: string; content: Buffer; contentType: string } | undefined;
+            if (recruiterIsPremium && applicantIsPremium) {
+                const pdfBuffer = await ResumeService.getResumePdfForApplication(user.userId);
+                if (pdfBuffer) {
+                    cvAttachment = {
+                        filename: `${application.user.name.replace(/\s+/g, "-")}-CV.pdf`,
+                        content: pdfBuffer,
+                        contentType: "application/pdf",
+                    };
+                }
+            }
+
+            await sendEmail({
+                to: recruiterUser.email,
+                subject: `New Applicant for "${job.title}" - ${application.user.name}`,
+                templateName: "newApplicant",
+                templateData: {
+                    jobTitle: job.title,
+                    applicantName: application.user.name,
+                    applicantEmail: recruiterIsPremium ? user.email : null,
+                    applicantPhone: recruiterIsPremium ? (applicantResume?.contactNumber || null) : null,
+                    showFullDetails: recruiterIsPremium,
+                    hasCvAttachment: !!cvAttachment,
+                    coverLetter: coverLetter || null,
+                    appliedAt: new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }),
+                },
+                ...(cvAttachment ? { attachments: [cvAttachment] } : {}),
+            });
+        } catch {
+            /* recruiter email is best-effort */
+        }
+    })();
+
+    return application;
     }).catch(() => { /* email delivery is best-effort */ });
 
     // Send email to recruiter with applicant details + CV (if recruiter is premium)

@@ -7,29 +7,15 @@ import { updateRecruiterZodSchema } from "./recruiter.validation";
 
 const router = Router();
 
-router.get("/",
-    RecruiterController.getAllRecruiters);
-
+// Specific routes must come BEFORE generic /:id routes
 router.get("/my-profile",
     checkAuth(Role.RECRUITER),
     RecruiterController.getMyProfile);
-
-router.get("/:id",
-    RecruiterController.getRecruiterById);
 
 router.patch("/update-my-profile",
     checkAuth(Role.RECRUITER),
     validateRequest(updateRecruiterZodSchema),
     RecruiterController.updateMyProfile);
-
-router.patch("/:id",
-    checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
-    validateRequest(updateRecruiterZodSchema),
-    RecruiterController.updateRecruiter);
-
-router.delete("/:id",
-    checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
-    RecruiterController.deleteRecruiter);
 
 router.patch("/approve/:id",
     checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
@@ -42,5 +28,21 @@ router.patch("/reject/:id",
 router.get("/view-email/:recruiterId",
     checkAuth(Role.USER),
     RecruiterController.viewRecruiterEmail);
+
+// Generic routes must come AFTER specific routes
+router.get("/",
+    RecruiterController.getAllRecruiters);
+
+router.get("/:id",
+    RecruiterController.getRecruiterById);
+
+router.patch("/:id",
+    checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
+    validateRequest(updateRecruiterZodSchema),
+    RecruiterController.updateRecruiter);
+
+router.delete("/:id",
+    checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
+    RecruiterController.deleteRecruiter);
 
 export const RecruiterRoutes = router;
