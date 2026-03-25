@@ -2,18 +2,31 @@ import status from "http-status";
 import { Role, UserStatus } from "../../../generated/prisma/enums";
 import AppError from "../../errorHelpers/AppError";
 import { IRequestUser } from "../../interfaces/requestUser.interface";
+import { cacheManager } from "../../lib/cache";
 import { prisma } from "../../lib/prisma";
-import { IChangeUserRolePayload, IChangeUserStatusPayload, IUpdateAdminPayload } from "./admin.interface";
-import { logger } from "../../utils/logger";
 import { sendEmail } from "../../utils/email";
+import { logger } from "../../utils/logger";
+import { IChangeUserRolePayload, IChangeUserStatusPayload, IUpdateAdminPayload } from "./admin.interface";
 
 const getAllAdmins = async () => {
     logger.read("Fetching all admins");
+
+    // Try to get from cache first
+    const cached = cacheManager.admin.getList();
+    if (cached) {
+        logger.read("✅ Admins list loaded from cache");
+        return cached;
+    }
+
     const admins = await prisma.admin.findMany({
         include: {
             user: true,
         }
     })
+
+    // Cache the admins list
+    cacheManager.admin.setList(admins);
+
     return admins;
 }
 
@@ -42,6 +55,14 @@ const getAllUsers = async () => {
 
 const getAdminById = async (id: string) => {
     logger.read(`Fetching admin → id: ${id}`);
+
+    // Try to get from cache first
+    const cached = cacheManager.admin.get(id);
+    if (cached) {
+        logger.read(`✅ Admin loaded from cache → id: ${id}`);
+        return cached;
+    }
+
     const admin = await prisma.admin.findUnique({
         where: {
             id,
@@ -50,6 +71,12 @@ const getAdminById = async (id: string) => {
             user: true,
         }
     })
+
+    // Cache the admin
+    if (admin) {
+        cacheManager.admin.set(id, admin);
+    }
+
     return admin;
 }
 
@@ -76,6 +103,9 @@ const updateAdmin = async (id: string, payload: IUpdateAdminPayload) => {
         }
     })
     logger.update(`Admin updated → id: ${id}`);
+
+    // Invalidate cache for this admin
+    cacheManager.invalidate.adminUpdated(id, isAdminExist.userId);
 
     return updatedAdmin;
 }
@@ -128,6 +158,9 @@ const deleteAdmin = async (id: string, user: IRequestUser) => {
     }
     )
     logger.delete(`Admin deleted → id: ${id}`);
+
+    // Invalidate cache for this admin
+    cacheManager.invalidate.adminUpdated(id, isAdminExist.userId);
 
     return result;
 }

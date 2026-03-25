@@ -6,6 +6,7 @@ import path from "path";
 import qs from "qs";
 import { envVars } from "./app/config/env";
 import { auth } from "./app/lib/auth";
+import { cacheClearEndpoint, cacheMonitorMiddleware, cacheStatsEndpoint } from "./app/lib/cache/cache.middleware";
 import { globalErrorHandler } from "./app/middleware/globalErrorHandler";
 import { notFound } from "./app/middleware/notFound";
 import { apiRateLimiter } from "./app/middleware/rateLimiter";
@@ -67,8 +68,15 @@ app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 // Middleware to parse JSON bodies
 app.use(express.json({ limit: '2mb' }));
 
+// Cache monitoring middleware - adds cache stats to response headers
+app.use(cacheMonitorMiddleware);
+
 // Better-auth handles its own routes (/api/auth/*)
 app.use("/api/auth", toNodeHandler(auth))
+
+// Cache admin endpoints
+app.get('/api/v1/admin/cache/stats', cacheStatsEndpoint);
+app.post('/api/v1/admin/cache/clear', cacheClearEndpoint);
 
 app.use("/api/v1", apiRateLimiter, IndexRoutes);
 

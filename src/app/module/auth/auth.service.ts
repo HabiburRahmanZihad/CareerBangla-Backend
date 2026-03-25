@@ -6,6 +6,7 @@ import { envVars } from "../../config/env";
 import AppError from "../../errorHelpers/AppError";
 import { IRequestUser } from "../../interfaces/requestUser.interface";
 import { auth } from "../../lib/auth";
+import { cacheManager } from "../../lib/cache";
 import { prisma } from "../../lib/prisma";
 import { jwtUtils } from "../../utils/jwt";
 import { logger } from "../../utils/logger";
@@ -315,6 +316,14 @@ const loginUser = async (payload: ILoginUserPayload) => {
 
 const getMe = async (user: IRequestUser) => {
     logger.read(`Fetching user profile → userId: ${user.userId}`);
+
+    // Try to get from cache first
+    const cachedUser = cacheManager.user.get(user.userId);
+    if (cachedUser) {
+        logger.read(`✅ User profile loaded from cache → userId: ${user.userId}`);
+        return cachedUser;
+    }
+
     const isUserExists = await prisma.user.findUnique({
         where: {
             id: user.userId,
@@ -357,6 +366,9 @@ const getMe = async (user: IRequestUser) => {
     if (!isUserExists) {
         throw new AppError(status.NOT_FOUND, "User not found");
     }
+
+    // Cache the user profile with LONG TTL (1 hour)
+    cacheManager.user.set(user.userId, isUserExists);
 
     return isUserExists;
 }

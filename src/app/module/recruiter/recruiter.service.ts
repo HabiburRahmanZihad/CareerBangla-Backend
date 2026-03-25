@@ -2,14 +2,15 @@ import status from "http-status";
 import { Recruiter } from "../../../generated/prisma/client";
 import { RecruiterStatus, UserStatus } from "../../../generated/prisma/enums";
 import AppError from "../../errorHelpers/AppError";
-import { IRequestUser } from "../../interfaces/requestUser.interface";
 import { IQueryParams } from "../../interfaces/query.interface";
+import { IRequestUser } from "../../interfaces/requestUser.interface";
+import { cacheManager } from "../../lib/cache";
 import { prisma } from "../../lib/prisma";
 import { QueryBuilder } from "../../utils/QueryBuilder";
 import { sendEmail } from "../../utils/email";
+import { logger } from "../../utils/logger";
 import { recruiterFilterableFields, recruiterSearchableFields } from "./recruiter.constant";
 import { IUpdateRecruiterPayload } from "./recruiter.interface";
-import { logger } from "../../utils/logger";
 
 const getAllRecruiters = async (query: IQueryParams) => {
     logger.read("Fetching all recruiters", { filters: query });
@@ -37,6 +38,14 @@ const getAllRecruiters = async (query: IQueryParams) => {
 
 const getRecruiterById = async (id: string) => {
     logger.read(`Fetching recruiter → id: ${id}`);
+
+    // Try to get from cache first
+    const cached = cacheManager.recruiter.get(id);
+    if (cached) {
+        logger.read(`✅ Recruiter loaded from cache → id: ${id}`);
+        return cached;
+    }
+
     const recruiter = await prisma.recruiter.findUnique({
         where: { id, isDeleted: false },
         include: {
@@ -52,11 +61,22 @@ const getRecruiterById = async (id: string) => {
         throw new AppError(status.NOT_FOUND, "Recruiter not found");
     }
 
+    // Cache the recruiter with LONG TTL
+    cacheManager.recruiter.set(id, recruiter);
+
     return recruiter;
 }
 
 const getMyProfile = async (user: IRequestUser) => {
     logger.read(`Fetching recruiter profile → userId: ${user.userId}`);
+
+    // Try to get from cache using userId
+    const cached = cacheManager.recruiter.getByUser(user.userId);
+    if (cached) {
+        logger.read(`✅ Recruiter profile loaded from cache → userId: ${user.userId}`);
+        return cached;
+    }
+
     const recruiter = await prisma.recruiter.findUnique({
         where: { userId: user.userId },
         include: {
@@ -74,6 +94,9 @@ const getMyProfile = async (user: IRequestUser) => {
     if (!recruiter) {
         throw new AppError(status.NOT_FOUND, "Recruiter profile not found");
     }
+
+    // Cache the recruiter profile
+    cacheManager.recruiter.setByUser(user.userId, recruiter);
 
     return recruiter;
 }
@@ -96,6 +119,9 @@ const updateRecruiter = async (id: string, payload: IUpdateRecruiterPayload) => 
         include: { user: true },
     })
     logger.update(`Recruiter updated → id: ${id}`);
+
+    // Invalidate cache for this recruiter
+    cacheManager.invalidate.recruiterUpdated(id, updatedRecruiter.userId);
 
     return updatedRecruiter;
 }
