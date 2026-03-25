@@ -5,6 +5,7 @@ import AppError from "../../errorHelpers/AppError";
 import { auth } from "../../lib/auth";
 import { prisma } from "../../lib/prisma";
 import { logger } from "../../utils/logger";
+import { sendEmail } from "../../utils/email";
 import { ICreateAdminPayload, ICreateRecruiterPayload } from "./user.interface";
 
 const createRecruiter = async (payload: ICreateRecruiterPayload) => {
@@ -119,6 +120,25 @@ const createAdmin = async (payload: ICreateAdminPayload) => {
 
 
             logger.create(`Admin created → id: ${adminData.id}`);
+
+            // Send welcome email
+            try {
+                await sendEmail({
+                    to: admin.email,
+                    subject: "CareerBangla - Welcome Admin",
+                    templateName: "applicationStatus",
+                    templateData: {
+                        name: admin.name,
+                        jobTitle: "Admin Account",
+                        companyName: "CareerBangla",
+                        status: "approved",
+                        message: `Your admin account has been created on CareerBangla. You can login with your email (${admin.email}) and the temporary password provided. Please change your password after first login.`,
+                    }
+                });
+            } catch {
+                /* email delivery is best-effort */
+            }
+
             return adminData;
         })
 

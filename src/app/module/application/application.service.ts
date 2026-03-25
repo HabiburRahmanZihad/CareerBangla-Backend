@@ -207,65 +207,6 @@ const applyJob = async (user: IRequestUser, payload: { jobId: string; coverLette
     })();
 
     return application;
-    }).catch(() => { /* email delivery is best-effort */ });
-
-    // Send email to recruiter with applicant details + CV (if recruiter is premium)
-    (async () => {
-        try {
-            // Parallel fetch: recruiter user, applicant resume, applicant premium status
-            const [recruiterUser, applicantResume, applicantUser] = await Promise.all([
-                prisma.user.findUnique({
-                    where: { id: job.recruiter.userId },
-                    select: { email: true, isPremium: true, premiumUntil: true },
-                }),
-                prisma.resume.findUnique({
-                    where: { userId: user.userId },
-                    select: { contactNumber: true },
-                }),
-                prisma.user.findUnique({
-                    where: { id: user.userId },
-                    select: { isPremium: true, premiumUntil: true },
-                }),
-            ]);
-            if (!recruiterUser) return;
-
-            const recruiterIsPremium = hasActivePremium(recruiterUser);
-            const applicantIsPremium = applicantUser ? hasActivePremium(applicantUser) : false;
-
-            let cvAttachment: { filename: string; content: Buffer; contentType: string } | undefined;
-            if (recruiterIsPremium && applicantIsPremium) {
-                const pdfBuffer = await ResumeService.getResumePdfForApplication(user.userId);
-                if (pdfBuffer) {
-                    cvAttachment = {
-                        filename: `${application.user.name.replace(/\s+/g, "-")}-CV.pdf`,
-                        content: pdfBuffer,
-                        contentType: "application/pdf",
-                    };
-                }
-            }
-
-            await sendEmail({
-                to: recruiterUser.email,
-                subject: `New Applicant for "${job.title}" - ${application.user.name}`,
-                templateName: "newApplicant",
-                templateData: {
-                    jobTitle: job.title,
-                    applicantName: application.user.name,
-                    applicantEmail: recruiterIsPremium ? user.email : null,
-                    applicantPhone: recruiterIsPremium ? (applicantResume?.contactNumber || null) : null,
-                    showFullDetails: recruiterIsPremium,
-                    hasCvAttachment: !!cvAttachment,
-                    coverLetter: coverLetter || null,
-                    appliedAt: new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }),
-                },
-                ...(cvAttachment ? { attachments: [cvAttachment] } : {}),
-            });
-        } catch {
-            /* recruiter email is best-effort */
-        }
-    })();
-
-    return application;
 }
 
 const getMyApplications = async (user: IRequestUser, query?: IQueryParams) => {

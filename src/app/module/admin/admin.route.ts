@@ -10,6 +10,9 @@ const router = Router();
 router.get("/",
     checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
     AdminController.getAllAdmins);
+router.get("/users",
+    checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
+    AdminController.getAllUsers);
 router.get("/jobs",
     checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
     AdminController.getAllJobs);

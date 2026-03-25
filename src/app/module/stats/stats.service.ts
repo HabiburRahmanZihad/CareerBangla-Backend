@@ -78,14 +78,16 @@ const getSuperAdminStatsData = async () => {
 }
 
 const getAdminStatsData = async () => {
-    const [commonStats, pendingRecruiters] = await Promise.all([
+    const [commonStats, pendingRecruiters, adminCount] = await Promise.all([
         getCommonStatsData(),
-        prisma.recruiter.count({ where: { status: "PENDING" } })
+        prisma.recruiter.count({ where: { status: "PENDING" } }),
+        prisma.admin.count()
     ]);
 
     return {
         ...commonStats,
-        pendingRecruiters
+        pendingRecruiters,
+        adminCount,
     };
 }
 

@@ -93,6 +93,18 @@ const changeUserRole = catchAsync(
     }
 );
 
+const getAllUsers = catchAsync(
+    async (req: Request, res: Response) => {
+        const result = await AdminService.getAllUsers();
+        sendResponse(res, {
+            httpStatusCode: status.OK,
+            success: true,
+            message: "All users fetched successfully",
+            data: result,
+        })
+    }
+);
+
 const getAllJobs = catchAsync(
     async (req: Request, res: Response) => {
         const result = await AdminService.getAllJobs();
@@ -107,6 +119,7 @@ const getAllJobs = catchAsync(
 
 export const AdminController = {
     getAllAdmins,
+    getAllUsers,
     updateAdmin,
     deleteAdmin,
     getAdminById,

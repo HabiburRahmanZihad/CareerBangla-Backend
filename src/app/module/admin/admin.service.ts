@@ -5,6 +5,7 @@ import { IRequestUser } from "../../interfaces/requestUser.interface";
 import { prisma } from "../../lib/prisma";
 import { IChangeUserRolePayload, IChangeUserStatusPayload, IUpdateAdminPayload } from "./admin.interface";
 import { logger } from "../../utils/logger";
+import { sendEmail } from "../../utils/email";
 
 const getAllAdmins = async () => {
     logger.read("Fetching all admins");
@@ -14,6 +15,29 @@ const getAllAdmins = async () => {
         }
     })
     return admins;
+}
+
+const getAllUsers = async () => {
+    logger.read("Fetching all users (admin)");
+    const users = await prisma.user.findMany({
+        where: {
+            role: Role.USER,
+            isDeleted: false,
+        },
+        orderBy: { createdAt: "desc" },
+        select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            status: true,
+            emailVerified: true,
+            image: true,
+            isPremium: true,
+            createdAt: true,
+        }
+    })
+    return users;
 }
 
 const getAdminById = async (id: string) => {
@@ -154,6 +178,38 @@ const changeUserStatus = async (user: IRequestUser, payload: IChangeUserStatusPa
     })
     logger.update(`User status changed → userId: ${userId}, status: ${userStatus}`);
 
+    // Create notification for the user
+    const statusMessage = userStatus === UserStatus.BLOCKED
+        ? "Your account has been blocked by an administrator. Please contact support for more information."
+        : "Your account has been reactivated. You can now access all features.";
+
+    await prisma.notification.create({
+        data: {
+            userId,
+            type: "GENERAL",
+            title: userStatus === UserStatus.BLOCKED ? "Account Blocked" : "Account Reactivated",
+            message: statusMessage,
+        }
+    });
+
+    // Send email notification
+    try {
+        await sendEmail({
+            to: userToChangeStatus.email,
+            subject: `CareerBangla - Account ${userStatus === UserStatus.BLOCKED ? "Blocked" : "Reactivated"}`,
+            templateName: "applicationStatus",
+            templateData: {
+                name: userToChangeStatus.name,
+                jobTitle: "Account Status",
+                companyName: "CareerBangla",
+                status: userStatus === UserStatus.BLOCKED ? "blocked" : "reactivated",
+                message: statusMessage,
+            }
+        });
+    } catch {
+        /* email delivery is best-effort */
+    }
+
     return updatedUser;
 }
 
@@ -223,6 +279,7 @@ const getAllJobs = async () => {
 
 export const AdminService = {
     getAllAdmins,
+    getAllUsers,
     getAdminById,
     updateAdmin,
     deleteAdmin,

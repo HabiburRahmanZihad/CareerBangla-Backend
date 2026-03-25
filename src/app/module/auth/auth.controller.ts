@@ -280,6 +280,10 @@ const googleLoginSuccess = catchAsync(async (req: Request, res: Response) => {
 
     const result = await AuthService.googleLoginSuccess(session, referralCode);
 
+    if (!result) {
+        return res.redirect(`${envVars.FRONTEND_URL}/login?error=user_not_found`);
+    }
+
     const { accessToken, refreshToken } = result;
 
     // ?redirect=//profile -> /profile
