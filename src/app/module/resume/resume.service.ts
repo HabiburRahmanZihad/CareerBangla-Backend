@@ -1,14 +1,15 @@
 import status from "http-status";
 import { Award, Certification, Education, Language, Prisma, Project, Reference, Resume, WorkExperience } from "../../../generated/prisma/client";
+import { Role } from "../../../generated/prisma/enums";
+import { uploadFileToCloudinary } from "../../config/cloudinary.config";
 import AppError from "../../errorHelpers/AppError";
 import { IQueryParams } from "../../interfaces/query.interface";
 import { IRequestUser } from "../../interfaces/requestUser.interface";
 import { prisma } from "../../lib/prisma";
-import { getUserProfileCompletion } from "../../utils/profileCompletion";
-import { generateResumePdf } from "../../utils/resumePdf";
-import { uploadFileToCloudinary } from "../../config/cloudinary.config";
 import { logger } from "../../utils/logger";
 import { hasActivePremium } from "../../utils/premium";
+import { getUserProfileCompletion } from "../../utils/profileCompletion";
+import { generateResumePdf } from "../../utils/resumePdf";
 
 /** Standard include for full resume with all relations, ordered by createdAt desc */
 const FULL_RESUME_INCLUDE = {
@@ -53,6 +54,15 @@ const getMyResume = async (user: IRequestUser) => {
 
 const updateMyResume = async (user: IRequestUser, payload: ResumeUpdatePayload) => {
     logger.update(`Resume update requested → userId: ${user.userId}`);
+
+    // Prevent ADMIN and SUPER_ADMIN from updating resumes
+    if (user.role === Role.ADMIN || user.role === Role.SUPER_ADMIN) {
+        throw new AppError(
+            status.FORBIDDEN,
+            "Admin users cannot create or update resumes"
+        );
+    }
+
     const existingResume = await prisma.resume.findUnique({
         where: { userId: user.userId },
         include: { education: true, user: { select: { isPremium: true } } }
@@ -541,6 +551,13 @@ const searchCandidates = async (user: IRequestUser, query: IQueryParams) => {
 }
 
 const deleteMyResume = async (user: IRequestUser) => {
+    // Prevent ADMIN and SUPER_ADMIN from deleting resumes
+    if (user.role === Role.ADMIN || user.role === Role.SUPER_ADMIN) {
+        throw new AppError(
+            status.FORBIDDEN,
+            "Admin users cannot delete resumes"
+        );
+    }
     logger.delete(`Resume delete requested → userId: ${user.userId}`);
     const resume = await prisma.resume.findUnique({
         where: { userId: user.userId },

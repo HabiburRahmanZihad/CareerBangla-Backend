@@ -3,7 +3,7 @@ import SSLCommerzPayment from "sslcommerz-lts";
 import Stripe from "stripe";
 import { v4 as uuidv4 } from "uuid";
 import { Prisma } from "../../../generated/prisma/client";
-import { PaymentStatus, SubscriptionPlan } from "../../../generated/prisma/enums";
+import { PaymentStatus, Role, SubscriptionPlan } from "../../../generated/prisma/enums";
 import { envVars } from "../../config/env";
 import AppError from "../../errorHelpers/AppError";
 import { IRequestUser } from "../../interfaces/requestUser.interface";
@@ -109,6 +109,14 @@ const initiatePayment = async (user: IRequestUser, payload: { planKey?: string; 
     const gateway = payload.gateway || "SSLCOMMERZ";
     const planKey = payload.planKey || "BOOST_LIFETIME";
     logger.create(`Payment initiation → userId: ${user.userId}, plan: ${planKey}, gateway: ${gateway}`);
+
+    // Prevent ADMIN and SUPER_ADMIN from purchasing subscriptions
+    if (user.role === Role.ADMIN || user.role === Role.SUPER_ADMIN) {
+        throw new AppError(
+            status.FORBIDDEN,
+            "Admin users cannot purchase premium subscriptions"
+        );
+    }
 
     // Get plan configuration
     const plan = getPlanConfig(planKey);
@@ -563,6 +571,13 @@ const handleIpn = async (payload: ISSLCommerzIpnPayload) => {
 }
 
 const cancelSubscription = async (user: IRequestUser, subscriptionId: string) => {
+    // Prevent ADMIN and SUPER_ADMIN from managing subscriptions
+    if (user.role === Role.ADMIN || user.role === Role.SUPER_ADMIN) {
+        throw new AppError(
+            status.FORBIDDEN,
+            "Admin users cannot manage subscriptions"
+        );
+    }
     logger.update(`Subscription cancel requested → userId: ${user.userId}, subscriptionId: ${subscriptionId}`);
     if (subscriptionId) {
         const subscription = await prisma.subscription.findUnique({

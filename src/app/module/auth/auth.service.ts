@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import status from "http-status";
 import jwt, { JwtPayload } from "jsonwebtoken";
-import { UserStatus } from "../../../generated/prisma/enums";
+import { Role, UserStatus } from "../../../generated/prisma/enums";
 import { envVars } from "../../config/env";
 import AppError from "../../errorHelpers/AppError";
 import { IRequestUser } from "../../interfaces/requestUser.interface";
@@ -803,6 +803,14 @@ const revokeSession = async (user: IRequestUser, sessionId: string) => {
 
 const deleteMyAccount = async (user: IRequestUser) => {
     logger.delete(`Account deletion requested → userId: ${user.userId}`);
+
+    // Prevent ADMIN and SUPER_ADMIN from deleting their own accounts
+    if (user.role === Role.ADMIN || user.role === Role.SUPER_ADMIN) {
+        throw new AppError(
+            status.FORBIDDEN,
+            "Admin and Super Admin users cannot delete their own accounts"
+        );
+    }
 
     // Anonymize email and phone so the user can re-register with the same credentials
     const deletedEmail = `deleted_${user.userId}_${Date.now()}@deleted.local`;
