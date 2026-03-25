@@ -789,6 +789,31 @@ const revokeSession = async (user: IRequestUser, sessionId: string) => {
     return { revokedSessionId: sessionId };
 };
 
+const deleteMyAccount = async (user: IRequestUser) => {
+    logger.delete(`Account deletion requested → userId: ${user.userId}`);
+
+    await prisma.$transaction(async (tx) => {
+        await tx.user.update({
+            where: { id: user.userId },
+            data: {
+                isDeleted: true,
+                deletedAt: new Date(),
+                status: UserStatus.DELETED,
+            },
+        });
+
+        await tx.session.deleteMany({
+            where: { userId: user.userId },
+        });
+
+        await tx.account.deleteMany({
+            where: { userId: user.userId },
+        });
+    });
+
+    logger.delete(`Account soft-deleted → userId: ${user.userId}`);
+};
+
 export const AuthService = {
     registerUser,
     loginUser,
@@ -805,4 +830,5 @@ export const AuthService = {
     resetPassword,
     googleLoginSuccess,
     updateProfile,
+    deleteMyAccount,
 };

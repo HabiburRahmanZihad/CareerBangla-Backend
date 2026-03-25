@@ -21,6 +21,8 @@ router.post("/resend-verify-email", authRateLimiter, AuthController.resendVerifi
 router.post("/forget-password", authRateLimiter, AuthController.forgetPassword)
 router.post("/reset-password", authRateLimiter, AuthController.resetPassword)
 
+router.delete("/delete-account", checkAuth(Role.USER, Role.RECRUITER), AuthController.deleteMyAccount);
+
 router.get("/login/google", AuthController.googleLogin);
 router.get("/google/success", AuthController.googleLoginSuccess);
 router.get("/oauth/error", AuthController.handleOAuthError);

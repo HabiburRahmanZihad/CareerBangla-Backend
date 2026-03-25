@@ -381,6 +381,30 @@ const revokeSession = catchAsync(
     }
 )
 
+const deleteMyAccount = catchAsync(
+    async (req: Request, res: Response) => {
+        const user = req.user;
+        await AuthService.deleteMyAccount(user);
+
+        const isProduction = envVars.NODE_ENV === "production";
+        const cookieClearOptions = {
+            httpOnly: true,
+            secure: isProduction,
+            sameSite: isProduction ? "none" as const : "lax" as const,
+            path: "/",
+        };
+        CookieUtils.clearCookie(res, "accessToken", cookieClearOptions);
+        CookieUtils.clearCookie(res, "refreshToken", cookieClearOptions);
+        CookieUtils.clearCookie(res, "better-auth.session_token", cookieClearOptions);
+
+        sendResponse(res, {
+            httpStatusCode: status.OK,
+            success: true,
+            message: "Account deleted successfully",
+        });
+    }
+)
+
 export const AuthController = {
     registerUser,
     loginUser,
@@ -399,4 +423,5 @@ export const AuthController = {
     googleLoginSuccess,
     handleOAuthError,
     updateProfile,
+    deleteMyAccount,
 };
