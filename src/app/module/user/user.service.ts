@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import status from "http-status";
 import { Role } from "../../../generated/prisma/client";
@@ -80,11 +81,11 @@ const createRecruiter = async (payload: ICreateRecruiterPayload) => {
 const createAdmin = async (payload: ICreateAdminPayload, authenticatedUser?: any) => {
     logger.create(`Admin creation requested → email: ${payload.admin.email}`);
 
-    // Authorization: Only SUPER_ADMIN can create admins
-    if (!authenticatedUser || authenticatedUser.role !== Role.SUPER_ADMIN) {
+    // Authorization: Only ADMIN or SUPER_ADMIN can create admins
+    if (!authenticatedUser || (authenticatedUser.role !== Role.ADMIN && authenticatedUser.role !== Role.SUPER_ADMIN)) {
         throw new AppError(
             status.FORBIDDEN,
-            "Only Super Admin can create admin accounts"
+            "Only admins can create admin accounts"
         );
     }
 
