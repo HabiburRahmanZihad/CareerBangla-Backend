@@ -23,7 +23,9 @@ export interface IUpdateUserPayload {
     email?: string;
     image?: string;
     phone?: string;
+    country?: string;
     isPremium?: boolean;
+    premiumUntil?: string;
 }
 
 export interface IUpdateRecruiterDataPayload {

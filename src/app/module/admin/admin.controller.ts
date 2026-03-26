@@ -177,6 +177,21 @@ const updateRecruiterData = catchAsync(
     }
 );
 
+const deleteUser = catchAsync(
+    async (req: Request, res: Response) => {
+        const user = req.user;
+        const { userId } = req.params;
+
+        const result = await AdminService.deleteUser(user, userId as string);
+        sendResponse(res, {
+            httpStatusCode: status.OK,
+            success: true,
+            message: "User deleted successfully",
+            data: result,
+        })
+    }
+);
+
 export const AdminController = {
     getAllAdmins,
     getAllUsers,
@@ -190,4 +205,5 @@ export const AdminController = {
     getAllRecruitersWithDetails,
     updateUser,
     updateRecruiterData,
+    deleteUser,
 };

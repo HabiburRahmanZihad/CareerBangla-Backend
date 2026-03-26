@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import status from "http-status";
 import { Role, UserStatus } from "../../../generated/prisma/enums";
 import AppError from "../../errorHelpers/AppError";
@@ -377,11 +378,22 @@ const getAllUsersWithDetails = async (user: IRequestUser) => {
                     id: true,
                     profilePhoto: true,
                 }
+            },
+            applications: {
+                where: { status: "HIRED" },
+                select: { id: true }
             }
         }
     });
 
-    return users;
+    // Map to include computed isHired field
+    const usersWithHiredStatus = users.map((user: any) => ({
+        ...user,
+        isHired: user.applications && user.applications.length > 0,
+        applications: undefined // Remove applications array from response
+    }));
+
+    return usersWithHiredStatus;
 }
 
 // Get all recruiters with complete details - with access control
@@ -435,17 +447,27 @@ const updateUser = async (user: IRequestUser, userId: string, payload: IUpdateUs
             ...(payload.email && { email: payload.email }),
             ...(payload.image && { image: payload.image }),
             ...(payload.phone && { phone: payload.phone }),
+            ...(payload.country && { country: payload.country }),
             ...(payload.isPremium !== undefined && { isPremium: payload.isPremium }),
+            ...(payload.premiumUntil && { premiumUntil: new Date(payload.premiumUntil) }),
         },
         include: {
             resume: true,
             recruiter: true,
             admin: true,
+            applications: {
+                where: { status: "HIRED" },
+                select: { id: true }
+            }
         }
     });
 
     logger.update(`User updated → userId: ${userId}`);
-    return updatedUser;
+    return {
+        ...updatedUser,
+        isHired: updatedUser.applications && updatedUser.applications.length > 0,
+        applications: undefined
+    };
 }
 
 // Update recruiter data - Admin/Super Admin only
@@ -488,6 +510,52 @@ const updateRecruiterData = async (user: IRequestUser, recruiterId: string, payl
     return updatedRecruiter;
 }
 
+// Delete user completely from database
+const deleteUser = async (user: IRequestUser, userId: string) => {
+    logger.delete(`User deletion requested → userId: ${userId}`);
+
+    const admin = await prisma.admin.findUniqueOrThrow({
+        where: { email: user.email },
+        include: { user: true }
+    });
+
+    const userToDelete = await prisma.user.findUniqueOrThrow({
+        where: { id: userId }
+    });
+
+    // Admin cannot delete Admin or Super Admin accounts
+    if (admin.user.role === Role.ADMIN &&
+        (userToDelete.role === Role.ADMIN || userToDelete.role === Role.SUPER_ADMIN)) {
+        throw new AppError(status.FORBIDDEN, "You do not have permission to delete this user");
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+        // Delete related data
+        await tx.application.deleteMany({ where: { userId } });
+        await tx.session.deleteMany({ where: { userId } });
+        await tx.account.deleteMany({ where: { userId } });
+        await tx.notification.deleteMany({ where: { userId } });
+        await tx.resume.deleteMany({ where: { userId } });
+
+        // Delete recruiter or admin if exists
+        if (userToDelete.role === Role.RECRUITER) {
+            await tx.recruiter.delete({ where: { userId } });
+        } else if (userToDelete.role === Role.ADMIN || userToDelete.role === Role.SUPER_ADMIN) {
+            await tx.admin.delete({ where: { userId } });
+        }
+
+        // Delete user
+        const deletedUser = await tx.user.delete({
+            where: { id: userId }
+        });
+
+        return deletedUser;
+    });
+
+    logger.delete(`User deleted → userId: ${userId}`);
+    return result;
+}
+
 export const AdminService = {
     getAllAdmins,
     getAllUsers,
@@ -501,4 +569,5 @@ export const AdminService = {
     getAllRecruitersWithDetails,
     updateUser,
     updateRecruiterData,
+    deleteUser,
 }

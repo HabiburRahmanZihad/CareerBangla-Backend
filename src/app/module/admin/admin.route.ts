@@ -31,6 +31,9 @@ router.patch("/change-user-role",
 router.patch("/users/:userId",
     checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
     AdminController.updateUser);
+router.delete("/users/:userId",
+    checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
+    AdminController.deleteUser);
 router.patch("/recruiters/:recruiterId",
     checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
     AdminController.updateRecruiterData);
