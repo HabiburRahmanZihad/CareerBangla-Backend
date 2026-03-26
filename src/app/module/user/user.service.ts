@@ -9,8 +9,27 @@ import { sendEmail } from "../../utils/email";
 import { logger } from "../../utils/logger";
 import { ICreateAdminPayload, ICreateRecruiterPayload } from "./user.interface";
 
+const BD_PHONE_REGEX = /^01[3-9]\d{8}$/;
+
 const createRecruiter = async (payload: ICreateRecruiterPayload) => {
     logger.create(`Recruiter creation requested → email: ${payload.recruiter.email}`);
+
+    // Validate phone format if provided
+    if (payload.recruiter.contactNumber && !BD_PHONE_REGEX.test(payload.recruiter.contactNumber)) {
+        throw new AppError(status.BAD_REQUEST, "Enter a valid 11-digit Bangladeshi phone number starting with 01");
+    }
+
+    // Check phone uniqueness if provided
+    if (payload.recruiter.contactNumber) {
+        const existingPhone = await prisma.user.findUnique({
+            where: { phone: payload.recruiter.contactNumber },
+            select: { id: true }
+        });
+        if (existingPhone) {
+            throw new AppError(status.BAD_REQUEST, "Phone number is already registered");
+        }
+    }
+
     const userExists = await prisma.user.findUnique({
         where: {
             email: payload.recruiter.email
@@ -33,6 +52,14 @@ const createRecruiter = async (payload: ICreateRecruiterPayload) => {
 
     try {
         const result = await prisma.$transaction(async (tx) => {
+            // Update user with phone number if provided
+            if (payload.recruiter.contactNumber) {
+                await tx.user.update({
+                    where: { id: userData.user.id },
+                    data: { phone: payload.recruiter.contactNumber }
+                })
+            }
+
             const recruiterData = await tx.recruiter.create({
                 data: {
                     userId: userData.user.id,
@@ -89,6 +116,22 @@ const createAdmin = async (payload: ICreateAdminPayload, authenticatedUser?: any
         );
     }
 
+    // Validate phone format if provided
+    if (payload.admin.contactNumber && !BD_PHONE_REGEX.test(payload.admin.contactNumber)) {
+        throw new AppError(status.BAD_REQUEST, "Enter a valid 11-digit Bangladeshi phone number starting with 01");
+    }
+
+    // Check phone uniqueness if provided
+    if (payload.admin.contactNumber) {
+        const existingPhone = await prisma.user.findUnique({
+            where: { phone: payload.admin.contactNumber },
+            select: { id: true }
+        });
+        if (existingPhone) {
+            throw new AppError(status.BAD_REQUEST, "Phone number is already registered");
+        }
+    }
+
     // Security: Force role to ADMIN (prevent privilege escalation)
     const { admin, password } = payload;
     const role = Role.ADMIN;
@@ -114,6 +157,14 @@ const createAdmin = async (payload: ICreateAdminPayload, authenticatedUser?: any
 
     try {
         const result = await prisma.$transaction(async (tx) => {
+            // Update user with phone number if provided
+            if (payload.admin.contactNumber) {
+                await tx.user.update({
+                    where: { id: userData.user.id },
+                    data: { phone: payload.admin.contactNumber }
+                })
+            }
+
             const adminData = await tx.admin.create({
                 data: {
                     userId: userData.user.id,
