@@ -102,8 +102,8 @@ export const auth = betterAuth({
                         return;
                     }
 
-                    if (user && user.role === Role.SUPER_ADMIN) {
-                        logger.read("Skipping OTP for super admin", { email });
+                    if (user && (user.role === Role.SUPER_ADMIN || user.role === Role.RECRUITER)) {
+                        logger.read(`Skipping OTP for ${user.role}`, { email });
                         return;
                     }
 
