@@ -27,7 +27,7 @@ const createRecruiter = async (payload: ICreateRecruiterPayload) => {
             password: payload.password,
             role: Role.RECRUITER,
             name: payload.recruiter.name,
-            needPasswordChange: true,
+            needPasswordChange: false,
         }
     })
 

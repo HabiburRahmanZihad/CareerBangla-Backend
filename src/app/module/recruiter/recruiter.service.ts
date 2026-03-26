@@ -204,6 +204,13 @@ const approveRecruiter = async (id: string) => {
         data: { status: RecruiterStatus.APPROVED },
         include: { user: true },
     })
+
+    // Mark email as verified in the user profile
+    await prisma.user.update({
+        where: { id: recruiter.userId },
+        data: { emailVerified: true }
+    })
+
     logger.update(`Recruiter approved → id: ${id}`);
 
     // Create notification for recruiter
@@ -211,8 +218,8 @@ const approveRecruiter = async (id: string) => {
         data: {
             userId: recruiter.userId,
             type: "RECRUITER_APPROVED",
-            title: "Account Approved",
-            message: "Your recruiter account has been approved. You can now post jobs and view candidates.",
+            title: "Account Verified",
+            message: "Your recruiter account has been verified! You can now log in and start posting jobs.",
         }
     })
 
@@ -220,14 +227,13 @@ const approveRecruiter = async (id: string) => {
     try {
         await sendEmail({
             to: recruiter.email,
-            subject: "CareerBangla - Recruiter Account Approved",
-            templateName: "applicationStatus",
+            subject: "Your CareerBangla Recruiter Account Has Been Verified",
+            templateName: "accountVerified",
             templateData: {
                 name: recruiter.name,
-                jobTitle: "Recruiter Account",
-                companyName: "CareerBangla",
-                status: "approved",
-                message: "Your recruiter account has been approved! You can now post jobs and search for candidates on CareerBangla.",
+                email: recruiter.email,
+                loginUrl: "https://careerbangla.com/login",
+                message: "Your recruiter account has been verified by our admin team! You can now log in to CareerBangla and start posting jobs, searching for candidates, and managing your company information.",
             }
         })
     } catch {
