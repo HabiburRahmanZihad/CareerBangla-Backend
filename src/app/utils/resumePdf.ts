@@ -70,14 +70,15 @@ const formatDate = (d: string | Date | undefined): string => {
 /**
  * Generates a PDF that visually matches the frontend ResumeTwoPageLayout preview.
  *
- * Layout order (Page 1):
- *   Header  →  Career Objective  →  Skills  →  Projects (max 3)
- *   →  Work Experience  →  Education  →  Certifications (max 3)
- *   →  Languages  →  Interests
- *
- * Page 2 (when content overflows or extra sections exist):
- *   Work Experience (full)  →  Additional Projects  →  Certifications (all)
- *   →  Awards & Achievements  →  References  →  Interests
+ * Font size guide:
+ *   Name heading   → 28pt bold
+ *   Prof. title    → 13pt bold
+ *   Contact / URLs → 10pt
+ *   Section titles → 14pt bold  (user requirement)
+ *   Body text      → 11pt
+ *   Sub-labels     → 11pt bold
+ *   Dates / muted  → 9.5pt
+ *   Small links    → 9pt
  */
 export const generateResumePdf = (data: ResumeData): Promise<Buffer> => {
     return new Promise((resolve, reject) => {
@@ -93,8 +94,8 @@ export const generateResumePdf = (data: ResumeData): Promise<Buffer> => {
         const primaryColor = "#1a3a52";
         const textColor = "#333333";
         const mutedColor = "#666666";
-        const linkColor = "#2563eb"; // blue-600
-        const lineColor = "#9ca3af"; // gray-400
+        const linkColor = "#2563eb";
+        const lineColor = "#9ca3af";
 
         let y = margin;
 
@@ -113,20 +114,20 @@ export const generateResumePdf = (data: ResumeData): Promise<Buffer> => {
 
         // ── Helpers ──
         const ensureSpace = (needed: number) => {
-            if (y + needed > 800) {
+            if (y + needed > 790) {
                 doc.addPage();
                 y = margin;
             }
         };
 
         const sectionHeader = (title: string) => {
-            ensureSpace(24);
-            doc.fontSize(8.5).font("Helvetica-Bold").fillColor(primaryColor)
+            ensureSpace(30);
+            doc.fontSize(14).font("Helvetica-Bold").fillColor(primaryColor)
                 .text(title.toUpperCase(), margin, y, { characterSpacing: 1.5 });
             y = doc.y + 3;
             doc.moveTo(margin, y).lineTo(margin + pageWidth, y)
                 .strokeColor(lineColor).lineWidth(0.5).stroke();
-            y += 6;
+            y += 8;
         };
 
         // ═══════════════════════════════════════════════════════════════
@@ -134,14 +135,14 @@ export const generateResumePdf = (data: ResumeData): Promise<Buffer> => {
         // ═══════════════════════════════════════════════════════════════
 
         // ── HEADER ──
-        doc.fontSize(24).font("Helvetica-Bold").fillColor(primaryColor)
+        doc.fontSize(28).font("Helvetica-Bold").fillColor(primaryColor)
             .text(data.fullName || "YOUR NAME", margin, y, { width: pageWidth, align: "center", characterSpacing: 1.2 });
-        y = doc.y + 2;
+        y = doc.y + 3;
 
         if (data.professionalTitle) {
-            doc.fontSize(10).font("Helvetica-Bold").fillColor(mutedColor)
+            doc.fontSize(13).font("Helvetica-Bold").fillColor(mutedColor)
                 .text(data.professionalTitle, margin, y, { width: pageWidth, align: "center" });
-            y = doc.y + 4;
+            y = doc.y + 5;
         }
 
         // Contact info line (phone, email, address)
@@ -150,9 +151,9 @@ export const generateResumePdf = (data: ResumeData): Promise<Buffer> => {
         if (data.email) contactParts.push(data.email);
         if (data.address) contactParts.push(data.address);
         if (contactParts.length > 0) {
-            doc.fontSize(8).font("Helvetica").fillColor(mutedColor)
+            doc.fontSize(10).font("Helvetica").fillColor(mutedColor)
                 .text(contactParts.join("    "), margin, y, { width: pageWidth, align: "center" });
-            y = doc.y + 3;
+            y = doc.y + 4;
         }
 
         // Links line (Github, LinkedIn, Portfolio)
@@ -162,7 +163,7 @@ export const generateResumePdf = (data: ResumeData): Promise<Buffer> => {
         if (data.portfolioUrl) urlParts.push("Portfolio");
         if (urlParts.length > 0) {
             const linkLineText = urlParts.join("    ");
-            const linkLineWidth = doc.fontSize(8).font("Helvetica").widthOfString(linkLineText);
+            const linkLineWidth = doc.fontSize(10).font("Helvetica").widthOfString(linkLineText);
             const linkLineX = margin + (pageWidth - linkLineWidth) / 2;
 
             let lx = linkLineX;
@@ -173,8 +174,8 @@ export const generateResumePdf = (data: ResumeData): Promise<Buffer> => {
 
             for (let i = 0; i < linkItems.length; i++) {
                 const item = linkItems[i];
-                const labelWidth = doc.fontSize(8).font("Helvetica").widthOfString(item.label);
-                doc.fontSize(8).font("Helvetica").fillColor(linkColor)
+                const labelWidth = doc.fontSize(10).font("Helvetica").widthOfString(item.label);
+                doc.fontSize(10).font("Helvetica").fillColor(linkColor)
                     .text(item.label, lx, y, { link: item.url, underline: false });
                 lx += labelWidth;
                 if (i < linkItems.length - 1) {
@@ -182,47 +183,47 @@ export const generateResumePdf = (data: ResumeData): Promise<Buffer> => {
                     lx += spacerWidth;
                 }
             }
-            y = doc.y + 4;
+            y = doc.y + 5;
         }
 
         // Header bottom border
         doc.moveTo(margin, y).lineTo(margin + pageWidth, y)
             .strokeColor(primaryColor).lineWidth(1.5).stroke();
-        y += 10;
+        y += 12;
 
         // ── CAREER OBJECTIVE ──
         if (data.professionalSummary) {
             sectionHeader("Career Objective");
-            doc.fontSize(8.5).font("Helvetica").fillColor(textColor)
+            doc.fontSize(11).font("Helvetica").fillColor(textColor)
                 .text(data.professionalSummary, margin, y, { width: pageWidth, lineGap: 2 });
-            y = doc.y + 10;
+            y = doc.y + 12;
         }
 
         // ── SKILLS ──
         if (technicalSkills.length > 0 || softSkills.length > 0 || tools.length > 0) {
             sectionHeader("Skills");
             if (technicalSkills.length > 0) {
-                doc.fontSize(8.5).font("Helvetica-Bold").fillColor(textColor)
+                doc.fontSize(11).font("Helvetica-Bold").fillColor(textColor)
                     .text("Technical: ", margin, y, { continued: true });
                 doc.font("Helvetica").fillColor(textColor)
                     .text(technicalSkills.join(", "));
-                y = doc.y + 3;
+                y = doc.y + 4;
             }
             if (tools.length > 0) {
-                doc.fontSize(8.5).font("Helvetica-Bold").fillColor(textColor)
+                doc.fontSize(11).font("Helvetica-Bold").fillColor(textColor)
                     .text("Tools & Platforms: ", margin, y, { continued: true });
                 doc.font("Helvetica").fillColor(textColor)
                     .text(tools.join(", "));
-                y = doc.y + 3;
+                y = doc.y + 4;
             }
             if (softSkills.length > 0) {
-                doc.fontSize(8.5).font("Helvetica-Bold").fillColor(textColor)
+                doc.fontSize(11).font("Helvetica-Bold").fillColor(textColor)
                     .text("Additional Skills: ", margin, y, { continued: true });
                 doc.font("Helvetica").fillColor(textColor)
                     .text(softSkills.join(", "));
-                y = doc.y + 3;
+                y = doc.y + 4;
             }
-            y += 7;
+            y += 8;
         }
 
         // ── PROJECTS (max 3 on page 1) ──
@@ -230,51 +231,51 @@ export const generateResumePdf = (data: ResumeData): Promise<Buffer> => {
         if (page1Projects.length > 0) {
             sectionHeader("Projects");
             for (const proj of page1Projects) {
-                ensureSpace(40);
+                ensureSpace(50);
                 // Project name + links on same line
                 const linkParts: string[] = [];
                 if (proj.liveUrl) linkParts.push("LIVE");
                 if (proj.githubUrl) linkParts.push("SERVER");
                 const linkText = linkParts.join("   ");
-                const linkWidth = linkText ? doc.fontSize(7).font("Helvetica").widthOfString(linkText) + 10 : 0;
+                const linkWidth = linkText ? doc.fontSize(9).font("Helvetica").widthOfString(linkText) + 12 : 0;
 
-                doc.fontSize(8.5).font("Helvetica-Bold").fillColor(primaryColor)
+                doc.fontSize(11).font("Helvetica-Bold").fillColor(primaryColor)
                     .text(proj.projectName, margin, y, { width: pageWidth - linkWidth });
 
                 if (linkParts.length > 0) {
                     let lx = margin + pageWidth - linkWidth;
                     if (proj.liveUrl) {
-                        doc.fontSize(7).font("Helvetica").fillColor(linkColor)
-                            .text("LIVE", lx, y, { link: proj.liveUrl, underline: true });
-                        lx += doc.widthOfString("LIVE") + 8;
+                        doc.fontSize(9).font("Helvetica").fillColor(linkColor)
+                            .text("LIVE", lx, y + 1, { link: proj.liveUrl, underline: true });
+                        lx += doc.widthOfString("LIVE") + 10;
                     }
                     if (proj.githubUrl) {
-                        doc.fontSize(7).font("Helvetica").fillColor(linkColor)
-                            .text("SERVER", lx, y, { link: proj.githubUrl, underline: true });
+                        doc.fontSize(9).font("Helvetica").fillColor(linkColor)
+                            .text("SERVER", lx, y + 1, { link: proj.githubUrl, underline: true });
                     }
                 }
-                y = doc.y + 2;
+                y = doc.y + 3;
 
                 if (proj.description) {
-                    doc.fontSize(8.5).font("Helvetica").fillColor(textColor)
+                    doc.fontSize(11).font("Helvetica").fillColor(textColor)
                         .text(proj.description, margin, y, { width: pageWidth, lineGap: 1 });
-                    y = doc.y + 2;
+                    y = doc.y + 3;
                 }
                 if (proj.technologiesUsed && proj.technologiesUsed.length > 0) {
-                    doc.fontSize(7.5).font("Helvetica-Bold").fillColor(textColor)
+                    doc.fontSize(9.5).font("Helvetica-Bold").fillColor(textColor)
                         .text("Technologies: ", margin, y, { continued: true });
                     doc.font("Helvetica").fillColor(mutedColor)
                         .text(proj.technologiesUsed.join(", "));
-                    y = doc.y + 2;
+                    y = doc.y + 3;
                 }
                 if (proj.highlights && proj.highlights.length > 0) {
                     for (const highlight of proj.highlights.slice(0, 3)) {
-                        doc.fontSize(8.5).font("Helvetica").fillColor(textColor)
-                            .text(`•  ${highlight}`, margin + 8, y, { width: pageWidth - 8, lineGap: 1 });
-                        y = doc.y + 1;
+                        doc.fontSize(11).font("Helvetica").fillColor(textColor)
+                            .text(`•  ${highlight}`, margin + 10, y, { width: pageWidth - 10, lineGap: 1 });
+                        y = doc.y + 2;
                     }
                 }
-                y += 6;
+                y += 8;
             }
         }
 
@@ -282,31 +283,30 @@ export const generateResumePdf = (data: ResumeData): Promise<Buffer> => {
         if (validWorkExp.length > 0) {
             sectionHeader("Work Experience");
             for (const exp of validWorkExp) {
-                ensureSpace(30);
-                // Job title left, date right
+                ensureSpace(36);
                 const dateText = `${formatDate(exp.startDate)} - ${exp.currentlyWorking ? "Present" : formatDate(exp.endDate)}`;
-                const dateWidth = doc.fontSize(7.5).font("Helvetica").widthOfString(dateText);
+                const dateWidth = doc.fontSize(9.5).font("Helvetica").widthOfString(dateText);
 
-                doc.fontSize(8.5).font("Helvetica-Bold").fillColor(textColor)
+                doc.fontSize(11).font("Helvetica-Bold").fillColor(textColor)
                     .text(exp.jobTitle, margin, y, { width: pageWidth - dateWidth - 10 });
-                doc.fontSize(7.5).font("Helvetica").fillColor(mutedColor)
+                doc.fontSize(9.5).font("Helvetica").fillColor(mutedColor)
                     .text(dateText, margin + pageWidth - dateWidth, y, { width: dateWidth, align: "right" });
-                y = Math.max(doc.y, y + 12);
+                y = Math.max(doc.y, y + 15);
 
                 if (exp.companyName) {
-                    doc.fontSize(8.5).font("Helvetica-Oblique").fillColor(mutedColor)
+                    doc.fontSize(11).font("Helvetica-Oblique").fillColor(mutedColor)
                         .text(exp.companyName, margin, y);
-                    y = doc.y + 2;
+                    y = doc.y + 3;
                 }
                 if (exp.responsibilities && exp.responsibilities.length > 0) {
                     for (const resp of exp.responsibilities.slice(0, 2)) {
-                        ensureSpace(14);
-                        doc.fontSize(8.5).font("Helvetica").fillColor(textColor)
-                            .text(`•  ${resp}`, margin + 6, y, { width: pageWidth - 6, lineGap: 1 });
-                        y = doc.y + 1;
+                        ensureSpace(18);
+                        doc.fontSize(11).font("Helvetica").fillColor(textColor)
+                            .text(`•  ${resp}`, margin + 8, y, { width: pageWidth - 8, lineGap: 1 });
+                        y = doc.y + 2;
                     }
                 }
-                y += 6;
+                y += 8;
             }
         }
 
@@ -314,23 +314,23 @@ export const generateResumePdf = (data: ResumeData): Promise<Buffer> => {
         if (validEducation.length > 0) {
             sectionHeader("Education");
             for (const edu of validEducation) {
-                ensureSpace(24);
+                ensureSpace(30);
                 const degreeText = `${edu.degree}${edu.fieldOfStudy ? ` in ${edu.fieldOfStudy}` : ""}`;
                 const dateText = `${formatDate(edu.startDate)} - ${formatDate(edu.endDate)}`;
-                const dateWidth = doc.fontSize(7.5).font("Helvetica").widthOfString(dateText);
+                const dateWidth = doc.fontSize(9.5).font("Helvetica").widthOfString(dateText);
 
-                doc.fontSize(8.5).font("Helvetica-Bold").fillColor(textColor)
+                doc.fontSize(11).font("Helvetica-Bold").fillColor(textColor)
                     .text(degreeText, margin, y, { width: pageWidth - dateWidth - 10 });
-                doc.fontSize(7.5).font("Helvetica").fillColor(mutedColor)
+                doc.fontSize(9.5).font("Helvetica").fillColor(mutedColor)
                     .text(dateText, margin + pageWidth - dateWidth, y, { width: dateWidth, align: "right" });
-                y = Math.max(doc.y, y + 12);
+                y = Math.max(doc.y, y + 15);
 
                 if (edu.institutionName) {
-                    doc.fontSize(8.5).font("Helvetica").fillColor(mutedColor)
+                    doc.fontSize(11).font("Helvetica").fillColor(mutedColor)
                         .text(edu.institutionName, margin, y);
-                    y = doc.y + 2;
+                    y = doc.y + 3;
                 }
-                y += 4;
+                y += 6;
             }
         }
 
@@ -339,37 +339,37 @@ export const generateResumePdf = (data: ResumeData): Promise<Buffer> => {
         if (page1Certs.length > 0) {
             sectionHeader("Certifications");
             for (const cert of page1Certs) {
-                ensureSpace(16);
+                ensureSpace(20);
                 const dateText = formatDate(cert.issueDate);
-                const dateWidth = doc.fontSize(7.5).font("Helvetica").widthOfString(dateText);
+                const dateWidth = doc.fontSize(9.5).font("Helvetica").widthOfString(dateText);
                 const nameText = cert.certificationName + (cert.issuingOrganization ? ` - ${cert.issuingOrganization}` : "");
 
-                doc.fontSize(8.5).font("Helvetica-Bold").fillColor(textColor)
+                doc.fontSize(11).font("Helvetica-Bold").fillColor(textColor)
                     .text(nameText, margin, y, { width: pageWidth - dateWidth - 10 });
-                doc.fontSize(7.5).font("Helvetica").fillColor(mutedColor)
+                doc.fontSize(9.5).font("Helvetica").fillColor(mutedColor)
                     .text(dateText, margin + pageWidth - dateWidth, y, { width: dateWidth, align: "right" });
-                y = Math.max(doc.y, y + 12) + 2;
+                y = Math.max(doc.y, y + 15) + 3;
             }
-            y += 4;
+            y += 5;
         }
 
         // ── LANGUAGES ──
         if (validLanguages.length > 0) {
             sectionHeader("Languages");
             for (const lang of validLanguages) {
-                doc.fontSize(8.5).font("Helvetica").fillColor(textColor)
-                    .text(`•  ${lang.language} (${lang.proficiencyLevel || "N/A"})`, margin + 8, y, { width: pageWidth - 8 });
-                y = doc.y + 1;
+                doc.fontSize(11).font("Helvetica").fillColor(textColor)
+                    .text(`•  ${lang.language} (${lang.proficiencyLevel || "N/A"})`, margin + 10, y, { width: pageWidth - 10 });
+                y = doc.y + 2;
             }
-            y += 7;
+            y += 8;
         }
 
         // ── INTERESTS ──
         if (interests.length > 0) {
             sectionHeader("Interests");
-            doc.fontSize(8.5).font("Helvetica").fillColor(textColor)
+            doc.fontSize(11).font("Helvetica").fillColor(textColor)
                 .text(interests.slice(0, 5).join(", "), margin, y, { width: pageWidth });
-            y = doc.y + 10;
+            y = doc.y + 12;
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -388,41 +388,41 @@ export const generateResumePdf = (data: ResumeData): Promise<Buffer> => {
             if (validProjects.length > 3) {
                 sectionHeader("Additional Projects");
                 for (const proj of validProjects.slice(3)) {
-                    ensureSpace(30);
+                    ensureSpace(36);
                     const linkParts: string[] = [];
                     if (proj.liveUrl) linkParts.push("LIVE");
                     if (proj.githubUrl) linkParts.push("SERVER");
                     const linkText = linkParts.join("   ");
-                    const linkWidth = linkText ? doc.fontSize(7).font("Helvetica").widthOfString(linkText) + 10 : 0;
+                    const linkWidth = linkText ? doc.fontSize(9).font("Helvetica").widthOfString(linkText) + 12 : 0;
 
-                    doc.fontSize(8.5).font("Helvetica-Bold").fillColor(primaryColor)
+                    doc.fontSize(11).font("Helvetica-Bold").fillColor(primaryColor)
                         .text(proj.projectName, margin, y, { width: pageWidth - linkWidth });
 
                     if (linkParts.length > 0) {
                         let lx = margin + pageWidth - linkWidth;
                         if (proj.liveUrl) {
-                            doc.fontSize(7).font("Helvetica").fillColor(linkColor)
-                                .text("LIVE", lx, y, { link: proj.liveUrl, underline: true });
-                            lx += doc.widthOfString("LIVE") + 8;
+                            doc.fontSize(9).font("Helvetica").fillColor(linkColor)
+                                .text("LIVE", lx, y + 1, { link: proj.liveUrl, underline: true });
+                            lx += doc.widthOfString("LIVE") + 10;
                         }
                         if (proj.githubUrl) {
-                            doc.fontSize(7).font("Helvetica").fillColor(linkColor)
-                                .text("SERVER", lx, y, { link: proj.githubUrl, underline: true });
+                            doc.fontSize(9).font("Helvetica").fillColor(linkColor)
+                                .text("SERVER", lx, y + 1, { link: proj.githubUrl, underline: true });
                         }
                     }
-                    y = doc.y + 2;
+                    y = doc.y + 3;
 
                     if (proj.description) {
-                        doc.fontSize(8.5).font("Helvetica").fillColor(textColor)
+                        doc.fontSize(11).font("Helvetica").fillColor(textColor)
                             .text(proj.description, margin, y, { width: pageWidth });
-                        y = doc.y + 2;
+                        y = doc.y + 3;
                     }
                     if (proj.technologiesUsed && proj.technologiesUsed.length > 0) {
-                        doc.fontSize(7.5).font("Helvetica").fillColor(mutedColor)
+                        doc.fontSize(9.5).font("Helvetica").fillColor(mutedColor)
                             .text(proj.technologiesUsed.join(", "), margin, y);
-                        y = doc.y + 2;
+                        y = doc.y + 3;
                     }
-                    y += 6;
+                    y += 8;
                 }
             }
 
@@ -430,47 +430,47 @@ export const generateResumePdf = (data: ResumeData): Promise<Buffer> => {
             if (validAwards.length > 0) {
                 sectionHeader("Awards & Achievements");
                 for (const award of validAwards) {
-                    ensureSpace(16);
+                    ensureSpace(20);
                     const dateText = formatDate(award.date);
-                    const dateWidth = doc.fontSize(7.5).font("Helvetica").widthOfString(dateText);
+                    const dateWidth = doc.fontSize(9.5).font("Helvetica").widthOfString(dateText);
 
                     const nameText = award.title + (award.issuer ? ` - ${award.issuer}` : "");
-                    doc.fontSize(8.5).font("Helvetica-Bold").fillColor(textColor)
+                    doc.fontSize(11).font("Helvetica-Bold").fillColor(textColor)
                         .text(nameText, margin, y, { width: pageWidth - dateWidth - 10 });
-                    doc.fontSize(7.5).font("Helvetica").fillColor(mutedColor)
+                    doc.fontSize(9.5).font("Helvetica").fillColor(mutedColor)
                         .text(dateText, margin + pageWidth - dateWidth, y, { width: dateWidth, align: "right" });
-                    y = Math.max(doc.y, y + 12) + 2;
+                    y = Math.max(doc.y, y + 15) + 3;
                 }
-                y += 4;
+                y += 5;
             }
 
             // ── REFERENCES (2-column grid) ──
             if (validReferences.length > 0) {
                 sectionHeader("References");
-                const colWidth = (pageWidth - 12) / 2;
+                const colWidth = (pageWidth - 14) / 2;
                 for (let i = 0; i < validReferences.length; i += 2) {
-                    ensureSpace(40);
+                    ensureSpace(48);
                     const startY = y;
 
                     // Left column
                     const left = validReferences[i];
-                    doc.fontSize(8.5).font("Helvetica-Bold").fillColor(textColor)
+                    doc.fontSize(11).font("Helvetica-Bold").fillColor(textColor)
                         .text(left.name, margin, y);
-                    y = doc.y + 1;
+                    y = doc.y + 2;
                     if (left.designation) {
-                        doc.fontSize(7.5).font("Helvetica").fillColor(mutedColor)
+                        doc.fontSize(9.5).font("Helvetica").fillColor(mutedColor)
                             .text(`${left.designation}${left.company ? ` at ${left.company}` : ""}`, margin, y);
-                        y = doc.y + 1;
+                        y = doc.y + 2;
                     }
                     if (left.email) {
-                        doc.fontSize(7.5).font("Helvetica").fillColor(mutedColor)
+                        doc.fontSize(9.5).font("Helvetica").fillColor(mutedColor)
                             .text(left.email, margin, y);
-                        y = doc.y + 1;
+                        y = doc.y + 2;
                     }
                     if (left.phone) {
-                        doc.fontSize(7.5).font("Helvetica").fillColor(mutedColor)
+                        doc.fontSize(9.5).font("Helvetica").fillColor(mutedColor)
                             .text(left.phone, margin, y);
-                        y = doc.y + 1;
+                        y = doc.y + 2;
                     }
                     const leftEndY = y;
 
@@ -478,27 +478,27 @@ export const generateResumePdf = (data: ResumeData): Promise<Buffer> => {
                     if (i + 1 < validReferences.length) {
                         y = startY;
                         const right = validReferences[i + 1];
-                        const rightX = margin + colWidth + 12;
-                        doc.fontSize(8.5).font("Helvetica-Bold").fillColor(textColor)
+                        const rightX = margin + colWidth + 14;
+                        doc.fontSize(11).font("Helvetica-Bold").fillColor(textColor)
                             .text(right.name, rightX, y, { width: colWidth });
-                        y = doc.y + 1;
+                        y = doc.y + 2;
                         if (right.designation) {
-                            doc.fontSize(7.5).font("Helvetica").fillColor(mutedColor)
+                            doc.fontSize(9.5).font("Helvetica").fillColor(mutedColor)
                                 .text(`${right.designation}${right.company ? ` at ${right.company}` : ""}`, rightX, y, { width: colWidth });
-                            y = doc.y + 1;
+                            y = doc.y + 2;
                         }
                         if (right.email) {
-                            doc.fontSize(7.5).font("Helvetica").fillColor(mutedColor)
+                            doc.fontSize(9.5).font("Helvetica").fillColor(mutedColor)
                                 .text(right.email, rightX, y, { width: colWidth });
-                            y = doc.y + 1;
+                            y = doc.y + 2;
                         }
                         if (right.phone) {
-                            doc.fontSize(7.5).font("Helvetica").fillColor(mutedColor)
+                            doc.fontSize(9.5).font("Helvetica").fillColor(mutedColor)
                                 .text(right.phone, rightX, y, { width: colWidth });
-                            y = doc.y + 1;
+                            y = doc.y + 2;
                         }
                     }
-                    y = Math.max(leftEndY, y) + 8;
+                    y = Math.max(leftEndY, y) + 10;
                 }
             }
         }
