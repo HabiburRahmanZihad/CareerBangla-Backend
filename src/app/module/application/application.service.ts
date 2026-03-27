@@ -1,4 +1,5 @@
 import status from "http-status";
+import { Prisma } from "../../../generated/prisma/client";
 import { ApplicationStatus } from "../../../generated/prisma/enums";
 import AppError from "../../errorHelpers/AppError";
 import { IQueryParams } from "../../interfaces/query.interface";
@@ -9,7 +10,6 @@ import { logger } from "../../utils/logger";
 import { hasActivePremium } from "../../utils/premium";
 import { getUserProfileCompletion } from "../../utils/profileCompletion";
 import { ResumeService } from "../resume/resume.service";
-import { Prisma } from "../../../generated/prisma/client";
 
 const applyJob = async (user: IRequestUser, payload: { jobId: string; coverLetter?: string }) => {
     const { jobId, coverLetter } = payload;
@@ -503,7 +503,7 @@ const getApplicantsForJob = async (
                 const educations = resume.education || [];
                 const educationFilter = query.education.toLowerCase();
                 const hasEducation = educations.some(edu =>
-                    (edu.degree?.toLowerCase().includes(educationFilter) ||
+                (edu.degree?.toLowerCase().includes(educationFilter) ||
                     edu.fieldOfStudy?.toLowerCase().includes(educationFilter) ||
                     edu.institutionName?.toLowerCase().includes(educationFilter))
                 );
@@ -570,6 +570,9 @@ const getUserDirectory = async (
                 select: {
                     id: true,
                     skills: true,
+                    technicalSkills: true,
+                    softSkills: true,
+                    toolsAndTechnologies: true,
                     education: true,
                     professionalTitle: true,
                     profilePhoto: true,
@@ -587,7 +590,12 @@ const getUserDirectory = async (
             if (!resume) return false;
 
             if (query.skills) {
-                const skills = resume.skills || [];
+                const skills = [
+                    ...(resume.skills || []),
+                    ...(resume.technicalSkills || []),
+                    ...(resume.softSkills || []),
+                    ...(resume.toolsAndTechnologies || []),
+                ];
                 const searchSkills = query.skills.split(",").map(s => s.toLowerCase().trim());
                 const hasSkill = searchSkills.some(searchSkill =>
                     skills.some(skill => skill.toLowerCase().includes(searchSkill))
@@ -599,7 +607,7 @@ const getUserDirectory = async (
                 const educations = resume.education || [];
                 const educationFilter = query.education.toLowerCase();
                 const hasEducation = educations.some(edu =>
-                    (edu.degree?.toLowerCase().includes(educationFilter) ||
+                (edu.degree?.toLowerCase().includes(educationFilter) ||
                     edu.fieldOfStudy?.toLowerCase().includes(educationFilter) ||
                     edu.institutionName?.toLowerCase().includes(educationFilter))
                 );
