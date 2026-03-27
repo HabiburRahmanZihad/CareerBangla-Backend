@@ -365,6 +365,22 @@ const approveJob = async (jobId: string, user: IRequestUser) => {
         return updated;
     })
 
+    // Best-effort email to recruiter for approved job.
+    sendEmail({
+        to: job.recruiter.email,
+        subject: `Job Approved: ${job.title}`,
+        templateName: "jobApproved",
+        templateData: {
+            recruiterName: job.recruiter.name,
+            jobTitle: job.title,
+            companyName: job.company,
+            location: job.location,
+            category: (updatedJob as any).category?.title || "Not specified",
+        },
+    }).catch(() => {
+        logger.error(`Failed to send job approval email → jobId: ${job.id}, recruiterId: ${job.recruiter.userId}`);
+    });
+
     return updatedJob;
 }
 
@@ -465,6 +481,37 @@ const getPendingJobs = async (query: IQueryParams) => {
     };
 }
 
+const getPendingJobById = async (jobId: string) => {
+    logger.read(`Fetching pending job by id (admin) → jobId: ${jobId}`);
+
+    const job = await prisma.job.findFirst({
+        where: {
+            id: jobId,
+            status: "DRAFT",
+            isDeleted: false,
+        },
+        include: {
+            recruiter: {
+                select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    companyName: true,
+                    userId: true,
+                },
+            },
+            category: true,
+            _count: { select: { applications: true } },
+        },
+    });
+
+    if (!job) {
+        throw new AppError(status.NOT_FOUND, "Pending job not found");
+    }
+
+    return job;
+}
+
 export const JobService = {
     createJob,
     getAllJobs,
@@ -478,4 +525,5 @@ export const JobService = {
     approveJob,
     rejectJob,
     getPendingJobs,
+    getPendingJobById,
 }

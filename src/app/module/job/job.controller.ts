@@ -187,6 +187,20 @@ const getPendingJobs = catchAsync(
     }
 )
 
+const getPendingJobById = catchAsync(
+    async (req: Request, res: Response) => {
+        const { id } = req.params;
+        const result = await JobService.getPendingJobById(id as string);
+
+        sendResponse(res, {
+            httpStatusCode: status.OK,
+            success: true,
+            message: "Pending job details fetched successfully",
+            data: result,
+        })
+    }
+)
+
 export const JobController = {
     createJob,
     getAllJobs,
@@ -200,4 +214,5 @@ export const JobController = {
     approveJob,
     rejectJob,
     getPendingJobs,
+    getPendingJobById,
 }

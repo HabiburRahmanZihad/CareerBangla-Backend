@@ -57,4 +57,8 @@ router.get("/admin/pending",
     checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
     JobController.getPendingJobs);
 
+router.get("/admin/pending/:id",
+    checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
+    JobController.getPendingJobById);
+
 export const JobRoutes = router;
