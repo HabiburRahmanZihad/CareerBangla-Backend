@@ -1,6 +1,6 @@
 import status from "http-status";
 import { Job, Prisma } from "../../../generated/prisma/client";
-import { PaymentStatus, RecruiterStatus, SubscriptionPlan } from "../../../generated/prisma/enums";
+import { JobType, PaymentStatus, RecruiterStatus, SubscriptionPlan } from "../../../generated/prisma/enums";
 import AppError from "../../errorHelpers/AppError";
 import { IQueryParams } from "../../interfaces/query.interface";
 import { IRequestUser } from "../../interfaces/requestUser.interface";
@@ -373,9 +373,9 @@ const approveJob = async (jobId: string, user: IRequestUser) => {
         templateData: {
             recruiterName: job.recruiter.name,
             jobTitle: job.title,
-            companyName: job.company,
+            companyName: job.recruiter.companyName || "Not specified",
             location: job.location,
-            category: (updatedJob as any).category?.title || "Not specified",
+            category: updatedJob.category?.title || "Not specified",
         },
     }).catch(() => {
         logger.error(`Failed to send job approval email → jobId: ${job.id}, recruiterId: ${job.recruiter.userId}`);
@@ -434,7 +434,7 @@ const rejectJob = async (jobId: string, reason: string, user: IRequestUser) => {
         templateData: {
             recruiterName: job.recruiter.name,
             jobTitle: job.title,
-            companyName: job.company,
+            companyName: job.recruiter.companyName || "Not specified",
             location: job.location,
             category: job.category?.title || "Not specified",
             reason: trimmedReason,
@@ -449,18 +449,59 @@ const rejectJob = async (jobId: string, reason: string, user: IRequestUser) => {
 
 const getPendingJobs = async (query: IQueryParams) => {
     logger.read("Fetching pending jobs (admin)", { filters: query });
-    const page = parseInt(query?.page || "1");
-    const limit = parseInt(query?.limit || "20");
+    const page = Math.max(1, Number.parseInt(query.page || "1", 10) || 1);
+    const parsedLimit = Number.parseInt(query.limit || "20", 10) || 20;
+    const limit = Math.min(100, Math.max(1, parsedLimit));
     const skip = (page - 1) * limit;
+
+    const searchTerm = query.searchTerm?.trim();
+    const jobTypeFilter = query.jobType?.trim();
+    const locationTypeFilter = query.locationType?.trim();
+    const categoryIdFilter = query.categoryId?.trim();
+
+    const andConditions: Prisma.JobWhereInput[] = [];
+
+    if (searchTerm) {
+        andConditions.push({
+            OR: [
+                { title: { contains: searchTerm, mode: "insensitive" } },
+                { description: { contains: searchTerm, mode: "insensitive" } },
+                { recruiter: { companyName: { contains: searchTerm, mode: "insensitive" } } },
+                { location: { contains: searchTerm, mode: "insensitive" } },
+            ],
+        });
+    }
+
+    const validJobTypes = new Set<string>(Object.values(JobType));
+    if (jobTypeFilter && jobTypeFilter !== "ALL" && validJobTypes.has(jobTypeFilter)) {
+        andConditions.push({ jobType: jobTypeFilter as JobType });
+    }
+
+    if (locationTypeFilter && locationTypeFilter !== "ALL") {
+        andConditions.push({
+            location: { contains: locationTypeFilter, mode: "insensitive" },
+        });
+    }
+
+    if (categoryIdFilter && categoryIdFilter !== "ALL") {
+        andConditions.push({ categoryId: categoryIdFilter });
+    }
+
+    const where: Prisma.JobWhereInput = {
+        status: "DRAFT",
+        isDeleted: false,
+        ...(andConditions.length > 0 ? { AND: andConditions } : {}),
+    };
 
     const [jobs, total] = await Promise.all([
         prisma.job.findMany({
-            where: { status: "DRAFT", isDeleted: false },
+            where,
             include: {
                 recruiter: {
                     select: {
                         id: true,
                         name: true,
+                        email: true,
                         companyName: true,
                         userId: true
                     }
@@ -472,12 +513,12 @@ const getPendingJobs = async (query: IQueryParams) => {
             skip,
             take: limit,
         }),
-        prisma.job.count({ where: { status: "DRAFT", isDeleted: false } })
+        prisma.job.count({ where })
     ]);
 
     return {
         data: jobs,
-        meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
+        meta: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) },
     };
 }
 

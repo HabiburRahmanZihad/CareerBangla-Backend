@@ -1,7 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import status from "http-status";
+import { Prisma } from "../../../generated/prisma/client";
 import { Role, UserStatus } from "../../../generated/prisma/enums";
 import AppError from "../../errorHelpers/AppError";
+import { IQueryParams } from "../../interfaces/query.interface";
 import { IRequestUser } from "../../interfaces/requestUser.interface";
 import { cacheManager } from "../../lib/cache";
 import { prisma } from "../../lib/prisma";
@@ -326,28 +328,79 @@ const changeUserRole = async (user: IRequestUser, payload: IChangeUserRolePayloa
 }
 
 // Admin-specific: manage all jobs
-const getAllJobs = async () => {
-    logger.read("Fetching all jobs (admin)");
-    const jobs = await prisma.job.findMany({
-        include: {
-            recruiter: {
-                select: { id: true, name: true, companyName: true }
+const getAllJobs = async (query: IQueryParams) => {
+    logger.read("Fetching all jobs (admin)", { filters: query });
+
+    const page = Math.max(1, Number.parseInt(query.page || "1", 10) || 1);
+    const parsedLimit = Number.parseInt(query.limit || "20", 10) || 20;
+    const limit = Math.min(100, Math.max(1, parsedLimit));
+    const skip = (page - 1) * limit;
+
+    const searchTerm = query.searchTerm?.trim();
+    const statusFilter = query.status?.trim();
+    const jobTypeFilter = query.jobType?.trim();
+
+    const andConditions: Prisma.JobWhereInput[] = [];
+
+    if (searchTerm) {
+        andConditions.push({
+            OR: [
+                { title: { contains: searchTerm, mode: "insensitive" } },
+                { description: { contains: searchTerm, mode: "insensitive" } },
+                { recruiter: { companyName: { contains: searchTerm, mode: "insensitive" } } },
+                { location: { contains: searchTerm, mode: "insensitive" } },
+            ],
+        });
+    }
+
+    if (statusFilter && statusFilter !== "ALL") {
+        andConditions.push({ status: statusFilter as any });
+    }
+
+    if (jobTypeFilter && jobTypeFilter !== "ALL") {
+        andConditions.push({ jobType: jobTypeFilter as any });
+    }
+
+    const where: Prisma.JobWhereInput = {
+        isDeleted: false,
+        ...(andConditions.length > 0 ? { AND: andConditions } : {}),
+    };
+
+    const [jobs, total] = await Promise.all([
+        prisma.job.findMany({
+            where,
+            include: {
+                recruiter: {
+                    select: { id: true, name: true, email: true, companyName: true },
+                },
+                category: true,
+                _count: {
+                    select: { applications: true },
+                },
             },
-            category: true,
-            _count: {
-                select: { applications: true }
-            }
+            orderBy: { createdAt: "desc" },
+            skip,
+            take: limit,
+        }),
+        prisma.job.count({ where }),
+    ]);
+
+    return {
+        data: jobs,
+        meta: {
+            page,
+            limit,
+            total,
+            totalPages: Math.max(1, Math.ceil(total / limit)),
         },
-        orderBy: { createdAt: "desc" },
-    })
-    return jobs;
+    };
 }
 
 // Get all users with complete details - with access control
 const getAllUsersWithDetails = async (user: IRequestUser) => {
     logger.read("Fetching all users with details (admin)");
 
-    const adminExists = await prisma.admin.findUniqueOrThrow({
+    await prisma.admin.findUniqueOrThrow({
         where: { email: user.email },
         include: { user: true }
     });
