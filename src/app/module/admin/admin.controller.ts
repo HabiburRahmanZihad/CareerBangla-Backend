@@ -214,6 +214,21 @@ const deleteUser = catchAsync(
     }
 );
 
+const updateJob = catchAsync(
+    async (req: Request, res: Response) => {
+        const { jobId } = req.params;
+        const payload = req.body;
+
+        const result = await AdminService.updateJob(jobId as string, payload);
+        sendResponse(res, {
+            httpStatusCode: status.OK,
+            success: true,
+            message: "Job updated successfully",
+            data: result,
+        })
+    }
+);
+
 export const AdminController = {
     getAllAdmins,
     getAllUsers,
@@ -228,4 +243,5 @@ export const AdminController = {
     updateUser,
     updateRecruiterData,
     deleteUser,
+    updateJob,
 };

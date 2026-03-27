@@ -22,6 +22,9 @@ router.get("/recruiters-with-details",
 router.get("/jobs",
     checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
     AdminController.getAllJobs);
+router.patch("/jobs/:jobId",
+    checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
+    AdminController.updateJob);
 router.patch("/change-user-status",
     checkAuth(Role.SUPER_ADMIN, Role.ADMIN),
     AdminController.changeUserStatus);

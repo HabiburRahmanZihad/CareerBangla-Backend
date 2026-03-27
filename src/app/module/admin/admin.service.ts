@@ -602,6 +602,68 @@ const deleteUser = async (user: IRequestUser, userId: string) => {
     return result;
 }
 
+// Admin-specific: update job details
+const updateJob = async (jobId: string, payload: Record<string, any>) => {
+    logger.update(`Job update requested by admin → jobId: ${jobId}`);
+
+    const job = await prisma.job.findUnique({
+        where: { id: jobId },
+        include: { recruiter: { select: { user: { select: { email: true } } } } }
+    });
+
+    if (!job) {
+        throw new AppError(status.NOT_FOUND, "Job not found");
+    }
+
+    // Prevent updates to inactive or closed jobs
+    if (job.status === "INACTIVE" || job.status === "CLOSED") {
+        throw new AppError(status.FORBIDDEN, `Cannot update a ${job.status.toLowerCase()} job. You can only delete it.`);
+    }
+
+    const updateData: any = {};
+
+    // Whitelist of fields that can be updated
+    const allowedFields = [
+        "title",
+        "description",
+        "requirements",
+        "responsibilities",
+        "benefits",
+        "location",
+        "locationType",
+        "jobType",
+        "experienceLevel",
+        "salaryMin",
+        "salaryMax",
+        "experience",
+        "education",
+        "skills",
+        "vacancies",
+        "applicationDeadline",
+        "categoryId",
+    ];
+
+    allowedFields.forEach((field) => {
+        if (payload[field] !== undefined) {
+            updateData[field] = payload[field];
+        }
+    });
+
+    // Handle date fields
+    if (payload.applicationDeadline) {
+        updateData.applicationDeadline = new Date(payload.applicationDeadline);
+    }
+
+    const updatedJob = await prisma.job.update({
+        where: { id: jobId },
+        data: updateData,
+        include: { recruiter: true, category: true },
+    });
+
+    logger.update(`Job updated by admin → jobId: ${jobId}`);
+    return updatedJob;
+}
+
 export const AdminService = {
     getAllAdmins,
     getAllUsers,
@@ -616,4 +678,5 @@ export const AdminService = {
     updateUser,
     updateRecruiterData,
     deleteUser,
+    updateJob,
 }
