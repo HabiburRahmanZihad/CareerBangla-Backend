@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import status from "http-status";
+import AppError from "../../errorHelpers/AppError";
 import { IQueryParams } from "../../interfaces/query.interface";
 import { catchAsync } from "../../shared/catchAsync";
 import { sendResponse } from "../../shared/sendResponse";
@@ -96,8 +97,14 @@ const deleteJob = catchAsync(
 
 const createCategory = catchAsync(
     async (req: Request, res: Response) => {
-        const { title, icon } = req.body;
-        const result = await JobService.createCategory(title, icon);
+        const { title, name, icon } = req.body as { title?: string; name?: string; icon?: string };
+        const normalizedTitle = (title ?? name ?? "").trim();
+
+        if (!normalizedTitle) {
+            throw new AppError(status.BAD_REQUEST, "Category title is required");
+        }
+
+        const result = await JobService.createCategory(normalizedTitle, icon);
 
         sendResponse(res, {
             httpStatusCode: status.CREATED,
