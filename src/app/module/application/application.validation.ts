@@ -16,4 +16,6 @@ export const updateApplicationStatusZodSchema = z.object({
     ], "Invalid application status"),
     interviewDate: z.string("Interview date must be a string").optional(),
     interviewNote: z.string("Interview note must be a string").optional(),
+    hiredCompany: z.string("Hired company must be a string").optional(),
+    hiredDesignation: z.string("Hired designation must be a string").optional(),
 })

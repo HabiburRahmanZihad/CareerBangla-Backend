@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import status from "http-status";
 import { IQueryParams } from "../../interfaces/query.interface";
+import { IRequestUser } from "../../interfaces/requestUser.interface";
 import { catchAsync } from "../../shared/catchAsync";
 import { sendResponse } from "../../shared/sendResponse";
 import { ApplicationService } from "./application.service";
@@ -114,6 +115,21 @@ const getUserDirectory = catchAsync(
     }
 )
 
+const getHiredCandidates = catchAsync(
+    async (req: Request, res: Response) => {
+        const user = req.user as IRequestUser | undefined;
+        const result = await ApplicationService.getHiredCandidates(user, req.query as IQueryParams & { recruiterId?: string; jobId?: string });
+
+        sendResponse(res, {
+            httpStatusCode: status.OK,
+            success: true,
+            message: "Hired candidates fetched successfully",
+            data: result.data,
+            meta: result.meta,
+        })
+    }
+)
+
 export const ApplicationController = {
     applyJob,
     getMyApplications,
@@ -122,4 +138,5 @@ export const ApplicationController = {
     getAllApplications,
     getApplicantsForJob,
     getUserDirectory,
+    getHiredCandidates,
 }

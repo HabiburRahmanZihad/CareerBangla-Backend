@@ -264,7 +264,7 @@ const getJobApplications = async (user: IRequestUser, jobId: string) => {
 const updateApplicationStatus = async (
     user: IRequestUser,
     applicationId: string,
-    payload: { status: ApplicationStatus; interviewDate?: string; interviewNote?: string }
+    payload: { status: ApplicationStatus; interviewDate?: string; interviewNote?: string; hiredCompany?: string; hiredDesignation?: string }
 ) => {
     logger.update(`Application status update → id: ${applicationId}, newStatus: ${payload.status}`);
     const application = await prisma.application.findUnique({
@@ -302,7 +302,7 @@ const updateApplicationStatus = async (
         );
     }
 
-    const updateData: { status: ApplicationStatus; interviewDate?: Date; interviewNote?: string } = {
+    const updateData: { status: ApplicationStatus; interviewDate?: Date; interviewNote?: string; hiredDate?: Date; hiredCompany?: string; hiredDesignation?: string } = {
         status: payload.status,
     };
 
@@ -311,6 +311,15 @@ const updateApplicationStatus = async (
     }
     if (payload.interviewNote) {
         updateData.interviewNote = payload.interviewNote;
+    }
+    if (payload.status === ApplicationStatus.HIRED) {
+        updateData.hiredDate = new Date();
+        if (payload.hiredCompany) {
+            updateData.hiredCompany = payload.hiredCompany;
+        }
+        if (payload.hiredDesignation) {
+            updateData.hiredDesignation = payload.hiredDesignation;
+        }
     }
 
     const updatedApplication = await prisma.$transaction(async (tx) => {
@@ -633,6 +642,88 @@ const getUserDirectory = async (
     };
 }
 
+const getHiredCandidates = async (user: IRequestUser | undefined, query?: IQueryParams & { recruiterId?: string; jobId?: string }) => {
+    const page = query?.page ? parseInt(query.page as string, 10) : 1;
+    const limit = query?.limit ? parseInt(query.limit as string, 10) : 10;
+    const skip = (page - 1) * limit;
+
+    const whereCondition: Prisma.ApplicationWhereInput = {
+        status: ApplicationStatus.HIRED,
+    };
+
+    // If recruiter is viewing, filter by their jobs
+    if (user && user.role === "RECRUITER") {
+        whereCondition.job = {
+            recruiter: {
+                userId: user.userId
+            }
+        };
+    }
+
+    // Filter by specific recruiter if provided
+    if (query?.recruiterId) {
+        whereCondition.job = {
+            recruiter: {
+                id: query.recruiterId as string
+            }
+        };
+    }
+
+    // Filter by specific job if provided
+    if (query?.jobId) {
+        whereCondition.jobId = query.jobId as string;
+    }
+
+    const applications = await prisma.application.findMany({
+        where: whereCondition,
+        include: {
+            user: {
+                select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    image: true,
+                    resume: {
+                        select: {
+                            professionalTitle: true,
+                            profilePhoto: true,
+                            contactNumber: true,
+                        }
+                    }
+                }
+            },
+            job: {
+                select: {
+                    id: true,
+                    title: true,
+                    recruiter: {
+                        select: {
+                            id: true,
+                            userId: true,
+                            companyName: true,
+                        }
+                    }
+                }
+            }
+        },
+        orderBy: { hiredDate: Prisma.SortOrder.desc },
+        skip,
+        take: limit,
+    });
+
+    const total = await prisma.application.count({ where: whereCondition });
+
+    return {
+        data: applications,
+        meta: {
+            page,
+            limit,
+            total,
+            totalPages: Math.ceil(total / limit),
+        }
+    };
+}
+
 export const ApplicationService = {
     applyJob,
     getMyApplications,
@@ -641,4 +732,5 @@ export const ApplicationService = {
     getAllApplications,
     getApplicantsForJob,
     getUserDirectory,
+    getHiredCandidates,
 }

@@ -38,4 +38,8 @@ router.get("/directory/users",
     checkAuth(Role.RECRUITER),
     ApplicationController.getUserDirectory);
 
+// Public hired candidates endpoint - accessible to everyone
+router.get("/hired-candidates",
+    ApplicationController.getHiredCandidates);
+
 export const ApplicationRoutes = router;
