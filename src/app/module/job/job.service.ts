@@ -578,9 +578,9 @@ const updateJobsWithPassedDeadlines = async () => {
     });
 };
 
-// Get all inactive jobs for a recruiter
+// Get all inactive and closed jobs for a recruiter
 const getInactiveJobs = async (user: IRequestUser, query: IQueryParams) => {
-    logger.read(`Fetching inactive jobs → userId: ${user.userId}`, { filters: query });
+    logger.read(`Fetching inactive and closed jobs → userId: ${user.userId}`, { filters: query });
     await updateJobsWithPassedDeadlines();
     const recruiter = await prisma.recruiter.findUnique({
         where: { userId: user.userId }
@@ -602,7 +602,11 @@ const getInactiveJobs = async (user: IRequestUser, query: IQueryParams) => {
     const result = await queryBuilder
         .search()
         .filter()
-        .where({ recruiterId: recruiter.id, isDeleted: false, status: "INACTIVE" })
+        .where({ 
+            recruiterId: recruiter.id, 
+            isDeleted: false, 
+            status: { in: ["INACTIVE", "CLOSED"] }
+        })
         .include({
             category: true,
             _count: {
