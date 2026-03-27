@@ -146,6 +146,7 @@ const getJobById = async (id: string) => {
                 select: {
                     id: true,
                     name: true,
+                    email: true,
                     companyName: true,
                     companyLogo: true,
                     companyWebsite: true,
