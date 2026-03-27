@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subscription Expiry Reminder - CareerBangla</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7fa;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1e3a5f, #2d6a9f);
+            color: white;
+            padding: 28px 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+
+        .header p {
+            margin: 8px 0 0;
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .content {
+            padding: 28px 24px;
+            color: #2b2f33;
+        }
+
+        .highlight {
+            background: #eef6ff;
+            border: 1px solid #cfe3ff;
+            color: #124a9c;
+            border-radius: 8px;
+            padding: 12px;
+            margin: 16px 0;
+            font-weight: 600;
+        }
+
+        .cta {
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .button {
+            display: inline-block;
+            background: #1d4ed8;
+            color: #fff !important;
+            text-decoration: none;
+            padding: 12px 18px;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+
+        .footer {
+            background-color: #f8f9fa;
+            padding: 16px;
+            text-align: center;
+            color: #78838f;
+            font-size: 12px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>CareerBangla</h1>
+            <p>Subscription Expiry Reminder</p>
+        </div>
+
+        <div class="content">
+            <p>Hello <strong>
+                    <%= name %>
+                </strong>,</p>
+            <p>Your <strong>
+                    <%= planName %>
+                </strong> subscription is about to expire.</p>
+
+            <div class="highlight">
+                Time left: <%= timeLeftText %>
+            </div>
+
+            <p>To continue enjoying premium features without interruption, please renew or extend your package now.</p>
+
+            <div class="cta">
+                <a class="button" href="<%= renewUrl %>">Renew / Extend Subscription</a>
+            </div>
+
+            <p style="font-size: 13px; color: #5a6570;">
+                Expiry date: <%= expiryDateText %>
+            </p>
+        </div>
+
+        <div class="footer">
+            <p>&copy; 2026 CareerBangla. All rights reserved.</p>
+            <p>This is an automated reminder email. Please do not reply.</p>
+        </div>
+    </div>
+</body>
+
+</html>

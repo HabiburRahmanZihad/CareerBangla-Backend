@@ -1,0 +1,17 @@
+model SubscriptionReminderLog {
+    id               String   @id @default(uuid(7))
+    subscriptionId   String
+    userId           String
+    reminderInterval String
+    scheduledMinutes Int
+    sentAt           DateTime @default(now())
+
+    subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+    user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@unique([subscriptionId, reminderInterval])
+    @@index([subscriptionId])
+    @@index([userId])
+    @@index([sentAt])
+    @@map("subscription_reminder_log")
+}

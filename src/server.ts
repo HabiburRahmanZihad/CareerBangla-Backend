@@ -2,6 +2,7 @@ import { Server } from "http";
 import app from "./app";
 import { envVars } from "./app/config/env";
 import { logEnvironmentConfig } from "./app/config/environment";
+import { startSubscriptionExpiryReminderJob } from "./app/jobs/subscriptionExpiryReminder.job";
 import { seedNormalAdmin, seedSuperAdmin } from "./app/utils/seed";
 
 let server: Server;
@@ -31,6 +32,7 @@ const bootstrap = async () => {
 
         await seedSuperAdmin();
         await seedNormalAdmin();
+        startSubscriptionExpiryReminderJob();
         server = app.listen(envVars.PORT, () => {
             console.log(`✅ Server is running on http://localhost:${envVars.PORT}`);
             console.log(`🔗 Environment: ${envVars.NODE_ENV.toUpperCase()}`);
