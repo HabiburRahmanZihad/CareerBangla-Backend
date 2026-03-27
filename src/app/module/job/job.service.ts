@@ -278,11 +278,15 @@ const updateJob = async (id: string, user: IRequestUser, payload: IUpdateJobPayl
     return updatedJob;
 }
 
-const deleteJob = async (id: string, user: IRequestUser) => {
-    logger.delete(`Job delete requested → id: ${id}, userId: ${user.userId}`);
+const deleteJob = async (id: string, user: IRequestUser, reason?: string) => {
+    logger.delete(`Job delete requested → id: ${id}, userId: ${user.userId}, reason: ${reason || "No reason provided"}`);
     const job = await prisma.job.findUnique({
         where: { id },
-        include: { recruiter: true }
+        include: {
+            recruiter: {
+                include: { user: true }
+            }
+        }
     })
 
     if (!job) {
@@ -300,6 +304,40 @@ const deleteJob = async (id: string, user: IRequestUser) => {
             deletedAt: new Date(),
         },
     })
+
+    // Send email to recruiter only if deleted by admin with a reason
+    if (user.role === "ADMIN" || user.role === "SUPER_ADMIN") {
+        const recruiterEmail = job.recruiter.user.email;
+        if (recruiterEmail && reason) {
+            try {
+                const { sendEmail } = await import("../../utils/email");
+                const formattedDate = new Date(job.createdAt).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
+
+                await sendEmail({
+                    to: recruiterEmail,
+                    subject: `Job Deleted: ${job.title}`,
+                    templateName: "jobDeleted",
+                    templateData: {
+                        recruiterName: job.recruiter.user.name || "Recruiter",
+                        jobTitle: job.title,
+                        company: job.recruiter.companyName || "N/A",
+                        location: job.location || "N/A",
+                        jobType: job.jobType || "N/A",
+                        jobStatus: job.status || "N/A",
+                        createdAt: formattedDate,
+                        reason: reason || "No specific reason provided"
+                    }
+                });
+                logger.create(`Deletion notification email sent to ${recruiterEmail}`);
+            } catch (error) {
+                logger.error(`Failed to send deletion notification email to ${recruiterEmail}`, error);
+            }
+        }
+    }
 
     logger.delete(`Job deleted → id: ${id}`);
     return { message: "Job deleted successfully" };

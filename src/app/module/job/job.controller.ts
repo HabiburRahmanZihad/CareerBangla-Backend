@@ -83,8 +83,9 @@ const updateJob = catchAsync(
 const deleteJob = catchAsync(
     async (req: Request, res: Response) => {
         const { id } = req.params;
+        const { reason } = req.query;
         const user = req.user;
-        const result = await JobService.deleteJob(id as string, user);
+        const result = await JobService.deleteJob(id as string, user, reason as string | undefined);
 
         sendResponse(res, {
             httpStatusCode: status.OK,
