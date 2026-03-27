@@ -24,9 +24,10 @@ enum RecruiterStatus {
 }
 
 enum JobStatus {
-  ACTIVE
+  PENDING
+  LIVE
+  INACTIVE
   CLOSED
-  DRAFT
 }
 
 enum JobType {

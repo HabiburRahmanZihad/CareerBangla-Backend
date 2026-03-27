@@ -65,13 +65,13 @@ const createJob = async (user: IRequestUser, payload: ICreateJobPayload) => {
     }
 
     const result = await prisma.$transaction(async (tx) => {
-        // Create job post as DRAFT (awaiting admin approval)
+        // Create job post as PENDING (awaiting admin approval)
         const job = await tx.job.create({
             data: {
                 ...payload,
                 deadline: new Date(payload.deadline),
                 recruiterId: recruiter.id,
-                status: "DRAFT", // Save as draft awaiting approval
+                status: "PENDING",
             },
             include: {
                 recruiter: true,
@@ -89,7 +89,7 @@ const createJob = async (user: IRequestUser, payload: ICreateJobPayload) => {
             }
         });
 
-        logger.create(`Job created (DRAFT) → id: ${job.id}, title: ${payload.title}`);
+        logger.create(`Job created (PENDING) → id: ${job.id}, title: ${payload.title}`);
         return job;
     })
 
@@ -98,6 +98,9 @@ const createJob = async (user: IRequestUser, payload: ICreateJobPayload) => {
 
 const getAllJobs = async (query: IQueryParams) => {
     logger.read("Fetching all jobs", { filters: query });
+    // Auto-update jobs with passed deadlines to INACTIVE
+    await updateJobsWithPassedDeadlines();
+
     const queryBuilder = new QueryBuilder<Job>(
         prisma.job,
         query,
@@ -110,7 +113,7 @@ const getAllJobs = async (query: IQueryParams) => {
     const result = await queryBuilder
         .search()
         .filter()
-        .where({ isDeleted: false, status: "ACTIVE" })
+        .where({ isDeleted: false, status: "LIVE" })
         .include({
             recruiter: {
                 select: {
@@ -168,6 +171,7 @@ const getJobById = async (id: string) => {
 
 const getMyJobs = async (user: IRequestUser, query: IQueryParams) => {
     logger.read(`Fetching recruiter jobs → userId: ${user.userId}`, { filters: query });
+    await updateJobsWithPassedDeadlines();
     const recruiter = await prisma.recruiter.findUnique({
         where: { userId: user.userId }
     })
@@ -254,9 +258,9 @@ const updateJob = async (id: string, user: IRequestUser, payload: IUpdateJobPayl
 
     const hasContentUpdate = contentUpdateFields.some((field) => payload[field] !== undefined);
 
-    // Recruiter edits to live/rejected jobs must go back to pending for admin review.
-    if (isRecruiterOwnerUpdater && (job.status === "ACTIVE" || job.status === "CLOSED") && hasContentUpdate) {
-        updateData.status = "DRAFT";
+    // Recruiter edits to live jobs must go back to pending for admin review.
+    if (isRecruiterOwnerUpdater && job.status === "LIVE" && hasContentUpdate) {
+        updateData.status = "PENDING";
     }
 
     const updatedJob = await prisma.job.update({
@@ -265,7 +269,7 @@ const updateJob = async (id: string, user: IRequestUser, payload: IUpdateJobPayl
         include: { recruiter: true, category: true },
     })
 
-    logger.update(`Job updated → id: ${id}, resetToDraft: ${Boolean(isRecruiterOwnerUpdater && (job.status === "ACTIVE" || job.status === "CLOSED") && hasContentUpdate)}`);
+    logger.update(`Job updated → id: ${id}, movedToPending: ${Boolean(isRecruiterOwnerUpdater && job.status === "LIVE" && hasContentUpdate)}`);
     return updatedJob;
 }
 
@@ -311,7 +315,7 @@ const getAllCategories = async () => {
     const categories = await prisma.jobCategory.findMany({
         include: {
             _count: {
-                select: { jobs: { where: { isDeleted: false, status: "ACTIVE" } } }
+                select: { jobs: { where: { isDeleted: false, status: "LIVE" } } }
             }
         },
         orderBy: { title: "asc" },
@@ -339,14 +343,14 @@ const approveJob = async (jobId: string, user: IRequestUser) => {
         throw new AppError(status.NOT_FOUND, "Job not found");
     }
 
-    if (job.status !== "DRAFT") {
-        throw new AppError(status.BAD_REQUEST, `Job must be in DRAFT status to approve. Current status: ${job.status}`);
+    if (job.status !== "PENDING") {
+        throw new AppError(status.BAD_REQUEST, `Job must be in PENDING status to approve. Current status: ${job.status}`);
     }
 
     const updatedJob = await prisma.$transaction(async (tx) => {
         const updated = await tx.job.update({
             where: { id: jobId },
-            data: { status: "ACTIVE" },
+            data: { status: "LIVE" },
             include: { recruiter: true, category: true }
         })
 
@@ -400,8 +404,8 @@ const rejectJob = async (jobId: string, reason: string, user: IRequestUser) => {
         throw new AppError(status.NOT_FOUND, "Job not found");
     }
 
-    if (job.status !== "DRAFT") {
-        throw new AppError(status.BAD_REQUEST, `Job must be in DRAFT status to reject. Current status: ${job.status}`);
+    if (job.status !== "PENDING") {
+        throw new AppError(status.BAD_REQUEST, `Job must be in PENDING status to reject. Current status: ${job.status}`);
     }
 
     const updatedJob = await prisma.$transaction(async (tx) => {
@@ -449,6 +453,7 @@ const rejectJob = async (jobId: string, reason: string, user: IRequestUser) => {
 
 const getPendingJobs = async (query: IQueryParams) => {
     logger.read("Fetching pending jobs (admin)", { filters: query });
+    await updateJobsWithPassedDeadlines();
     const page = Math.max(1, Number.parseInt(query.page || "1", 10) || 1);
     const parsedLimit = Number.parseInt(query.limit || "20", 10) || 20;
     const limit = Math.min(100, Math.max(1, parsedLimit));
@@ -488,7 +493,7 @@ const getPendingJobs = async (query: IQueryParams) => {
     }
 
     const where: Prisma.JobWhereInput = {
-        status: "DRAFT",
+        status: "PENDING",
         isDeleted: false,
         ...(andConditions.length > 0 ? { AND: andConditions } : {}),
     };
@@ -524,11 +529,12 @@ const getPendingJobs = async (query: IQueryParams) => {
 
 const getPendingJobById = async (jobId: string) => {
     logger.read(`Fetching pending job by id (admin) → jobId: ${jobId}`);
+    await updateJobsWithPassedDeadlines();
 
     const job = await prisma.job.findFirst({
         where: {
             id: jobId,
-            status: "DRAFT",
+            status: "PENDING",
             isDeleted: false,
         },
         include: {
@@ -553,6 +559,98 @@ const getPendingJobById = async (jobId: string) => {
     return job;
 }
 
+// Helper function to update jobs with passed deadlines to INACTIVE
+const updateJobsWithPassedDeadlines = async () => {
+    logger.update("Checking and updating jobs with passed deadlines");
+    const now = new Date();
+
+    await prisma.job.updateMany({
+        where: {
+            status: "LIVE",
+            deadline: {
+                lt: now,
+            },
+            isDeleted: false,
+        },
+        data: {
+            status: "INACTIVE",
+        },
+    });
+};
+
+// Get all inactive jobs for a recruiter
+const getInactiveJobs = async (user: IRequestUser, query: IQueryParams) => {
+    logger.read(`Fetching inactive jobs → userId: ${user.userId}`, { filters: query });
+    await updateJobsWithPassedDeadlines();
+    const recruiter = await prisma.recruiter.findUnique({
+        where: { userId: user.userId }
+    })
+
+    if (!recruiter) {
+        throw new AppError(status.NOT_FOUND, "Recruiter profile not found");
+    }
+
+    const queryBuilder = new QueryBuilder<Job>(
+        prisma.job,
+        query,
+        {
+            searchableFields: ['title', 'location'],
+            filterableFields: ['jobType'],
+        }
+    )
+
+    const result = await queryBuilder
+        .search()
+        .filter()
+        .where({ recruiterId: recruiter.id, isDeleted: false, status: "INACTIVE" })
+        .include({
+            category: true,
+            _count: {
+                select: { applications: true }
+            }
+        })
+        .paginate()
+        .sort()
+        .fields()
+        .execute();
+
+    return result;
+}
+
+// Delete an inactive job
+const deleteInactiveJob = async (jobId: string, user: IRequestUser) => {
+    logger.delete(`Inactive job deletion requested → id: ${jobId}, userId: ${user.userId}`);
+    const job = await prisma.job.findUnique({
+        where: { id: jobId },
+        include: { recruiter: true }
+    })
+
+    if (!job) {
+        throw new AppError(status.NOT_FOUND, "Job not found");
+    }
+
+    // Only the job owner can delete inactive jobs
+    if (job.recruiter.userId !== user.userId) {
+        throw new AppError(status.FORBIDDEN, "You are not authorized to delete this job");
+    }
+
+    // Only INACTIVE jobs can be deleted by recruiter
+    if (job.status !== "INACTIVE") {
+        throw new AppError(status.BAD_REQUEST, `Only inactive jobs can be deleted. Current status: ${job.status}`);
+    }
+
+    await prisma.job.update({
+        where: { id: jobId },
+        data: {
+            isDeleted: true,
+            deletedAt: new Date(),
+        },
+    })
+
+    logger.delete(`Inactive job deleted → id: ${jobId}`);
+    return { message: "Inactive job deleted successfully" };
+};
+
 export const JobService = {
     createJob,
     getAllJobs,
@@ -567,4 +665,7 @@ export const JobService = {
     rejectJob,
     getPendingJobs,
     getPendingJobById,
+    updateJobsWithPassedDeadlines,
+    getInactiveJobs,
+    deleteInactiveJob,
 }

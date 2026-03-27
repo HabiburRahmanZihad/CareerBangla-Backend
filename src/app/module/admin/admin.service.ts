@@ -331,6 +331,15 @@ const changeUserRole = async (user: IRequestUser, payload: IChangeUserRolePayloa
 const getAllJobs = async (query: IQueryParams) => {
     logger.read("Fetching all jobs (admin)", { filters: query });
 
+    await prisma.job.updateMany({
+        where: {
+            status: "LIVE",
+            deadline: { lt: new Date() },
+            isDeleted: false,
+        },
+        data: { status: "INACTIVE" },
+    });
+
     const page = Math.max(1, Number.parseInt(query.page || "1", 10) || 1);
     const parsedLimit = Number.parseInt(query.limit || "20", 10) || 20;
     const limit = Math.min(100, Math.max(1, parsedLimit));

@@ -201,6 +201,36 @@ const getPendingJobById = catchAsync(
     }
 )
 
+const getInactiveJobs = catchAsync(
+    async (req: Request, res: Response) => {
+        const user = req.user;
+        const result = await JobService.getInactiveJobs(user, req.query as IQueryParams);
+
+        sendResponse(res, {
+            httpStatusCode: status.OK,
+            success: true,
+            message: "Inactive jobs fetched successfully",
+            data: result.data,
+            meta: result.meta,
+        })
+    }
+)
+
+const deleteInactiveJob = catchAsync(
+    async (req: Request, res: Response) => {
+        const { id } = req.params;
+        const user = req.user;
+        const result = await JobService.deleteInactiveJob(id as string, user);
+
+        sendResponse(res, {
+            httpStatusCode: status.OK,
+            success: true,
+            message: "Inactive job deleted successfully",
+            data: result,
+        })
+    }
+)
+
 export const JobController = {
     createJob,
     getAllJobs,
@@ -215,4 +245,6 @@ export const JobController = {
     rejectJob,
     getPendingJobs,
     getPendingJobById,
+    getInactiveJobs,
+    deleteInactiveJob,
 }

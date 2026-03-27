@@ -32,6 +32,14 @@ router.get("/my-jobs",
     checkAuth(Role.RECRUITER),
     JobController.getMyJobs);
 
+router.get("/my-jobs/inactive",
+    checkAuth(Role.RECRUITER),
+    JobController.getInactiveJobs);
+
+router.delete("/inactive/:id",
+    checkAuth(Role.RECRUITER),
+    JobController.deleteInactiveJob);
+
 router.get("/:id",
     JobController.getJobById);
 

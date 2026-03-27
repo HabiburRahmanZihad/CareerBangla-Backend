@@ -35,7 +35,7 @@ const applyJob = async (user: IRequestUser, payload: { jobId: string; coverLette
     }
 
     const job = await prisma.job.findUnique({
-        where: { id: jobId, isDeleted: false, status: "ACTIVE" },
+        where: { id: jobId, isDeleted: false, status: "LIVE" },
         include: { recruiter: true }
     })
 

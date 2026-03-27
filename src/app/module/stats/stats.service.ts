@@ -44,7 +44,7 @@ const getCommonStatsData = async () => {
         prisma.application.count(),
         prisma.recruiter.count({ where: { isDeleted: false } }),
         prisma.user.count(),
-        prisma.job.count({ where: { status: "ACTIVE", isDeleted: false } }),
+        prisma.job.count({ where: { status: "LIVE", isDeleted: false } }),
         prisma.subscription.aggregate({
             _sum: { amount: true },
             where: { status: PaymentStatus.PAID }
@@ -110,7 +110,7 @@ const getRecruiterStatsData = async (user: IRequestUser) => {
             where: { job: { recruiterId: recruiterData.id } }
         }),
         prisma.job.count({
-            where: { recruiterId: recruiterData.id, status: "ACTIVE", isDeleted: false }
+            where: { recruiterId: recruiterData.id, status: "LIVE", isDeleted: false }
         }),
         prisma.application.groupBy({
             by: ["userId"],

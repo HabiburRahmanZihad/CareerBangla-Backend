@@ -1,5 +1,5 @@
 import z from "zod";
-import { JobType, JobStatus } from "../../../generated/prisma/enums";
+import { JobStatus, JobType } from "../../../generated/prisma/enums";
 
 export const createJobZodSchema = z.object({
     title: z.string("Title is required").min(5, "Title must be at least 5 characters").max(200, "Title must be at most 200 characters"),
@@ -35,5 +35,5 @@ export const updateJobZodSchema = z.object({
     deadline: z.string("Deadline must be a string").optional(),
     vacancies: z.number("Vacancies must be a number").int().positive("Vacancies must be positive").optional(),
     categoryId: z.uuid("Category ID must be a valid UUID").optional(),
-    status: z.enum([JobStatus.ACTIVE, JobStatus.CLOSED, JobStatus.DRAFT]).optional(),
+    status: z.enum([JobStatus.PENDING, JobStatus.LIVE, JobStatus.INACTIVE, JobStatus.CLOSED]).optional(),
 })
