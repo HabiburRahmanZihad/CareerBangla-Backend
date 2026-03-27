@@ -365,17 +365,39 @@ const updateApplicationStatus = async (
         REJECTED: "Unfortunately, your application was not selected at this time.",
     };
 
+    const templateData: any = {
+        name: application.user.name,
+        jobTitle: application.job.title,
+        companyName: application.job.recruiter.companyName,
+        status: payload.status.toLowerCase(),
+        message: statusMessages[payload.status] || "Your application status has been updated.",
+    };
+
+    // Add interview details if scheduling interview
+    if (payload.status === ApplicationStatus.INTERVIEW) {
+        templateData.interviewDate = payload.interviewDate ? new Date(payload.interviewDate).toLocaleDateString("en-US", {
+            weekday: "long",
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+        }) : "Date to be confirmed";
+        templateData.interviewNote = payload.interviewNote || "";
+    }
+
+    // Add hired details if marking as hired
+    if (payload.status === ApplicationStatus.HIRED) {
+        templateData.hiredCompany = payload.hiredCompany || "";
+        templateData.hiredDesignation = payload.hiredDesignation || "";
+        templateData.hiredDate = new Date().toLocaleDateString();
+    }
+
     sendEmail({
         to: application.user.email,
         subject: `Application Update - ${application.job.title}`,
         templateName: "applicationStatus",
-        templateData: {
-            name: application.user.name,
-            jobTitle: application.job.title,
-            companyName: application.job.recruiter.companyName,
-            status: payload.status.toLowerCase(),
-            message: statusMessages[payload.status] || "Your application status has been updated.",
-        }
+        templateData,
     }).catch(() => { /* email delivery is best-effort */ });
 
     return updatedApplication;

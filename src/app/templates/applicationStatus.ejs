@@ -103,6 +103,23 @@
             margin: 15px 0;
         }
 
+        .details-box {
+            background-color: #e8f5e9;
+            border-left: 4px solid #4caf50;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+
+        .details-box p {
+            margin: 8px 0;
+            color: #2e7d32;
+        }
+
+        .details-box strong {
+            color: #1b5e20;
+        }
+
         .footer {
             background-color: #f8f9fa;
             padding: 20px;
@@ -139,6 +156,39 @@
             <p class="message">
                 <%= message %>
             </p>
+
+            <% if (status==='interview' && interviewDate) { %>
+                <div class="details-box">
+                    <p><strong>📅 Interview Details:</strong></p>
+                    <p><strong>Date & Time:</strong>
+                        <%= interviewDate %>
+                    </p>
+                    <% if (interviewNote) { %>
+                        <p><strong>📝 Additional Information:</strong><br>
+                            <%= interviewNote %>
+                        </p>
+                        <% } %>
+                </div>
+                <% } %>
+
+                    <% if (status==='hired' && hiredCompany) { %>
+                        <div class="details-box" style="background-color: #c8e6c9; border-left-color: #2e7d32;">
+                            <p style="color: #1b5e20;"><strong>🎉 Congratulations on your new role!</strong></p>
+                            <p><strong>Company:</strong>
+                                <%= hiredCompany %>
+                            </p>
+                            <% if (hiredDesignation) { %>
+                                <p><strong>Position:</strong>
+                                    <%= hiredDesignation %>
+                                </p>
+                                <% } %>
+                                    <% if (hiredDate) { %>
+                                        <p><strong>Hire Date:</strong>
+                                            <%= hiredDate %>
+                                        </p>
+                                        <% } %>
+                        </div>
+                        <% } %>
         </div>
         <div class="footer">
             <p>&copy; 2026 CareerBangla. All rights reserved.</p>
