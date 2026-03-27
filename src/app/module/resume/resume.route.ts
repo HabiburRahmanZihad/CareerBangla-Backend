@@ -43,4 +43,8 @@ router.get("/user/:userId",
     checkAuth(Role.RECRUITER, Role.ADMIN, Role.SUPER_ADMIN),
     ResumeController.getResumeByUserId);
 
+router.get("/recruiter/download-cv",
+    checkAuth(Role.RECRUITER, Role.ADMIN, Role.SUPER_ADMIN),
+    ResumeController.downloadCvForRecruiter);
+
 export const ResumeRoutes = router;

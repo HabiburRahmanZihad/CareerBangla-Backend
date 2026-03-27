@@ -64,12 +64,13 @@ const createJob = async (user: IRequestUser, payload: ICreateJobPayload) => {
     }
 
     const result = await prisma.$transaction(async (tx) => {
-        // Create job post notification
+        // Create job post as DRAFT (awaiting admin approval)
         const job = await tx.job.create({
             data: {
                 ...payload,
                 deadline: new Date(payload.deadline),
                 recruiterId: recruiter.id,
+                status: "DRAFT", // Save as draft awaiting approval
             },
             include: {
                 recruiter: true,
@@ -82,12 +83,12 @@ const createJob = async (user: IRequestUser, payload: ICreateJobPayload) => {
             data: {
                 userId: user.userId,
                 type: "JOB_POSTED",
-                title: "Job Posted Successfully",
-                message: `Your job "${payload.title}" has been posted successfully.`,
+                title: "Job Posted for Review",
+                message: `Your job "${payload.title}" has been submitted for admin review. You will be notified once it's approved.`,
             }
         });
 
-        logger.create(`Job created → id: ${job.id}, title: ${payload.title}`);
+        logger.create(`Job created (DRAFT) → id: ${job.id}, title: ${payload.title}`);
         return job;
     })
 
@@ -298,6 +299,120 @@ const deleteCategory = async (id: string) => {
     return { message: "Category deleted successfully" };
 }
 
+const approveJob = async (jobId: string, user: IRequestUser) => {
+    logger.update(`Job approval requested → id: ${jobId}, adminId: ${user.userId}`);
+    const job = await prisma.job.findUnique({
+        where: { id: jobId },
+        include: { recruiter: true }
+    })
+
+    if (!job) {
+        throw new AppError(status.NOT_FOUND, "Job not found");
+    }
+
+    if (job.status !== "DRAFT") {
+        throw new AppError(status.BAD_REQUEST, `Job must be in DRAFT status to approve. Current status: ${job.status}`);
+    }
+
+    const updatedJob = await prisma.$transaction(async (tx) => {
+        const updated = await tx.job.update({
+            where: { id: jobId },
+            data: { status: "ACTIVE" },
+            include: { recruiter: true, category: true }
+        })
+
+        // Notify recruiter
+        await tx.notification.create({
+            data: {
+                userId: job.recruiter.userId,
+                type: "JOB_POSTED",
+                title: "Job Approved",
+                message: `Your job "${job.title}" has been approved and is now live!`,
+                metadata: { jobId: job.id },
+            }
+        });
+
+        logger.update(`Job approved → id: ${jobId}`);
+        return updated;
+    })
+
+    return updatedJob;
+}
+
+const rejectJob = async (jobId: string, reason: string, user: IRequestUser) => {
+    logger.update(`Job rejection requested → id: ${jobId}, adminId: ${user.userId}, reason: ${reason}`);
+    const job = await prisma.job.findUnique({
+        where: { id: jobId },
+        include: { recruiter: true }
+    })
+
+    if (!job) {
+        throw new AppError(status.NOT_FOUND, "Job not found");
+    }
+
+    if (job.status !== "DRAFT") {
+        throw new AppError(status.BAD_REQUEST, `Job must be in DRAFT status to reject. Current status: ${job.status}`);
+    }
+
+    const updatedJob = await prisma.$transaction(async (tx) => {
+        const updated = await tx.job.update({
+            where: { id: jobId },
+            data: { status: "CLOSED" },
+            include: { recruiter: true, category: true }
+        })
+
+        // Notify recruiter
+        await tx.notification.create({
+            data: {
+                userId: job.recruiter.userId,
+                type: "GENERAL",
+                title: "Job Rejected",
+                message: `Your job "${job.title}" was rejected. Reason: ${reason}`,
+                metadata: { jobId: job.id },
+            }
+        });
+
+        logger.update(`Job rejected → id: ${jobId}`);
+        return updated;
+    })
+
+    return updatedJob;
+}
+
+const getPendingJobs = async (query: IQueryParams) => {
+    logger.read("Fetching pending jobs (admin)", { filters: query });
+    const page = parseInt(query?.page || "1");
+    const limit = parseInt(query?.limit || "20");
+    const skip = (page - 1) * limit;
+
+    const [jobs, total] = await Promise.all([
+        prisma.job.findMany({
+            where: { status: "DRAFT", isDeleted: false },
+            include: {
+                recruiter: {
+                    select: {
+                        id: true,
+                        name: true,
+                        companyName: true,
+                        userId: true
+                    }
+                },
+                category: true,
+                _count: { select: { applications: true } }
+            },
+            orderBy: { createdAt: "desc" },
+            skip,
+            take: limit,
+        }),
+        prisma.job.count({ where: { status: "DRAFT", isDeleted: false } })
+    ]);
+
+    return {
+        data: jobs,
+        meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    };
+}
+
 export const JobService = {
     createJob,
     getAllJobs,
@@ -308,4 +423,7 @@ export const JobService = {
     createCategory,
     getAllCategories,
     deleteCategory,
+    approveJob,
+    rejectJob,
+    getPendingJobs,
 }

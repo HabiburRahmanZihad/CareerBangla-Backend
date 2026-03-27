@@ -9,6 +9,7 @@ import { logger } from "../../utils/logger";
 import { hasActivePremium } from "../../utils/premium";
 import { getUserProfileCompletion } from "../../utils/profileCompletion";
 import { ResumeService } from "../resume/resume.service";
+import { Prisma } from "../../../generated/prisma/client";
 
 const applyJob = async (user: IRequestUser, payload: { jobId: string; coverLetter?: string }) => {
     const { jobId, coverLetter } = payload;
@@ -399,10 +400,232 @@ const getAllApplications = async (query?: IQueryParams) => {
     };
 }
 
+// Get applicants for a specific job with detailed filtering
+const getApplicantsForJob = async (
+    user: IRequestUser,
+    jobId: string,
+    query?: {
+        search?: string;
+        skills?: string;
+        education?: string;
+        status?: string;
+        page?: string;
+        limit?: string;
+    }
+) => {
+    logger.read(`Fetching applicants for job → jobId: ${jobId}, userId: ${user.userId}`);
+
+    const job = await prisma.job.findUnique({
+        where: { id: jobId },
+        include: { recruiter: true }
+    })
+
+    if (!job) {
+        throw new AppError(status.NOT_FOUND, "Job not found");
+    }
+
+    // Only recruiter who posted the job or admin can view
+    if (job.recruiter.userId !== user.userId && user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") {
+        throw new AppError(status.FORBIDDEN, "You are not authorized to view these applications");
+    }
+
+    // Check recruiter premium status
+    const recruiterUser = await prisma.user.findUnique({
+        where: { id: user.userId },
+        select: { isPremium: true, premiumUntil: true },
+    });
+    const isPremiumRecruiter = recruiterUser ? hasActivePremium(recruiterUser) : false;
+
+    const page = parseInt(query?.page || "1");
+    const limit = parseInt(query?.limit || "20");
+    const skip = (page - 1) * limit;
+
+    // Build where clause for filtering
+    const whereClause: Record<string, unknown> = { jobId };
+
+    if (query?.search) {
+        whereClause.user = {
+            OR: [
+                { name: { contains: query.search, mode: "insensitive" } },
+                { email: { contains: query.search, mode: "insensitive" } }
+            ]
+        };
+    }
+
+    if (query?.status) {
+        whereClause.status = query.status;
+    }
+
+    // Get applications
+    let applications = await prisma.application.findMany({
+        where: whereClause,
+        include: {
+            user: {
+                select: {
+                    id: true,
+                    name: true,
+                    email: isPremiumRecruiter,
+                    image: true,
+                    resume: {
+                        select: {
+                            id: true,
+                            skills: true,
+                            education: true,
+                            contactNumber: isPremiumRecruiter,
+                            professionalTitle: true,
+                        }
+                    }
+                }
+            },
+            job: true,
+        },
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+    })
+
+    // Filter by skills and education if provided
+    if (query?.skills || query?.education) {
+        applications = applications.filter(app => {
+            const resume = app.user.resume;
+            if (!resume) return false;
+
+            if (query.skills) {
+                const skills = resume.skills || [];
+                const searchSkills = query.skills.split(",").map(s => s.toLowerCase().trim());
+                const hasSkill = searchSkills.some(searchSkill =>
+                    skills.some(skill => skill.toLowerCase().includes(searchSkill))
+                );
+                if (!hasSkill) return false;
+            }
+
+            if (query.education) {
+                const educations = resume.education || [];
+                const educationFilter = query.education.toLowerCase();
+                const hasEducation = educations.some(edu =>
+                    (edu.degree?.toLowerCase().includes(educationFilter) ||
+                    edu.fieldOfStudy?.toLowerCase().includes(educationFilter) ||
+                    edu.institutionName?.toLowerCase().includes(educationFilter))
+                );
+                if (!hasEducation) return false;
+            }
+
+            return true;
+        });
+    }
+
+    const total = applications.length;
+
+    return {
+        data: applications.slice(0, limit),
+        isPremiumRecruiter,
+        meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    };
+}
+
+// Get all users directory for recruiters with filters and search
+const getUserDirectory = async (
+    user: IRequestUser,
+    query?: {
+        search?: string;
+        skills?: string;
+        education?: string;
+        page?: string;
+        limit?: string;
+    }
+) => {
+    logger.read(`Fetching user directory → userId: ${user.userId}`);
+
+    // Only recruiters can view user directory
+    if (user.role !== "RECRUITER") {
+        throw new AppError(status.FORBIDDEN, "Only recruiters can access the user directory");
+    }
+
+    // Check recruiter premium status
+    const recruiterUser = await prisma.user.findUnique({
+        where: { id: user.userId },
+        select: { isPremium: true, premiumUntil: true },
+    });
+    const isPremiumRecruiter = recruiterUser ? hasActivePremium(recruiterUser) : false;
+
+    const page = parseInt(query?.page || "1");
+    const limit = parseInt(query?.limit || "20");
+    const skip = (page - 1) * limit;
+
+    // Build where clause
+    const whereClause: Prisma.UserWhereInput = { role: "USER", isDeleted: false };
+
+    if (query?.search) {
+        whereClause.OR = [
+            { name: { contains: query.search, mode: "insensitive" } },
+            { email: { contains: query.search, mode: "insensitive" } }
+        ];
+    }
+
+    // Get users
+    let users = await prisma.user.findMany({
+        where: whereClause,
+        include: {
+            resume: {
+                select: {
+                    id: true,
+                    skills: true,
+                    education: true,
+                    professionalTitle: true,
+                    profilePhoto: true,
+                    contactNumber: isPremiumRecruiter,
+                }
+            }
+        },
+        orderBy: { createdAt: "desc" },
+    })
+
+    // Filter by skills and education
+    if (query?.skills || query?.education) {
+        users = users.filter(u => {
+            const resume = u.resume;
+            if (!resume) return false;
+
+            if (query.skills) {
+                const skills = resume.skills || [];
+                const searchSkills = query.skills.split(",").map(s => s.toLowerCase().trim());
+                const hasSkill = searchSkills.some(searchSkill =>
+                    skills.some(skill => skill.toLowerCase().includes(searchSkill))
+                );
+                if (!hasSkill) return false;
+            }
+
+            if (query.education) {
+                const educations = resume.education || [];
+                const educationFilter = query.education.toLowerCase();
+                const hasEducation = educations.some(edu =>
+                    (edu.degree?.toLowerCase().includes(educationFilter) ||
+                    edu.fieldOfStudy?.toLowerCase().includes(educationFilter) ||
+                    edu.institutionName?.toLowerCase().includes(educationFilter))
+                );
+                if (!hasEducation) return false;
+            }
+
+            return true;
+        });
+    }
+
+    const total = users.length;
+    const paginatedUsers = users.slice(skip, skip + limit);
+
+    return {
+        data: paginatedUsers,
+        isPremiumRecruiter,
+        meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    };
+}
+
 export const ApplicationService = {
     applyJob,
     getMyApplications,
     getJobApplications,
     updateApplicationStatus,
     getAllApplications,
+    getApplicantsForJob,
+    getUserDirectory,
 }

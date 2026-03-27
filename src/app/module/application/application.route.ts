@@ -29,4 +29,13 @@ router.patch("/status/:id",
     validateRequest(updateApplicationStatusZodSchema),
     ApplicationController.updateApplicationStatus);
 
+// Recruiter features
+router.get("/job/:jobId/applicants",
+    checkAuth(Role.RECRUITER, Role.ADMIN, Role.SUPER_ADMIN),
+    ApplicationController.getApplicantsForJob);
+
+router.get("/directory/users",
+    checkAuth(Role.RECRUITER),
+    ApplicationController.getUserDirectory);
+
 export const ApplicationRoutes = router;

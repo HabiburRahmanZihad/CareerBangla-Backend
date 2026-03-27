@@ -19,16 +19,18 @@ model User {
   referralCode String?   @unique
   referredBy   String?
 
-  sessions          Session[]
-  accounts          Account[]
-  recruiter         Recruiter?
-  admin             Admin?
-  resume            Resume?
-  applications      Application[]
-  notifications     Notification[]
-  subscriptions     Subscription[]
-  referralsMade     ReferralHistory[] @relation("ReferredBy")
-  referralsReceived ReferralHistory[] @relation("ReferredUser")
+  sessions           Session[]
+  accounts           Account[]
+  recruiter          Recruiter?
+  admin              Admin?
+  resume             Resume?
+  applications       Application[]
+  notifications      Notification[]
+  subscriptions      Subscription[]
+  referralsMade      ReferralHistory[] @relation("ReferredBy")
+  referralsReceived  ReferralHistory[] @relation("ReferredUser")
+  recruitedDownloads CvDownload[]      @relation("recruitedDownloads")
+  candidateDownloads CvDownload[]      @relation("candidateDownloads")
 
   @@unique([email])
   @@index([role])

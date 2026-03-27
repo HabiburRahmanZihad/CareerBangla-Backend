@@ -1,9 +1,9 @@
 import { Request, Response } from "express";
 import status from "http-status";
+import { IQueryParams } from "../../interfaces/query.interface";
 import { catchAsync } from "../../shared/catchAsync";
 import { sendResponse } from "../../shared/sendResponse";
 import { JobService } from "./job.service";
-import { IQueryParams } from "../../interfaces/query.interface";
 
 const createJob = catchAsync(
     async (req: Request, res: Response) => {
@@ -135,6 +135,51 @@ const deleteCategory = catchAsync(
     }
 )
 
+const approveJob = catchAsync(
+    async (req: Request, res: Response) => {
+        const { id } = req.params;
+        const user = req.user;
+        const result = await JobService.approveJob(id as string, user);
+
+        sendResponse(res, {
+            httpStatusCode: status.OK,
+            success: true,
+            message: "Job approved successfully",
+            data: result,
+        })
+    }
+)
+
+const rejectJob = catchAsync(
+    async (req: Request, res: Response) => {
+        const { id } = req.params;
+        const { reason } = req.body;
+        const user = req.user;
+        const result = await JobService.rejectJob(id as string, reason, user);
+
+        sendResponse(res, {
+            httpStatusCode: status.OK,
+            success: true,
+            message: "Job rejected successfully",
+            data: result,
+        })
+    }
+)
+
+const getPendingJobs = catchAsync(
+    async (req: Request, res: Response) => {
+        const result = await JobService.getPendingJobs(req.query as IQueryParams);
+
+        sendResponse(res, {
+            httpStatusCode: status.OK,
+            success: true,
+            message: "Pending jobs fetched successfully",
+            data: result.data,
+            meta: result.meta,
+        })
+    }
+)
+
 export const JobController = {
     createJob,
     getAllJobs,
@@ -145,4 +190,7 @@ export const JobController = {
     createCategory,
     getAllCategories,
     deleteCategory,
+    approveJob,
+    rejectJob,
+    getPendingJobs,
 }

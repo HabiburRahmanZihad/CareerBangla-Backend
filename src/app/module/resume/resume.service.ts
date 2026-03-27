@@ -81,28 +81,19 @@ const updateMyResume = async (user: IRequestUser, payload: ResumeUpdatePayload) 
     const buildPayload = () => {
         // Relation arrays are handled separately by handleArrays — exclude them
         // from the scalar payload so Prisma doesn't reject plain arrays on relations.
-        const {
-            experience,
-            workExperience,
-            education,
-            certifications,
-            projects,
-            languages,
-            awards,
-            references,
-            ...rest
-        } = payload;
+        const excludeKeys = new Set(['workExperience', 'education', 'certifications', 'projects', 'languages', 'awards', 'references']);
 
         // Convert empty strings to null for optional fields so Prisma doesn't
         // reject them (e.g. DateTime fields like dateOfBirth expect ISO-8601 or null).
         const sanitised: Record<string, unknown> = {};
-        for (const [key, value] of Object.entries(rest)) {
+        for (const [key, value] of Object.entries(payload)) {
+            if (excludeKeys.has(key)) continue;
             sanitised[key] = typeof value === "string" && value.trim() === "" ? null : value;
         }
 
         return {
             ...sanitised,
-            ...(experience !== undefined ? { experience: experience as Prisma.InputJsonValue[] } : {}),
+            ...(payload.experience !== undefined ? { experience: payload.experience as Prisma.InputJsonValue[] } : {}),
         };
     };
 
@@ -111,7 +102,7 @@ const updateMyResume = async (user: IRequestUser, payload: ResumeUpdatePayload) 
         ...FULL_RESUME_INCLUDE,
     };
 
-    const handleArrays = async (tx: Omit<Prisma.TransactionClient, "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends">, resumeId: string) => {
+    const handleArrays = async (tx: Prisma.TransactionClient, resumeId: string) => {
         if (payload.workExperience !== undefined) {
             await tx.workExperience.deleteMany({ where: { resumeId } });
             if (Array.isArray(payload.workExperience) && payload.workExperience.length > 0) {
@@ -632,6 +623,61 @@ const uploadProfilePhoto = async (user: IRequestUser, fileBuffer: Buffer, fileNa
     return { profilePhoto: resume.profilePhoto };
 };
 
+const downloadCvForRecruiter = async (recruiter: IRequestUser, candidateId: string, applicationId?: string) => {
+    logger.read(`CV download requested by recruiter → recruiterId: ${recruiter.userId}, candidateId: ${candidateId}`);
+
+    // Check recruiter premium status
+    const recruiterUser = await prisma.user.findUnique({
+        where: { id: recruiter.userId },
+        select: { isPremium: true, premiumUntil: true, role: true },
+    });
+
+    const hasPremium = recruiterUser ? hasActivePremium(recruiterUser) : false;
+    if (!hasPremium) {
+        throw new AppError(status.FORBIDDEN, "CV download is a premium feature. Please upgrade your recruitment plan.");
+    }
+
+    // Only recruiters can download
+    if (recruiterUser?.role !== "RECRUITER" && recruiterUser?.role !== "ADMIN" && recruiterUser?.role !== "SUPER_ADMIN") {
+        throw new AppError(status.FORBIDDEN, "Only recruiters can download CVs");
+    }
+
+    // Get candidate resume
+    const resume = await prisma.resume.findUnique({
+        where: { userId: candidateId },
+        include: FULL_RESUME_INCLUDE,
+    });
+
+    if (!resume) {
+        throw new AppError(status.NOT_FOUND, "Candidate resume not found");
+    }
+
+    // Track CV download
+    await prisma.$transaction(async (tx) => {
+        // Create or update download record
+        await tx.cvDownload.upsert({
+            where: {
+                recruiterId_candidateId: {
+                    recruiterId: recruiter.userId,
+                    candidateId,
+                }
+            },
+            create: {
+                recruiterId: recruiter.userId,
+                candidateId,
+                applicationId,
+            },
+            update: {
+                downloadedAt: new Date(),
+            }
+        });
+    });
+
+    logger.read(`CV downloaded → recruiterId: ${recruiter.userId}, candidateId: ${candidateId}`);
+
+    return generateResumePdf(resume as unknown as Parameters<typeof generateResumePdf>[0]);
+};
+
 export const ResumeService = {
     getMyResume,
     updateMyResume,
@@ -642,4 +688,5 @@ export const ResumeService = {
     downloadResumePdf,
     getResumePdfForApplication,
     uploadProfilePhoto,
+    downloadCvForRecruiter,
 }

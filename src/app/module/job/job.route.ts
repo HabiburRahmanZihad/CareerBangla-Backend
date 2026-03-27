@@ -44,4 +44,17 @@ router.delete("/:id",
     checkAuth(Role.RECRUITER, Role.ADMIN, Role.SUPER_ADMIN),
     JobController.deleteJob);
 
+// Admin Job Approval Endpoints
+router.patch("/:id/approve",
+    checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
+    JobController.approveJob);
+
+router.patch("/:id/reject",
+    checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
+    JobController.rejectJob);
+
+router.get("/admin/pending",
+    checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
+    JobController.getPendingJobs);
+
 export const JobRoutes = router;

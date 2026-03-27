@@ -1,9 +1,9 @@
 import { Request, Response } from "express";
 import status from "http-status";
+import { IQueryParams } from "../../interfaces/query.interface";
 import { catchAsync } from "../../shared/catchAsync";
 import { sendResponse } from "../../shared/sendResponse";
 import { ResumeService } from "./resume.service";
-import { IQueryParams } from "../../interfaces/query.interface";
 
 const getMyResume = catchAsync(
     async (req: Request, res: Response) => {
@@ -133,6 +133,21 @@ const uploadProfilePhoto = catchAsync(
     }
 )
 
+const downloadCvForRecruiter = catchAsync(
+    async (req: Request, res: Response) => {
+        const user = req.user;
+        const { candidateId, applicationId } = req.query;
+        const pdfBuffer = await ResumeService.downloadCvForRecruiter(user, candidateId as string, applicationId as string | undefined);
+
+        res.set({
+            "Content-Type": "application/pdf",
+            "Content-Disposition": `attachment; filename="Candidate-CV.pdf"`,
+            "Content-Length": pdfBuffer.length,
+        });
+        res.send(pdfBuffer);
+    }
+)
+
 export const ResumeController = {
     getMyResume,
     updateMyResume,
@@ -142,4 +157,5 @@ export const ResumeController = {
     deleteMyResume,
     downloadResumePdf,
     uploadProfilePhoto,
+    downloadCvForRecruiter,
 }

@@ -80,10 +80,43 @@ const getAllApplications = catchAsync(
     }
 )
 
+const getApplicantsForJob = catchAsync(
+    async (req: Request, res: Response) => {
+        const user = req.user;
+        const { jobId } = req.params;
+        const result = await ApplicationService.getApplicantsForJob(user, jobId as string, req.query as IQueryParams);
+
+        sendResponse(res, {
+            httpStatusCode: status.OK,
+            success: true,
+            message: "Job applicants fetched successfully",
+            data: result.data,
+            meta: result.meta,
+        })
+    }
+)
+
+const getUserDirectory = catchAsync(
+    async (req: Request, res: Response) => {
+        const user = req.user;
+        const result = await ApplicationService.getUserDirectory(user, req.query as IQueryParams);
+
+        sendResponse(res, {
+            httpStatusCode: status.OK,
+            success: true,
+            message: "User directory fetched successfully",
+            data: result.data,
+            meta: result.meta,
+        })
+    }
+)
+
 export const ApplicationController = {
     applyJob,
     getMyApplications,
     getJobApplications,
     updateApplicationStatus,
     getAllApplications,
+    getApplicantsForJob,
+    getUserDirectory,
 }
