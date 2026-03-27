@@ -352,33 +352,17 @@ const getAllUsersWithDetails = async (user: IRequestUser) => {
         include: { user: true }
     });
 
-    // Build where clause based on role
-    const whereClause: Record<string, unknown> = { isDeleted: false };
-
-    if (adminExists.user.role === Role.ADMIN) {
-        // Admin can see: Regular users and recruiters, but NOT admins or super admins
-        whereClause.role = { in: [Role.USER, Role.RECRUITER] };
-    }
-    // Super Admin can see all users
+    // Users Management page is strictly for regular users only.
+    const whereClause: Record<string, unknown> = {
+        isDeleted: false,
+        role: Role.USER,
+    };
 
     const users = await prisma.user.findMany({
         where: whereClause,
         orderBy: { createdAt: "desc" },
         include: {
             resume: true,
-            recruiter: {
-                select: {
-                    id: true,
-                    companyName: true,
-                    status: true,
-                }
-            },
-            admin: {
-                select: {
-                    id: true,
-                    profilePhoto: true,
-                }
-            },
             applications: {
                 where: { status: "HIRED" },
                 select: { id: true }
