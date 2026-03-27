@@ -346,6 +346,9 @@ const getMe = async (user: IRequestUser) => {
                 select: {
                     id: true,
                     status: true,
+                    hiredDate: true,
+                    hiredCompany: true,
+                    hiredDesignation: true,
                     createdAt: true,
                     job: {
                         select: {
