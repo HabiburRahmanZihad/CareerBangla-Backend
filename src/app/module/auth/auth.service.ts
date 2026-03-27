@@ -572,7 +572,7 @@ const forgetPassword = async (payload: IForgetPasswordPayload) => {
     }
 
     if (!isUserExist.emailVerified) {
-        throw new AppError(status.BAD_REQUEST, "Email not verified");
+        throw new AppError(status.BAD_REQUEST, "Email not verified. Please verify your email first.");
     }
 
     if (isUserExist.isDeleted || isUserExist.status === UserStatus.DELETED) {
@@ -584,11 +584,17 @@ const forgetPassword = async (payload: IForgetPasswordPayload) => {
         throw new AppError(status.BAD_REQUEST, "Phone number does not match our records");
     }
 
-    await auth.api.requestPasswordResetEmailOTP({
-        body: {
-            email,
-        }
-    })
+    try {
+        await auth.api.requestPasswordResetEmailOTP({
+            body: {
+                email,
+            }
+        })
+        logger.read(`Password reset OTP sent → email: ${email}`);
+    } catch (error) {
+        logger.error(`Failed to send password reset OTP → email: ${email}`, error);
+        throw new AppError(status.INTERNAL_SERVER_ERROR, "Failed to send OTP. Please try again.");
+    }
 }
 
 const resetPassword = async (email: string, otp: string, newPassword: string) => {
@@ -604,37 +610,52 @@ const resetPassword = async (email: string, otp: string, newPassword: string) =>
     }
 
     if (!isUserExist.emailVerified) {
-        throw new AppError(status.BAD_REQUEST, "Email not verified");
+        throw new AppError(status.BAD_REQUEST, "Email not verified. Please verify your email first.");
     }
 
     if (isUserExist.isDeleted || isUserExist.status === UserStatus.DELETED) {
         throw new AppError(status.NOT_FOUND, "User not found");
     }
 
-    await auth.api.resetPasswordEmailOTP({
-        body: {
-            email,
-            otp,
-            password: newPassword,
-        }
-    })
-
-    if (isUserExist.needPasswordChange) {
-        await prisma.user.update({
-            where: {
-                id: isUserExist.id,
-            },
-            data: {
-                needPasswordChange: false,
+    try {
+        const result = await auth.api.resetPasswordEmailOTP({
+            body: {
+                email,
+                otp,
+                password: newPassword,
             }
         })
-    }
 
-    await prisma.session.deleteMany({
-        where: {
-            userId: isUserExist.id,
+        if (!result) {
+            throw new AppError(status.BAD_REQUEST, "Invalid OTP or password reset failed");
         }
-    })
+
+        // Only clear sessions after successful password reset
+        await prisma.session.deleteMany({
+            where: {
+                userId: isUserExist.id,
+            }
+        })
+
+        logger.update(`Password reset successful → userId: ${isUserExist.id}`);
+
+        if (isUserExist.needPasswordChange) {
+            await prisma.user.update({
+                where: {
+                    id: isUserExist.id,
+                },
+                data: {
+                    needPasswordChange: false,
+                }
+            })
+        }
+    } catch (error) {
+        logger.error(`Password reset failed → email: ${email}`, error);
+        if (error instanceof AppError) {
+            throw error;
+        }
+        throw new AppError(status.BAD_REQUEST, "Invalid OTP or password reset failed");
+    }
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
