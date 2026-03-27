@@ -225,6 +225,11 @@ const updateJob = async (id: string, user: IRequestUser, payload: IUpdateJobPayl
         throw new AppError(status.NOT_FOUND, "Job not found");
     }
 
+    // Prevent updates to inactive or closed jobs
+    if (job.status === "INACTIVE" || job.status === "CLOSED") {
+        throw new AppError(status.FORBIDDEN, `Cannot update a ${job.status.toLowerCase()} job. You can only delete it.`);
+    }
+
     // Only the job owner or admin can update
     if (job.recruiter.userId !== user.userId && user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") {
         throw new AppError(status.FORBIDDEN, "You are not authorized to update this job");
