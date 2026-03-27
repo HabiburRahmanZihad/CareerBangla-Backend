@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Router } from "express";
 import multer from "multer";
 import { Role } from "../../../generated/prisma/enums";
@@ -43,10 +44,7 @@ const transformFormDataToJson = (req: any, _res: any, next: any) => {
 };
 
 router.post("/create-recruiter",
-    upload.fields([
-        { name: 'profilePhoto', maxCount: 1 },
-        { name: 'companyLogo', maxCount: 1 }
-    ]),
+    upload.any(),
     transformFormDataToJson,
     validateRequest(createRecruiterZodSchema),
     UserController.createRecruiter);
