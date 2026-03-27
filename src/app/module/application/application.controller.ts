@@ -106,7 +106,10 @@ const getUserDirectory = catchAsync(
             success: true,
             message: "User directory fetched successfully",
             data: result.data,
-            meta: result.meta,
+            meta: {
+                ...result.meta,
+                isPremiumRecruiter: result.isPremiumRecruiter,
+            },
         })
     }
 )

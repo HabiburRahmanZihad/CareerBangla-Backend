@@ -5,11 +5,12 @@ interface IResponseData<T> {
     success: boolean;
     message: string;
     data?: T;
-    meta ?: {
+    meta?: {
         page: number;
         limit: number;
         total: number;
         totalPages: number;
+        isPremiumRecruiter?: boolean;
     }
 }
 
