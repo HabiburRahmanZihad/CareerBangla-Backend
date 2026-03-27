@@ -42,3 +42,15 @@ export interface IUpdateRecruiterDataPayload {
     companySize?: string;
     description?: string;
 }
+
+export type SubscriptionTimelinePreset = "LIFETIME" | "MONTHLY" | "THREE_MONTHS" | "SIX_MONTHS" | "YEARLY" | "CUSTOM";
+
+export interface IUpdateSubscriptionPlanPayload {
+    name?: string;
+    amount?: number;
+    description?: string;
+    features?: string[];
+    timelinePreset?: SubscriptionTimelinePreset;
+    customDays?: number;
+    isActive?: boolean;
+}

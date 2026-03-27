@@ -22,6 +22,18 @@ interface SubscriptionPlanConfig {
     description: string;
     durationDays: number | null; // null for lifetime
     features: string[];
+    recruiterOnly?: boolean;
+    isActive?: boolean;
+}
+
+interface IUpdateSubscriptionPlanConfigPayload {
+    name?: string;
+    amount?: number;
+    description?: string;
+    features?: string[];
+    timelinePreset?: "LIFETIME" | "MONTHLY" | "THREE_MONTHS" | "SIX_MONTHS" | "YEARLY" | "CUSTOM";
+    customDays?: number;
+    isActive?: boolean;
 }
 
 const SUBSCRIPTION_PLANS: Record<string, SubscriptionPlanConfig> = {
@@ -93,6 +105,14 @@ const PLAN_KEY_BY_ENUM: Partial<Record<SubscriptionPlan, string>> = {
     [SubscriptionPlan.RECRUITER_YEARLY]: "RECRUITER_YEARLY",
 };
 
+const TIMELINE_PRESET_TO_DAYS: Record<"LIFETIME" | "MONTHLY" | "THREE_MONTHS" | "SIX_MONTHS" | "YEARLY", number | null> = {
+    LIFETIME: null,
+    MONTHLY: 30,
+    THREE_MONTHS: 90,
+    SIX_MONTHS: 180,
+    YEARLY: 365,
+};
+
 // Helper to calculate discount
 const calculateDiscount = (amount: number, coupon: { discountPercent?: number | null; discountAmount?: number | null }) => {
     if (coupon.discountPercent) {
@@ -104,18 +124,80 @@ const calculateDiscount = (amount: number, coupon: { discountPercent?: number | 
     return 0;
 };
 
-const getPlanConfig = (planKey: string): SubscriptionPlanConfig => {
-    const plan = SUBSCRIPTION_PLANS[planKey];
-    if (!plan) {
-        throw new AppError(status.BAD_REQUEST, `Invalid subscription plan: ${planKey}`);
+const parseFeatures = (features: unknown, fallback: string[]): string[] => {
+    if (Array.isArray(features)) {
+        return features
+            .filter((item): item is string => typeof item === "string")
+            .map((item) => item.trim())
+            .filter(Boolean);
     }
-    return plan;
+
+    return fallback;
 };
 
-const getPlanConfigFromSubscription = (subscription: {
+const ensurePlanSetting = async (planKey: string) => {
+    const defaultPlan = SUBSCRIPTION_PLANS[planKey];
+    if (!defaultPlan) {
+        throw new AppError(status.BAD_REQUEST, `Invalid subscription plan: ${planKey}`);
+    }
+
+    const setting = await prisma.subscriptionPlanSetting.upsert({
+        where: { planKey },
+        create: {
+            planKey,
+            name: defaultPlan.name,
+            amount: defaultPlan.amount,
+            description: defaultPlan.description,
+            durationDays: defaultPlan.durationDays,
+            features: defaultPlan.features as unknown as Prisma.InputJsonValue,
+            recruiterOnly: planKey.startsWith("RECRUITER_"),
+            isActive: true,
+        },
+        update: {},
+    });
+
+    return setting;
+};
+
+const mapSettingToPlanConfig = (
+    setting: {
+        planKey: string;
+        name: string;
+        amount: number;
+        description: string;
+        durationDays: number | null;
+        features: unknown;
+        recruiterOnly: boolean;
+        isActive: boolean;
+    },
+    fallback: SubscriptionPlanConfig,
+): SubscriptionPlanConfig => {
+    return {
+        planKey: setting.planKey,
+        name: setting.name,
+        amount: setting.amount,
+        description: setting.description,
+        durationDays: setting.durationDays,
+        features: parseFeatures(setting.features, fallback.features),
+        recruiterOnly: setting.recruiterOnly,
+        isActive: setting.isActive,
+    };
+};
+
+const getPlanConfig = async (planKey: string): Promise<SubscriptionPlanConfig> => {
+    const defaultPlan = SUBSCRIPTION_PLANS[planKey];
+    if (!defaultPlan) {
+        throw new AppError(status.BAD_REQUEST, `Invalid subscription plan: ${planKey}`);
+    }
+
+    const setting = await ensurePlanSetting(planKey);
+    return mapSettingToPlanConfig(setting, defaultPlan);
+};
+
+const getPlanConfigFromSubscription = async (subscription: {
     plan: SubscriptionPlan;
     paymentGatewayData: Prisma.JsonValue;
-}): SubscriptionPlanConfig => {
+}): Promise<SubscriptionPlanConfig> => {
     const gatewayData = subscription.paymentGatewayData as Record<string, unknown> | null;
     const keyFromGateway = typeof gatewayData?.planKey === "string" ? gatewayData.planKey : undefined;
     const keyFromEnum = PLAN_KEY_BY_ENUM[subscription.plan];
@@ -137,7 +219,7 @@ const initiatePayment = async (user: IRequestUser, payload: { planKey?: string; 
     }
 
     // Get plan configuration
-    const plan = getPlanConfig(planKey);
+    const plan = await getPlanConfig(planKey);
 
     // Determine if this is a recruiter subscription
     const isRecruiterSubscription = planKey.startsWith("RECRUITER_");
@@ -309,7 +391,7 @@ const processSuccessfulPayment = async (
     gatewayLabel: string,
     extraUpdateData: Record<string, unknown> = {},
 ) => {
-    const planConfig = getPlanConfigFromSubscription(subscription);
+    const planConfig = await getPlanConfigFromSubscription(subscription);
     const isLifetimePlan = planConfig.durationDays === null;
 
     const now = new Date();
@@ -488,7 +570,7 @@ const sendInvoiceEmail = async (subscriptionId: string) => {
 
         const gatewayInfo = subscription.paymentGatewayData as Record<string, unknown> | null;
 
-        const planConfig = getPlanConfigFromSubscription(subscription as unknown as { plan: SubscriptionPlan; paymentGatewayData: Prisma.JsonValue });
+        const planConfig = await getPlanConfigFromSubscription(subscription as unknown as { plan: SubscriptionPlan; paymentGatewayData: Prisma.JsonValue });
 
         const invoiceData = {
             invoiceNumber: subscription.transactionId || subscription.id,
@@ -638,17 +720,98 @@ const cancelSubscription = async (user: IRequestUser, subscriptionId: string) =>
 
 const getSubscriptionPlans = async () => {
     logger.read("Fetching subscription plans");
+    const planKeys = Object.keys(SUBSCRIPTION_PLANS);
+
+    await Promise.all(planKeys.map((planKey) => ensurePlanSetting(planKey)));
+
+    const settings = await prisma.subscriptionPlanSetting.findMany({
+        where: { planKey: { in: planKeys } },
+        orderBy: { createdAt: "asc" },
+    });
+
+    const settingsMap = new Map(settings.map((setting) => [setting.planKey, setting]));
+
     return {
-        plans: Object.values(SUBSCRIPTION_PLANS).map((plan) => ({
-            name: plan.name,
-            planKey: plan.planKey,
-            amount: plan.amount,
-            description: plan.description,
-            features: plan.features,
-            lifetime: plan.durationDays === null,
-            durationDays: plan.durationDays,
-            recruiterOnly: plan.planKey.startsWith("RECRUITER_"),
-        })),
+        plans: planKeys.map((planKey) => {
+            const fallback = SUBSCRIPTION_PLANS[planKey];
+            const setting = settingsMap.get(planKey);
+
+            const merged = setting
+                ? mapSettingToPlanConfig(setting, fallback)
+                : {
+                    ...fallback,
+                    recruiterOnly: planKey.startsWith("RECRUITER_"),
+                    isActive: true,
+                };
+
+            return {
+                name: merged.name,
+                planKey: merged.planKey,
+                amount: merged.amount,
+                description: merged.description,
+                features: merged.features,
+                lifetime: merged.durationDays === null,
+                durationDays: merged.durationDays,
+                recruiterOnly: merged.recruiterOnly,
+                isActive: merged.isActive,
+            };
+        }),
+    };
+}
+
+const updateSubscriptionPlanConfig = async (planKey: string, payload: IUpdateSubscriptionPlanConfigPayload) => {
+    logger.update(`Subscription plan update requested → planKey: ${planKey}`);
+
+    const defaultPlan = SUBSCRIPTION_PLANS[planKey];
+    if (!defaultPlan) {
+        throw new AppError(status.BAD_REQUEST, `Invalid subscription plan: ${planKey}`);
+    }
+
+    let resolvedDurationDays: number | null | undefined;
+    if (payload.timelinePreset) {
+        if (payload.timelinePreset === "CUSTOM") {
+            if (!payload.customDays || payload.customDays < 1) {
+                throw new AppError(status.BAD_REQUEST, "customDays must be greater than 0 for CUSTOM timeline");
+            }
+            resolvedDurationDays = payload.customDays;
+        } else {
+            resolvedDurationDays = TIMELINE_PRESET_TO_DAYS[payload.timelinePreset];
+        }
+    } else if (payload.customDays !== undefined) {
+        if (payload.customDays < 1) {
+            throw new AppError(status.BAD_REQUEST, "customDays must be greater than 0");
+        }
+        resolvedDurationDays = payload.customDays;
+    }
+
+    const current = await ensurePlanSetting(planKey);
+
+    const updated = await prisma.subscriptionPlanSetting.update({
+        where: { planKey },
+        data: {
+            ...(payload.name !== undefined ? { name: payload.name } : {}),
+            ...(payload.amount !== undefined ? { amount: payload.amount } : {}),
+            ...(payload.description !== undefined ? { description: payload.description } : {}),
+            ...(payload.features !== undefined ? { features: payload.features as unknown as Prisma.InputJsonValue } : {}),
+            ...(payload.isActive !== undefined ? { isActive: payload.isActive } : {}),
+            ...(resolvedDurationDays !== undefined ? { durationDays: resolvedDurationDays } : {}),
+        },
+    });
+
+    const merged = mapSettingToPlanConfig(updated, defaultPlan);
+    logger.update(`Subscription plan updated → planKey: ${planKey}`);
+
+    return {
+        name: merged.name,
+        planKey: merged.planKey,
+        amount: merged.amount,
+        description: merged.description,
+        features: merged.features,
+        lifetime: merged.durationDays === null,
+        durationDays: merged.durationDays,
+        recruiterOnly: merged.recruiterOnly,
+        isActive: merged.isActive,
+        previousDurationDays: current.durationDays,
     };
 }
 
@@ -682,7 +845,7 @@ const getInvoice = async (user: IRequestUser, subscriptionId: string) => {
 
     const gatewayInfo = subscription.paymentGatewayData as Record<string, unknown> | null;
 
-    const planConfig = getPlanConfigFromSubscription(subscription as unknown as { plan: SubscriptionPlan; paymentGatewayData: Prisma.JsonValue });
+    const planConfig = await getPlanConfigFromSubscription(subscription as unknown as { plan: SubscriptionPlan; paymentGatewayData: Prisma.JsonValue });
 
     const invoiceData = {
         invoiceNumber: subscription.transactionId || subscription.id,
@@ -785,6 +948,7 @@ export const SubscriptionService = {
     handleIpn,
     cancelSubscription,
     getSubscriptionPlans,
+    updateSubscriptionPlanConfig,
     getMySubscriptions,
     getInvoice,
     handleStripeWebhook,

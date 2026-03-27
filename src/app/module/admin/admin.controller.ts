@@ -229,6 +229,21 @@ const updateJob = catchAsync(
     }
 );
 
+const updateSubscriptionPlan = catchAsync(
+    async (req: Request, res: Response) => {
+        const { planKey } = req.params;
+        const payload = req.body;
+
+        const result = await AdminService.updateSubscriptionPlan(planKey as string, payload);
+        sendResponse(res, {
+            httpStatusCode: status.OK,
+            success: true,
+            message: "Subscription plan updated successfully",
+            data: result,
+        })
+    }
+);
+
 export const AdminController = {
     getAllAdmins,
     getAllUsers,
@@ -244,4 +259,5 @@ export const AdminController = {
     updateRecruiterData,
     deleteUser,
     updateJob,
+    updateSubscriptionPlan,
 };

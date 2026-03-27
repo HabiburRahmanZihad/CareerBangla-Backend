@@ -9,7 +9,8 @@ import { cacheManager } from "../../lib/cache";
 import { prisma } from "../../lib/prisma";
 import { sendEmail } from "../../utils/email";
 import { logger } from "../../utils/logger";
-import { IChangeUserRolePayload, IChangeUserStatusPayload, IUpdateAdminPayload, IUpdateRecruiterDataPayload, IUpdateUserPayload } from "./admin.interface";
+import { SubscriptionService } from "../subscription/subscription.service";
+import { IChangeUserRolePayload, IChangeUserStatusPayload, IUpdateAdminPayload, IUpdateRecruiterDataPayload, IUpdateSubscriptionPlanPayload, IUpdateUserPayload } from "./admin.interface";
 
 const getAllAdmins = async (user: IRequestUser) => {
     logger.read("Fetching all admins");
@@ -664,6 +665,11 @@ const updateJob = async (jobId: string, payload: Record<string, any>) => {
     return updatedJob;
 }
 
+const updateSubscriptionPlan = async (planKey: string, payload: IUpdateSubscriptionPlanPayload) => {
+    logger.update(`Admin subscription plan update requested → planKey: ${planKey}`);
+    return SubscriptionService.updateSubscriptionPlanConfig(planKey, payload);
+}
+
 export const AdminService = {
     getAllAdmins,
     getAllUsers,
@@ -679,4 +685,5 @@ export const AdminService = {
     updateRecruiterData,
     deleteUser,
     updateJob,
+    updateSubscriptionPlan,
 }

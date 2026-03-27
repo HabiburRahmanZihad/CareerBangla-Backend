@@ -3,7 +3,7 @@ import { Role } from "../../../generated/prisma/enums";
 import { checkAuth } from "../../middleware/checkAuth";
 import { validateRequest } from "../../middleware/validateRequest";
 import { AdminController } from "./admin.controller";
-import { updateAdminZodSchema } from "./admin.validation";
+import { updateAdminZodSchema, updateSubscriptionPlanZodSchema } from "./admin.validation";
 
 const router = Router();
 
@@ -25,6 +25,10 @@ router.get("/jobs",
 router.patch("/jobs/:jobId",
     checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
     AdminController.updateJob);
+router.patch("/subscription-plans/:planKey",
+    checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
+    validateRequest(updateSubscriptionPlanZodSchema),
+    AdminController.updateSubscriptionPlan);
 router.patch("/change-user-status",
     checkAuth(Role.SUPER_ADMIN, Role.ADMIN),
     AdminController.changeUserStatus);
