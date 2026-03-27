@@ -120,6 +120,47 @@
             color: #1b5e20;
         }
 
+        .success-box {
+            background: linear-gradient(135deg, #4caf50, #45a049);
+            color: white;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .success-box h3 {
+            margin: 0 0 10px;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .success-box p {
+            margin: 8px 0;
+            font-size: 16px;
+            line-height: 1.5;
+        }
+
+        .hired-details {
+            background-color: #e8f5e9;
+            border-left: 4px solid #1b5e20;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+
+        .hired-details p {
+            margin: 10px 0;
+            color: #1b5e20;
+            font-size: 15px;
+        }
+
+        .hired-details strong {
+            color: #1b5e20;
+            display: inline-block;
+            min-width: 120px;
+        }
+
         .footer {
             background-color: #f8f9fa;
             padding: 20px;
@@ -171,24 +212,30 @@
                 </div>
                 <% } %>
 
-                    <% if (status==='hired' && hiredCompany) { %>
-                        <div class="details-box" style="background-color: #c8e6c9; border-left-color: #2e7d32;">
-                            <p style="color: #1b5e20;"><strong>🎉 Congratulations on your new role!</strong></p>
-                            <p><strong>Company:</strong>
-                                <%= hiredCompany %>
-                            </p>
-                            <% if (hiredDesignation) { %>
-                                <p><strong>Position:</strong>
-                                    <%= hiredDesignation %>
-                                </p>
-                                <% } %>
-                                    <% if (hiredDate) { %>
-                                        <p><strong>Hire Date:</strong>
-                                            <%= hiredDate %>
-                                        </p>
-                                        <% } %>
+                    <% if (status==='hired' ) { %>
+                        <div class="success-box">
+                            <h3>🎉 Welcome Aboard!</h3>
+                            <p>We're thrilled to welcome you to your new team. It's time to embark on an exciting new
+                                chapter in your career!</p>
                         </div>
-                        <% } %>
+                        <% if (hiredCompany) { %>
+                            <div class="hired-details">
+                                <p><strong>📍 Company:</strong>
+                                    <%= hiredCompany %>
+                                </p>
+                                <% if (hiredDesignation) { %>
+                                    <p><strong>💼 Position:</strong>
+                                        <%= hiredDesignation %>
+                                    </p>
+                                    <% } %>
+                                        <% if (hiredDate) { %>
+                                            <p><strong>📅 Hire Date:</strong>
+                                                <%= hiredDate %>
+                                            </p>
+                                            <% } %>
+                            </div>
+                            <% } %>
+                                <% } %>
         </div>
         <div class="footer">
             <p>&copy; 2026 CareerBangla. All rights reserved.</p>
