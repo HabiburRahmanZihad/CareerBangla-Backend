@@ -602,9 +602,9 @@ const getInactiveJobs = async (user: IRequestUser, query: IQueryParams) => {
     const result = await queryBuilder
         .search()
         .filter()
-        .where({ 
-            recruiterId: recruiter.id, 
-            isDeleted: false, 
+        .where({
+            recruiterId: recruiter.id,
+            isDeleted: false,
             status: { in: ["INACTIVE", "CLOSED"] }
         })
         .include({
