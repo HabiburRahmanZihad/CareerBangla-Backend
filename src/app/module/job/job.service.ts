@@ -5,6 +5,7 @@ import AppError from "../../errorHelpers/AppError";
 import { IQueryParams } from "../../interfaces/query.interface";
 import { IRequestUser } from "../../interfaces/requestUser.interface";
 import { prisma } from "../../lib/prisma";
+import { sendEmail } from "../../utils/email";
 import { logger } from "../../utils/logger";
 import { getRecruiterProfileCompletion } from "../../utils/profileCompletion";
 import { QueryBuilder } from "../../utils/QueryBuilder";
@@ -230,13 +231,41 @@ const updateJob = async (id: string, user: IRequestUser, payload: IUpdateJobPayl
         updateData.deadline = new Date(payload.deadline);
     }
 
+    const isAdminUpdater = user.role === "ADMIN" || user.role === "SUPER_ADMIN";
+    const isRecruiterOwnerUpdater = !isAdminUpdater && job.recruiter.userId === user.userId;
+
+    const contentUpdateFields: Array<keyof IUpdateJobPayload> = [
+        "title",
+        "description",
+        "requirements",
+        "responsibilities",
+        "location",
+        "jobType",
+        "salaryMin",
+        "salaryMax",
+        "experience",
+        "education",
+        "skills",
+        "benefits",
+        "deadline",
+        "vacancies",
+        "categoryId",
+    ];
+
+    const hasContentUpdate = contentUpdateFields.some((field) => payload[field] !== undefined);
+
+    // Recruiter edits to live/rejected jobs must go back to pending for admin review.
+    if (isRecruiterOwnerUpdater && (job.status === "ACTIVE" || job.status === "CLOSED") && hasContentUpdate) {
+        updateData.status = "DRAFT";
+    }
+
     const updatedJob = await prisma.job.update({
         where: { id },
         data: updateData,
         include: { recruiter: true, category: true },
     })
 
-    logger.update(`Job updated → id: ${id}`);
+    logger.update(`Job updated → id: ${id}, resetToDraft: ${Boolean(isRecruiterOwnerUpdater && (job.status === "ACTIVE" || job.status === "CLOSED") && hasContentUpdate)}`);
     return updatedJob;
 }
 
@@ -340,10 +369,15 @@ const approveJob = async (jobId: string, user: IRequestUser) => {
 }
 
 const rejectJob = async (jobId: string, reason: string, user: IRequestUser) => {
-    logger.update(`Job rejection requested → id: ${jobId}, adminId: ${user.userId}, reason: ${reason}`);
+    const trimmedReason = reason?.trim();
+    if (!trimmedReason) {
+        throw new AppError(status.BAD_REQUEST, "Rejection reason is required");
+    }
+
+    logger.update(`Job rejection requested → id: ${jobId}, adminId: ${user.userId}, reason: ${trimmedReason}`);
     const job = await prisma.job.findUnique({
         where: { id: jobId },
-        include: { recruiter: true }
+        include: { recruiter: true, category: true }
     })
 
     if (!job) {
@@ -367,7 +401,7 @@ const rejectJob = async (jobId: string, reason: string, user: IRequestUser) => {
                 userId: job.recruiter.userId,
                 type: "GENERAL",
                 title: "Job Rejected",
-                message: `Your job "${job.title}" was rejected. Reason: ${reason}`,
+                message: `Your job "${job.title}" was rejected. Reason: ${trimmedReason}`,
                 metadata: { jobId: job.id },
             }
         });
@@ -375,6 +409,24 @@ const rejectJob = async (jobId: string, reason: string, user: IRequestUser) => {
         logger.update(`Job rejected → id: ${jobId}`);
         return updated;
     })
+
+    // Best-effort email to recruiter with rejection details and resubmission guidance.
+    sendEmail({
+        to: job.recruiter.email,
+        subject: `Action Required: Job Post Rejected - ${job.title}`,
+        templateName: "jobRejected",
+        templateData: {
+            recruiterName: job.recruiter.name,
+            jobTitle: job.title,
+            companyName: job.company,
+            location: job.location,
+            category: job.category?.title || "Not specified",
+            reason: trimmedReason,
+            adminEmail: user.email,
+        },
+    }).catch(() => {
+        logger.error(`Failed to send job rejection email → jobId: ${job.id}, recruiterId: ${job.recruiter.userId}`);
+    });
 
     return updatedJob;
 }
