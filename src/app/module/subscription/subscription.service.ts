@@ -54,18 +54,18 @@ const SUBSCRIPTION_PLANS: Record<string, SubscriptionPlanConfig> = {
         ],
     },
     RECRUITER_6_MONTHS: {
-        name: "Recruiter Premium (6 Months)",
+        name: "Recruiter Premium (3 Months)",
         planKey: "RECRUITER_6_MONTHS",
-        amount: 14999,
-        description: "6 months of recruiter premium features. Save 17% compared to monthly.",
-        durationDays: 180,
+        amount: 7999,
+        description: "3 months of recruiter premium features. Save compared to monthly.",
+        durationDays: 90,
         features: [
             "Post unlimited jobs",
             "View full applicant profiles and contact info",
             "Download applicant CVs",
             "Schedule interviews",
             "Priority support",
-            "Save 17% vs monthly",
+            "Multi-month savings",
         ],
     },
     RECRUITER_YEARLY: {
@@ -86,6 +86,13 @@ const SUBSCRIPTION_PLANS: Record<string, SubscriptionPlanConfig> = {
     },
 };
 
+const PLAN_KEY_BY_ENUM: Partial<Record<SubscriptionPlan, string>> = {
+    [SubscriptionPlan.PREMIUM]: "BOOST_LIFETIME",
+    [SubscriptionPlan.RECRUITER_MONTHLY]: "RECRUITER_MONTHLY",
+    [SubscriptionPlan.RECRUITER_6_MONTHS]: "RECRUITER_6_MONTHS",
+    [SubscriptionPlan.RECRUITER_YEARLY]: "RECRUITER_YEARLY",
+};
+
 // Helper to calculate discount
 const calculateDiscount = (amount: number, coupon: { discountPercent?: number | null; discountAmount?: number | null }) => {
     if (coupon.discountPercent) {
@@ -103,6 +110,17 @@ const getPlanConfig = (planKey: string): SubscriptionPlanConfig => {
         throw new AppError(status.BAD_REQUEST, `Invalid subscription plan: ${planKey}`);
     }
     return plan;
+};
+
+const getPlanConfigFromSubscription = (subscription: {
+    plan: SubscriptionPlan;
+    paymentGatewayData: Prisma.JsonValue;
+}): SubscriptionPlanConfig => {
+    const gatewayData = subscription.paymentGatewayData as Record<string, unknown> | null;
+    const keyFromGateway = typeof gatewayData?.planKey === "string" ? gatewayData.planKey : undefined;
+    const keyFromEnum = PLAN_KEY_BY_ENUM[subscription.plan];
+    const resolvedKey = keyFromGateway || keyFromEnum || "BOOST_LIFETIME";
+    return getPlanConfig(resolvedKey);
 };
 
 const initiatePayment = async (user: IRequestUser, payload: { planKey?: string; couponCode?: string; referralCode?: string; gateway?: "STRIPE" | "SSLCOMMERZ" }) => {
@@ -283,6 +301,7 @@ const processSuccessfulPayment = async (
         transactionId: string | null;
         couponId: string | null;
         userId: string;
+        isRecruiterSubscription: boolean;
         user: { id: string; name: string; email: string; referredBy: string | null; premiumUntil: Date | null; isPremium: boolean };
         paymentGatewayData: Prisma.JsonValue;
     },
@@ -290,22 +309,37 @@ const processSuccessfulPayment = async (
     gatewayLabel: string,
     extraUpdateData: Record<string, unknown> = {},
 ) => {
-    // 1. Mark subscription paid (lifetime - no period end)
+    const planConfig = getPlanConfigFromSubscription(subscription);
+    const isLifetimePlan = planConfig.durationDays === null;
+
+    const now = new Date();
+    const baseDate = subscription.user.premiumUntil && new Date(subscription.user.premiumUntil) > now
+        ? new Date(subscription.user.premiumUntil)
+        : now;
+    const currentPeriodStart = isLifetimePlan ? now : baseDate;
+    const currentPeriodEnd = isLifetimePlan
+        ? null
+        : new Date(baseDate.getTime() + (planConfig.durationDays || 0) * 24 * 60 * 60 * 1000);
+
+    // 1. Mark subscription paid
     await tx.subscription.update({
         where: { id: subscription.id },
         data: {
             status: PaymentStatus.PAID,
             paymentGatewayData: gatewayData,
-            currentPeriodStart: new Date(),
-            currentPeriodEnd: null,
+            currentPeriodStart,
+            currentPeriodEnd,
             ...extraUpdateData,
         }
     });
 
-    // 2. Upgrade user to Lifetime Career Boost (premiumUntil = null means lifetime)
+    // 2. Upgrade user premium state
     await tx.user.update({
         where: { id: subscription.userId },
-        data: { isPremium: true, premiumUntil: null }
+        data: {
+            isPremium: true,
+            premiumUntil: isLifetimePlan ? null : currentPeriodEnd,
+        }
     });
 
     // 3. Mark coupon used
@@ -411,8 +445,10 @@ const processSuccessfulPayment = async (
         data: {
             userId: subscription.userId,
             type: "GENERAL",
-            title: `Career Boost Activated${gatewayLabel ? ` via ${gatewayLabel}` : ""}`,
-            message: `Your lifetime Career Boost subscription has been activated. Enjoy all Career Boost features forever!`,
+            title: `${planConfig.name} Activated${gatewayLabel ? ` via ${gatewayLabel}` : ""}`,
+            message: isLifetimePlan
+                ? `Your ${planConfig.name} has been activated. Enjoy premium features forever!`
+                : `Your ${planConfig.name} has been activated until ${currentPeriodEnd?.toDateString()}.`,
             metadata: { subscriptionId: subscription.id },
         }
     });
@@ -427,12 +463,12 @@ const processSuccessfulPayment = async (
             data: admins.map((admin: { id: string }) => ({
                 userId: admin.id,
                 type: "GENERAL" as const,
-                title: "New Career Boost Purchase",
-                message: `${subscription.user.name} (${subscription.user.email}) purchased Lifetime Career Boost for ৳${subscription.amount} via ${gatewayLabel || "Payment Gateway"}.`,
+                title: "New Subscription Purchase",
+                message: `${subscription.user.name} (${subscription.user.email}) purchased ${planConfig.name} for ৳${subscription.amount} via ${gatewayLabel || "Payment Gateway"}.`,
                 metadata: {
                     subscriptionId: subscription.id,
                     userId: subscription.userId,
-                    plan: "CAREER_BOOST",
+                    plan: planConfig.planKey,
                     amount: subscription.amount,
                     transactionId: subscription.transactionId,
                 },
@@ -452,12 +488,14 @@ const sendInvoiceEmail = async (subscriptionId: string) => {
 
         const gatewayInfo = subscription.paymentGatewayData as Record<string, unknown> | null;
 
+        const planConfig = getPlanConfigFromSubscription(subscription as unknown as { plan: SubscriptionPlan; paymentGatewayData: Prisma.JsonValue });
+
         const invoiceData = {
             invoiceNumber: subscription.transactionId || subscription.id,
             date: subscription.updatedAt || new Date(),
             customerName: subscription.user.name,
             customerEmail: subscription.user.email,
-            planName: "Career Boost (Lifetime)",
+            planName: planConfig.name,
             originalAmount: (gatewayInfo?.originalAmount as number) || subscription.amount,
             discountAmount: (gatewayInfo?.discountAmount as number) || 0,
             finalAmount: subscription.amount,
@@ -473,14 +511,16 @@ const sendInvoiceEmail = async (subscriptionId: string) => {
             templateName: "invoice",
             templateData: {
                 name: subscription.user.name,
-                plan: "Career Boost (Lifetime)",
+                plan: planConfig.name,
                 amount: invoiceData.finalAmount,
                 originalAmount: invoiceData.originalAmount,
                 discount: invoiceData.discountAmount,
                 couponCode: invoiceData.couponCode,
                 transactionId: invoiceData.invoiceNumber,
                 periodStart: invoiceData.periodStart instanceof Date ? invoiceData.periodStart.toDateString() : new Date(invoiceData.periodStart).toDateString(),
-                periodEnd: "Lifetime",
+                periodEnd: subscription.currentPeriodEnd
+                    ? new Date(subscription.currentPeriodEnd).toDateString()
+                    : "Lifetime",
             },
             attachments: [
                 {
@@ -599,16 +639,16 @@ const cancelSubscription = async (user: IRequestUser, subscriptionId: string) =>
 const getSubscriptionPlans = async () => {
     logger.read("Fetching subscription plans");
     return {
-        plans: [
-            {
-                name: SUBSCRIPTION_PLANS.BOOST_LIFETIME.name,
-                planKey: SUBSCRIPTION_PLANS.BOOST_LIFETIME.planKey,
-                amount: SUBSCRIPTION_PLANS.BOOST_LIFETIME.amount,
-                description: SUBSCRIPTION_PLANS.BOOST_LIFETIME.description,
-                features: SUBSCRIPTION_PLANS.BOOST_LIFETIME.features,
-                lifetime: true,
-            },
-        ],
+        plans: Object.values(SUBSCRIPTION_PLANS).map((plan) => ({
+            name: plan.name,
+            planKey: plan.planKey,
+            amount: plan.amount,
+            description: plan.description,
+            features: plan.features,
+            lifetime: plan.durationDays === null,
+            durationDays: plan.durationDays,
+            recruiterOnly: plan.planKey.startsWith("RECRUITER_"),
+        })),
     };
 }
 
@@ -642,12 +682,14 @@ const getInvoice = async (user: IRequestUser, subscriptionId: string) => {
 
     const gatewayInfo = subscription.paymentGatewayData as Record<string, unknown> | null;
 
+    const planConfig = getPlanConfigFromSubscription(subscription as unknown as { plan: SubscriptionPlan; paymentGatewayData: Prisma.JsonValue });
+
     const invoiceData = {
         invoiceNumber: subscription.transactionId || subscription.id,
         date: subscription.updatedAt || new Date(),
         customerName: subscription.user.name,
         customerEmail: subscription.user.email,
-        planName: "Career Boost (Lifetime)",
+        planName: planConfig.name,
         originalAmount: (gatewayInfo?.originalAmount as number) || subscription.amount,
         discountAmount: (gatewayInfo?.discountAmount as number) || 0,
         finalAmount: subscription.amount,
