@@ -107,48 +107,139 @@ const createJob = async (user: IRequestUser, payload: ICreateJobPayload) => {
 
 const getAllJobs = async (query: IQueryParams) => {
     logger.read("Fetching all jobs", { filters: query });
-    // Auto-update jobs with passed deadlines to INACTIVE
     await updateJobsWithPassedDeadlines();
 
-    const queryBuilder = new QueryBuilder<Job>(
-        prisma.job,
-        query,
-        {
-            searchableFields: jobSearchableFields,
-            filterableFields: jobFilterableFields,
+    const page = Math.max(1, parseInt(query.page || "1", 10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(query.limit || "12", 10) || 12));
+    const skip = (page - 1) * limit;
+
+    const andConditions: Prisma.JobWhereInput[] = [
+        { isDeleted: false, status: "LIVE" },
+    ];
+
+    // Text search
+    const searchTerm = query.searchTerm?.trim();
+    if (searchTerm) {
+        andConditions.push({
+            OR: [
+                { title: { contains: searchTerm, mode: "insensitive" } },
+                { description: { contains: searchTerm, mode: "insensitive" } },
+                { location: { contains: searchTerm, mode: "insensitive" } },
+                { recruiter: { companyName: { contains: searchTerm, mode: "insensitive" } } },
+                { category: { title: { contains: searchTerm, mode: "insensitive" } } },
+            ],
+        });
+    }
+
+    // Location filter
+    const locationFilter = query.location?.trim();
+    if (locationFilter) {
+        andConditions.push({ location: { contains: locationFilter, mode: "insensitive" } });
+    }
+
+    // Job type filter
+    const validJobTypes = new Set<string>(Object.values(JobType));
+    const jobTypeFilter = query.jobType?.trim();
+    if (jobTypeFilter && jobTypeFilter !== "all" && validJobTypes.has(jobTypeFilter)) {
+        andConditions.push({ jobType: jobTypeFilter as JobType });
+    }
+
+    // Category filter
+    const categoryIdFilter = query.categoryId?.trim();
+    if (categoryIdFilter && categoryIdFilter !== "all") {
+        andConditions.push({ categoryId: categoryIdFilter });
+    }
+
+    // Salary range filter
+    // salaryMin param → keep jobs whose salaryMax >= X (job's top pay is at least what user wants)
+    // salaryMax param → keep jobs whose salaryMin <= Y (job's starting pay is within user's ceiling)
+    const salaryMinFilter = query.salaryMin ? Number(query.salaryMin) : null;
+    const salaryMaxFilter = query.salaryMax ? Number(query.salaryMax) : null;
+    if (salaryMinFilter !== null && !isNaN(salaryMinFilter) && salaryMinFilter > 0) {
+        andConditions.push({ salaryMax: { gte: salaryMinFilter } });
+    }
+    if (salaryMaxFilter !== null && !isNaN(salaryMaxFilter) && salaryMaxFilter > 0) {
+        andConditions.push({ salaryMin: { lte: salaryMaxFilter } });
+    }
+
+    // Date posted filter
+    const datePosted = query.datePosted?.trim();
+    if (datePosted && datePosted !== "all") {
+        const now = new Date();
+        const msOffsets: Record<string, number> = {
+            "24h": 1 * 24 * 60 * 60 * 1000,
+            "7d":  7 * 24 * 60 * 60 * 1000,
+            "14d": 14 * 24 * 60 * 60 * 1000,
+            "30d": 30 * 24 * 60 * 60 * 1000,
+        };
+        const offset = msOffsets[datePosted];
+        if (offset) {
+            andConditions.push({ createdAt: { gte: new Date(now.getTime() - offset) } });
         }
-    )
+    }
 
-    const result = await queryBuilder
-        .search()
-        .filter()
-        .where({ isDeleted: false, status: "LIVE" })
-        .include({
-            recruiter: {
-                select: {
-                    id: true,
-                    name: true,
-                    companyName: true,
-                    companyLogo: true,
-                    industry: true,
-                }
+    const where: Prisma.JobWhereInput = { AND: andConditions };
+
+    // Sort
+    const sortBy = query.sortBy?.trim() || "default";
+    let orderBy: Prisma.JobOrderByWithRelationInput | Prisma.JobOrderByWithRelationInput[];
+    switch (sortBy) {
+        case "newest":
+            orderBy = { createdAt: "desc" };
+            break;
+        case "oldest":
+            orderBy = { createdAt: "asc" };
+            break;
+        case "salary_desc":
+            orderBy = [{ salaryMax: "desc" }, { createdAt: "desc" }];
+            break;
+        case "salary_asc":
+            orderBy = [{ salaryMin: "asc" }, { createdAt: "desc" }];
+            break;
+        case "most_applied":
+            orderBy = [{ applications: { _count: "desc" } }, { createdAt: "desc" }];
+            break;
+        default:
+            orderBy = [
+                { featuredJob: "desc" },
+                { urgentHiring: "desc" },
+                { deadline: "asc" },
+                { createdAt: "desc" },
+            ];
+    }
+
+    const [jobs, total] = await Promise.all([
+        prisma.job.findMany({
+            where,
+            include: {
+                recruiter: {
+                    select: {
+                        id: true,
+                        name: true,
+                        companyName: true,
+                        companyLogo: true,
+                        industry: true,
+                    },
+                },
+                category: true,
+                _count: { select: { applications: true } },
             },
-            category: true,
-            _count: {
-                select: { applications: true }
-            }
-        })
-        .paginate()
-        .sortPriority([
-            { featuredJob: 'desc' },   // featured jobs first
-            { urgentHiring: 'desc' },  // then urgent hiring
-            { deadline: 'asc' },       // then soonest deadline
-            { createdAt: 'desc' },     // then newest
-        ])
-        .fields()
-        .execute();
+            orderBy,
+            skip,
+            take: limit,
+        }),
+        prisma.job.count({ where }),
+    ]);
 
-    return result;
+    return {
+        data: jobs,
+        meta: {
+            page,
+            limit,
+            total,
+            totalPages: Math.max(1, Math.ceil(total / limit)),
+        },
+    };
 }
 
 const getJobById = async (id: string) => {
