@@ -31,7 +31,6 @@ app.set("views", path.resolve(process.cwd(), `src/app/templates`))
 
 // EXTERNAL WEBHOOK/IPN ROUTES — must be registered BEFORE CORS
 import { SubscriptionController } from "./app/module/subscription/subscription.controller";
-app.post("/api/v1/subscriptions/webhook", express.raw({ type: 'application/json' }), SubscriptionController.handleStripeWebhook);
 app.post("/api/v1/subscriptions/ipn", express.urlencoded({ extended: true }), SubscriptionController.handleIpn);
 
 // CORS Configuration - Production Ready

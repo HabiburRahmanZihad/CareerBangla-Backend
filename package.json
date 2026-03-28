@@ -13,8 +13,7 @@
     "studio": "prisma studio",
     "push": "prisma db push",
     "pull": "prisma db pull",
-    "stripe:webhook": "stripe listen --forward-to localhost:5000/api/v1/subscriptions/webhook",
-    "test": "echo \"Error: no test specified\" && exit 1"
+"test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
@@ -44,7 +43,6 @@
     "pg": "^8.18.0",
     "qs": "^6.14.1",
     "sslcommerz-lts": "^1.2.0",
-    "stripe": "^20.3.1",
     "uuid": "^13.0.0",
     "zod": "^4.3.6"
   },

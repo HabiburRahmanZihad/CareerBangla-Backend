@@ -1,6 +1,5 @@
 import status from "http-status";
 import SSLCommerzPayment from "sslcommerz-lts";
-import Stripe from "stripe";
 import { v4 as uuidv4 } from "uuid";
 import { Prisma } from "../../../generated/prisma/client";
 import { PaymentStatus, Role, SubscriptionPlan } from "../../../generated/prisma/enums";
@@ -11,8 +10,6 @@ import { prisma } from "../../lib/prisma";
 import { sendEmail } from "../../utils/email";
 import { generateInvoicePdf } from "../../utils/invoice";
 import { logger } from "../../utils/logger";
-
-const stripe = new Stripe(envVars.STRIPE.SECRET_KEY, { apiVersion: "2026-01-28.clover" });
 
 // Subscription Plans
 interface SubscriptionPlanConfig {
@@ -205,8 +202,8 @@ const getPlanConfigFromSubscription = async (subscription: {
     return getPlanConfig(resolvedKey);
 };
 
-const initiatePayment = async (user: IRequestUser, payload: { planKey?: string; couponCode?: string; referralCode?: string; gateway?: "STRIPE" | "SSLCOMMERZ" }) => {
-    const gateway = payload.gateway || "SSLCOMMERZ";
+const initiatePayment = async (user: IRequestUser, payload: { planKey?: string; couponCode?: string; referralCode?: string }) => {
+    const gateway = "SSLCOMMERZ" as const;
     const planKey = payload.planKey || "BOOST_LIFETIME";
     logger.create(`Payment initiation → userId: ${user.userId}, plan: ${planKey}, gateway: ${gateway}`);
 
@@ -304,71 +301,45 @@ const initiatePayment = async (user: IRequestUser, payload: { planKey?: string; 
         }
     });
 
-    if (gateway === "STRIPE") {
-        const session = await stripe.checkout.sessions.create({
-            payment_method_types: ["card"],
-            mode: "payment",
-            customer_email: user.email,
-            client_reference_id: transactionId,
-            line_items: [
-                {
-                    price_data: {
-                        currency: "bdt",
-                        unit_amount: finalAmount * 100,
-                        product_data: {
-                            name: plan.name,
-                            description: `${plan.description}${discountAmount > 0 ? ` (Discount: ৳${discountAmount})` : ""}`,
-                        },
-                    },
-                    quantity: 1,
-                },
-            ],
-            success_url: `${envVars.FRONTEND_URL}/dashboard/subscriptions?payment=success`,
-            cancel_url: `${envVars.FRONTEND_URL}/dashboard/subscriptions?payment=cancelled`,
-        });
+    const isLive = envVars.SSLCOMMERZ.IS_LIVE;
+    const sslcz = new SSLCommerzPayment(envVars.SSLCOMMERZ.STORE_ID, envVars.SSLCOMMERZ.STORE_PASSWORD, isLive);
 
-        return { paymentUrl: session.url };
+    const sslczData = {
+        total_amount: finalAmount,
+        currency: 'BDT',
+        tran_id: transactionId,
+        success_url: `${envVars.BACKEND_URL}/api/v1/subscriptions/ipn`,
+        fail_url: `${envVars.BACKEND_URL}/api/v1/subscriptions/ipn`,
+        cancel_url: `${envVars.BACKEND_URL}/api/v1/subscriptions/ipn`,
+        ipn_url: `${envVars.BACKEND_URL}/api/v1/subscriptions/ipn`,
+        shipping_method: 'No',
+        product_name: 'CareerBangla Career Boost (Lifetime)',
+        product_category: 'Subscription',
+        product_profile: 'non-physical-goods',
+        cus_name: (user as IRequestUser & { name?: string }).name || 'CareerBangla User',
+        cus_email: user.email,
+        cus_add1: 'Dhaka',
+        cus_add2: 'Dhaka',
+        cus_city: 'Dhaka',
+        cus_state: 'Dhaka',
+        cus_postcode: '1000',
+        cus_country: 'Bangladesh',
+        cus_phone: '01711111111',
+        cus_fax: '01711111111',
+        ship_name: (user as IRequestUser & { name?: string }).name || 'CareerBangla User',
+        ship_add1: 'Dhaka',
+        ship_add2: 'Dhaka',
+        ship_city: 'Dhaka',
+        ship_state: 'Dhaka',
+        ship_postcode: 1000,
+        ship_country: 'Bangladesh',
+    };
+
+    const apiResponse = await sslcz.init(sslczData);
+    if (apiResponse?.GatewayPageURL) {
+        return { paymentUrl: apiResponse.GatewayPageURL };
     } else {
-        const isLive = envVars.SSLCOMMERZ.IS_LIVE;
-        const sslcz = new SSLCommerzPayment(envVars.SSLCOMMERZ.STORE_ID, envVars.SSLCOMMERZ.STORE_PASSWORD, isLive);
-
-        const sslczData = {
-            total_amount: finalAmount,
-            currency: 'BDT',
-            tran_id: transactionId,
-            success_url: `${envVars.BACKEND_URL}/api/v1/subscriptions/ipn`,
-            fail_url: `${envVars.BACKEND_URL}/api/v1/subscriptions/ipn`,
-            cancel_url: `${envVars.BACKEND_URL}/api/v1/subscriptions/ipn`,
-            ipn_url: `${envVars.BACKEND_URL}/api/v1/subscriptions/ipn`,
-            shipping_method: 'No',
-            product_name: 'CareerBangla Career Boost (Lifetime)',
-            product_category: 'Subscription',
-            product_profile: 'non-physical-goods',
-            cus_name: (user as IRequestUser & { name?: string }).name || 'CareerBangla User',
-            cus_email: user.email,
-            cus_add1: 'Dhaka',
-            cus_add2: 'Dhaka',
-            cus_city: 'Dhaka',
-            cus_state: 'Dhaka',
-            cus_postcode: '1000',
-            cus_country: 'Bangladesh',
-            cus_phone: '01711111111',
-            cus_fax: '01711111111',
-            ship_name: (user as IRequestUser & { name?: string }).name || 'CareerBangla User',
-            ship_add1: 'Dhaka',
-            ship_add2: 'Dhaka',
-            ship_city: 'Dhaka',
-            ship_state: 'Dhaka',
-            ship_postcode: 1000,
-            ship_country: 'Bangladesh',
-        };
-
-        const apiResponse = await sslcz.init(sslczData);
-        if (apiResponse?.GatewayPageURL) {
-            return { paymentUrl: apiResponse.GatewayPageURL };
-        } else {
-            throw new AppError(status.INTERNAL_SERVER_ERROR, "Failed to initiate SSLCommerz payment.");
-        }
+        throw new AppError(status.INTERNAL_SERVER_ERROR, "Failed to initiate SSLCommerz payment.");
     }
 }
 
@@ -863,86 +834,6 @@ const getInvoice = async (user: IRequestUser, subscriptionId: string) => {
     return generateInvoicePdf(invoiceData);
 };
 
-export interface StripeWebhookRequest {
-    body: Buffer;
-    headers: Record<string, string>;
-}
-
-interface StripeCheckoutSession {
-    client_reference_id: string;
-    id: string;
-}
-
-const handleStripeWebhook = async (req: StripeWebhookRequest) => {
-    logger.update("Stripe webhook received");
-    const payload = req.body;
-    const sig = req.headers["stripe-signature"] as string;
-
-    let event;
-
-    try {
-        event = stripe.webhooks.constructEvent(payload, sig, envVars.STRIPE.WEBHOOK_SECRET);
-    } catch (err: unknown) {
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        throw new AppError(status.BAD_REQUEST, `Webhook Error: ${errorMessage}`);
-    }
-
-    if (event.type === "checkout.session.completed") {
-        const session = event.data.object as StripeCheckoutSession;
-        const transactionId = session.client_reference_id;
-
-        if (transactionId) {
-            const subscription = await prisma.subscription.findUnique({
-                where: { transactionId },
-                include: { user: true }
-            });
-
-            if (subscription && subscription.status !== PaymentStatus.PAID) {
-                await prisma.$transaction(async (tx) => {
-                    await processSuccessfulPayment(
-                        tx,
-                        subscription,
-                        session as unknown as Prisma.InputJsonValue,
-                        "Stripe",
-                    );
-                });
-
-                sendInvoiceEmail(subscription.id).catch((err) => logger.error("Invoice email failed", err));
-            }
-        }
-    } else if (event.type === "checkout.session.expired") {
-        // User abandoned or session expired
-        const session = event.data.object as StripeCheckoutSession;
-        const transactionId = session.client_reference_id;
-
-        if (transactionId) {
-            const subscription = await prisma.subscription.findUnique({
-                where: { transactionId },
-                include: { user: true }
-            });
-
-            if (subscription && subscription.status === PaymentStatus.UNPAID) {
-                await prisma.subscription.update({
-                    where: { id: subscription.id },
-                    data: { status: PaymentStatus.FAILED }
-                });
-
-                await prisma.notification.create({
-                    data: {
-                        userId: subscription.userId,
-                        type: "GENERAL",
-                        title: "Payment Not Completed",
-                        message: "Your Career Boost payment was not completed. You can try again anytime from the subscriptions page.",
-                        metadata: { subscriptionId: subscription.id, transactionId: subscription.transactionId },
-                    }
-                });
-            }
-        }
-    }
-
-    return { received: true };
-}
-
 export const SubscriptionService = {
     initiatePayment,
     handleIpn,
@@ -951,5 +842,4 @@ export const SubscriptionService = {
     updateSubscriptionPlanConfig,
     getMySubscriptions,
     getInvoice,
-    handleStripeWebhook,
 }

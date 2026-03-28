@@ -38,10 +38,6 @@ interface EnvConfig {
         STORE_PASSWORD: string;
         IS_LIVE: boolean;
     },
-    STRIPE: {
-        SECRET_KEY: string;
-        WEBHOOK_SECRET: string;
-    },
     SUPER_ADMIN_EMAIL: string;
     SUPER_ADMIN_PASSWORD: string;
     ADMIN_EMAIL: string;
@@ -78,8 +74,6 @@ const loadEnvVariables = (): EnvConfig => {
         'CLOUDINARY_API_SECRET',
         'SSL_STORE_ID',
         'SSL_STORE_PASSWORD',
-        'STRIPE_SECRET_KEY',
-        'STRIPE_WEBHOOK_SECRET',
         'SUPER_ADMIN_EMAIL',
         'SUPER_ADMIN_PASSWORD',
         'ADMIN_EMAIL',
@@ -126,10 +120,6 @@ const loadEnvVariables = (): EnvConfig => {
             STORE_ID: process.env.SSL_STORE_ID as string,
             STORE_PASSWORD: process.env.SSL_STORE_PASSWORD as string,
             IS_LIVE: process.env.SSL_IS_LIVE === 'true',
-        },
-        STRIPE: {
-            SECRET_KEY: process.env.STRIPE_SECRET_KEY as string,
-            WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET as string,
         },
         SUPER_ADMIN_EMAIL: process.env.SUPER_ADMIN_EMAIL as string,
         SUPER_ADMIN_PASSWORD: process.env.SUPER_ADMIN_PASSWORD as string,

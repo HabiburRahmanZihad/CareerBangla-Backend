@@ -43,7 +43,7 @@ const getCouponUsageTracking = async (page: number = 1, limit: number = 20) => {
         },
         skip,
         take: limit,
-        orderBy: { usedAt: 'desc' },
+        orderBy: { updatedAt: 'desc' },
     });
 
     const total = await prisma.coupon.count({
