@@ -1,10 +1,11 @@
 import { z } from "zod";
 
-const BD_PHONE_REGEX = /^01[3-9]\d{8}$/;
+const BD_PHONE_REGEX = /^01\d{9}$/;
 
 export const registerUserZodSchema = z.object({
     name: z.string().min(1, "Name is required").min(2, "Name must be at least 2 characters"),
     email: z.string().email("Invalid email address"),
+    phone: z.string().min(1, "Phone number is required").transform(v => v.trim()).refine(v => BD_PHONE_REGEX.test(v), "Enter a valid 11-digit phone number starting with 01 (e.g. 01818652760)"),
     password: z.string().min(1, "Password is required").min(8, "Password must be at least 8 characters long"),
     referralCode: z.string().optional(),
 });

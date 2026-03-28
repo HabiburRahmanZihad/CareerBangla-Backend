@@ -9,7 +9,7 @@ import { sendEmail } from "../../utils/email";
 import { logger } from "../../utils/logger";
 import { ICreateAdminPayload, ICreateRecruiterPayload } from "./user.interface";
 
-const BD_PHONE_REGEX = /^01[3-9]\d{8}$/;
+const BD_PHONE_REGEX = /^01\d{9}$/;
 
 const createRecruiter = async (payload: ICreateRecruiterPayload) => {
     logger.create(`Recruiter creation requested → email: ${payload.recruiter.email}`);

@@ -122,14 +122,14 @@ const generateUniqueReferralCode = async (name?: string | null): Promise<string>
     return fallback;
 };
 
-const BD_PHONE_REGEX = /^01[3-9]\d{8}$/;
+const BD_PHONE_REGEX = /^01\d{9}$/;
 
 const registerUser = async (payload: IRegisterUserPayload) => {
     logger.create(`User registration requested → email: ${payload.email}`);
     const { name, email, phone, password, referralCode: incomingReferralCode } = payload;
 
     // Validate phone format
-    if (!BD_PHONE_REGEX.test(phone)) {
+    if (!BD_PHONE_REGEX.test(phone.trim())) {
         throw new AppError(status.BAD_REQUEST, "Enter a valid 11-digit Bangladeshi phone number starting with 01");
     }
 
