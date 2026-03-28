@@ -274,6 +274,12 @@ export class QueryBuilder<
         return this;
     }
 
+    sortPriority(orderArr: Array<Record<string, 'asc' | 'desc'>>): this {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (this.query as any).orderBy = orderArr;
+        return this;
+    }
+
     fields(): this {
         const fieldsParam = this.queryParams.fields;
         // /doctors?fields=id,name,user => select: { id: true, name: true, user: { select: { name: true } } }

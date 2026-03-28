@@ -17,6 +17,10 @@ export const createJobZodSchema = z.object({
     deadline: z.string("Deadline is required"),
     vacancies: z.number("Vacancies must be a number").int().positive("Vacancies must be positive").optional(),
     categoryId: z.uuid("Category ID must be a valid UUID").optional(),
+    featuredJob: z.boolean().optional(),
+    urgentHiring: z.boolean().optional(),
+    allowVideoCv: z.boolean().optional(),
+    tags: z.array(z.string()).optional(),
 })
 
 export const updateJobZodSchema = z.object({

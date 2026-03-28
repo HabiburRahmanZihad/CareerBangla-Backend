@@ -16,6 +16,10 @@ export interface ICreateJobPayload {
     deadline: string;
     vacancies?: number;
     categoryId?: string;
+    featuredJob?: boolean;
+    urgentHiring?: boolean;
+    allowVideoCv?: boolean;
+    tags?: string[];
 }
 
 export interface IUpdateJobPayload {

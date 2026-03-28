@@ -139,7 +139,12 @@ const getAllJobs = async (query: IQueryParams) => {
             }
         })
         .paginate()
-        .sort()
+        .sortPriority([
+            { featuredJob: 'desc' },   // featured jobs first
+            { urgentHiring: 'desc' },  // then urgent hiring
+            { deadline: 'asc' },       // then soonest deadline
+            { createdAt: 'desc' },     // then newest
+        ])
         .fields()
         .execute();
 
