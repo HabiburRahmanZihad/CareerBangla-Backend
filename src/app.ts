@@ -31,16 +31,27 @@ app.set("views", path.resolve(process.cwd(), `src/app/templates`))
 
 // EXTERNAL WEBHOOK/IPN ROUTES — must be registered BEFORE CORS
 import { SubscriptionController } from "./app/module/subscription/subscription.controller";
+import { SubscriptionService } from "./app/module/subscription/subscription.service";
+import { logger } from "./app/utils/logger";
 app.post("/api/v1/subscriptions/ipn", express.urlencoded({ extended: true }), SubscriptionController.handleIpn);
-// Browser redirect endpoints after SSLCommerz payment (POST redirects from payment gateway)
-app.post("/api/v1/subscriptions/success", express.urlencoded({ extended: true }), (_req, res) => {
-    res.redirect(`${envVars.FRONTEND_URL}/dashboard/subscriptions?payment=success`);
+// Browser redirect endpoints after SSLCommerz payment (POST redirects from payment gateway).
+// Also process the payment here as a fallback in case the IPN is delayed or unreachable (e.g. localhost dev).
+app.post("/api/v1/subscriptions/success", express.urlencoded({ extended: true }), async (req, res) => {
+    const base = req.query.role === "RECRUITER" ? "/recruiter/dashboard/subscriptions" : "/dashboard/subscriptions";
+    try {
+        await SubscriptionService.handleIpn(req.body);
+    } catch (err) {
+        logger.error("Payment processing in success redirect failed", err);
+    }
+    res.redirect(`${envVars.FRONTEND_URL}${base}?payment=success`);
 });
-app.post("/api/v1/subscriptions/fail", express.urlencoded({ extended: true }), (_req, res) => {
-    res.redirect(`${envVars.FRONTEND_URL}/dashboard/subscriptions?payment=failed`);
+app.post("/api/v1/subscriptions/fail", express.urlencoded({ extended: true }), (req, res) => {
+    const base = req.query.role === "RECRUITER" ? "/recruiter/dashboard/subscriptions" : "/dashboard/subscriptions";
+    res.redirect(`${envVars.FRONTEND_URL}${base}?payment=failed`);
 });
-app.post("/api/v1/subscriptions/cancel", express.urlencoded({ extended: true }), (_req, res) => {
-    res.redirect(`${envVars.FRONTEND_URL}/dashboard/subscriptions?payment=cancelled`);
+app.post("/api/v1/subscriptions/cancel", express.urlencoded({ extended: true }), (req, res) => {
+    const base = req.query.role === "RECRUITER" ? "/recruiter/dashboard/subscriptions" : "/dashboard/subscriptions";
+    res.redirect(`${envVars.FRONTEND_URL}${base}?payment=cancelled`);
 });
 
 // CORS Configuration - Production Ready
