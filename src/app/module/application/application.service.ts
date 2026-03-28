@@ -33,10 +33,10 @@ const applyJob = async (user: IRequestUser, payload: { jobId: string; coverLette
         throw new AppError(status.BAD_REQUEST, "You must complete your ATS resume profile before applying for jobs. Go to your profile and fill in your resume.");
     }
 
-    // Check profile completion >= 80%
+    // Check profile completion >= 60%
     const profileCompletion = getUserProfileCompletion(resume);
-    if (profileCompletion < 80) {
-        throw new AppError(status.BAD_REQUEST, `Your profile is ${profileCompletion}% complete. You must complete at least 80% of your profile before applying for jobs.`);
+    if (profileCompletion < 60) {
+        throw new AppError(status.BAD_REQUEST, `Your profile is ${profileCompletion}% complete. You must complete at least 60% of your profile before applying for jobs.`);
     }
 
     const job = await prisma.job.findUnique({
