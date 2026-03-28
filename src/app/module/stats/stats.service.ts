@@ -101,7 +101,9 @@ const getRecruiterStatsData = async (user: IRequestUser) => {
         applicationCount,
         activeJobCount,
         uniqueApplicants,
-        applicationStatusDistribution
+        applicationStatusDistribution,
+        jobsByStatus,
+        applicationsByMonth
     ] = await Promise.all([
         prisma.job.count({
             where: { recruiterId: recruiterData.id, isDeleted: false }
@@ -121,20 +123,41 @@ const getRecruiterStatsData = async (user: IRequestUser) => {
             by: ["status"],
             _count: { id: true },
             where: { job: { recruiterId: recruiterData.id } }
-        })
+        }),
+        prisma.job.groupBy({
+            by: ["status"],
+            _count: { id: true },
+            where: { recruiterId: recruiterData.id, isDeleted: false }
+        }),
+        prisma.$queryRaw<Array<{ month: Date; count: bigint }>>`
+            SELECT DATE_TRUNC('month', a."createdAt") AS month,
+            CAST(COUNT(*) AS INTEGER) AS count
+            FROM "application" a
+            INNER JOIN "job" j ON a."jobId" = j."id"
+            WHERE j."recruiterId" = ${recruiterData.id}
+            GROUP BY month
+            ORDER BY month ASC
+        `
     ]);
 
     const formattedStatusDistribution = applicationStatusDistribution.map(({ _count, status }) => ({
         status,
         count: _count.id
-    }))
+    }));
+
+    const formattedJobsByStatus = jobsByStatus.map(({ _count, status }) => ({
+        status,
+        count: _count.id
+    }));
 
     return {
         jobCount,
         applicationCount,
         activeJobCount,
         uniqueApplicants: uniqueApplicants.length,
-        applicationStatusDistribution: formattedStatusDistribution
+        applicationStatusDistribution: formattedStatusDistribution,
+        jobsByStatus: formattedJobsByStatus,
+        applicationsByMonth
     }
 }
 
