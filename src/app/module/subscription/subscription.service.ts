@@ -202,7 +202,15 @@ const getPlanConfigFromSubscription = async (subscription: {
     return getPlanConfig(resolvedKey);
 };
 
-const initiatePayment = async (user: IRequestUser, payload: { planKey?: string; couponCode?: string; referralCode?: string }) => {
+interface ICustomerInfo {
+    name?: string;
+    phone?: string;
+    address?: string;
+    city?: string;
+    postcode?: string;
+}
+
+const initiatePayment = async (user: IRequestUser, payload: { planKey?: string; couponCode?: string; referralCode?: string; customerInfo?: ICustomerInfo }) => {
     const gateway = "SSLCOMMERZ" as const;
     const planKey = payload.planKey || "BOOST_LIFETIME";
     logger.create(`Payment initiation → userId: ${user.userId}, plan: ${planKey}, gateway: ${gateway}`);
@@ -297,12 +305,27 @@ const initiatePayment = async (user: IRequestUser, payload: { planKey?: string; 
                 discountAmount,
                 couponCode: payload.couponCode || null,
                 referralCode: payload.referralCode || null,
+                customerInfo: payload.customerInfo
+                    ? {
+                        name: payload.customerInfo.name || null,
+                        phone: payload.customerInfo.phone || null,
+                        address: payload.customerInfo.address || null,
+                        city: payload.customerInfo.city || null,
+                        postcode: payload.customerInfo.postcode || null,
+                    }
+                    : null,
             } as unknown as Prisma.InputJsonValue,
         }
     });
 
     const isLive = envVars.SSLCOMMERZ.IS_LIVE;
     const sslcz = new SSLCommerzPayment(envVars.SSLCOMMERZ.STORE_ID, envVars.SSLCOMMERZ.STORE_PASSWORD, isLive);
+
+    const cusName = payload.customerInfo?.name || (user as IRequestUser & { name?: string }).name || 'CareerBangla User';
+    const cusPhone = payload.customerInfo?.phone || '01711111111';
+    const cusAddress = payload.customerInfo?.address || 'Dhaka';
+    const cusCity = payload.customerInfo?.city || 'Dhaka';
+    const cusPostcode = payload.customerInfo?.postcode || '1000';
 
     const sslczData = {
         total_amount: finalAmount,
@@ -313,25 +336,25 @@ const initiatePayment = async (user: IRequestUser, payload: { planKey?: string; 
         cancel_url: `${envVars.BACKEND_URL}/api/v1/subscriptions/ipn`,
         ipn_url: `${envVars.BACKEND_URL}/api/v1/subscriptions/ipn`,
         shipping_method: 'No',
-        product_name: 'CareerBangla Career Boost (Lifetime)',
+        product_name: plan.name,
         product_category: 'Subscription',
         product_profile: 'non-physical-goods',
-        cus_name: (user as IRequestUser & { name?: string }).name || 'CareerBangla User',
+        cus_name: cusName,
         cus_email: user.email,
-        cus_add1: 'Dhaka',
-        cus_add2: 'Dhaka',
-        cus_city: 'Dhaka',
-        cus_state: 'Dhaka',
-        cus_postcode: '1000',
+        cus_add1: cusAddress,
+        cus_add2: cusAddress,
+        cus_city: cusCity,
+        cus_state: cusCity,
+        cus_postcode: cusPostcode,
         cus_country: 'Bangladesh',
-        cus_phone: '01711111111',
-        cus_fax: '01711111111',
-        ship_name: (user as IRequestUser & { name?: string }).name || 'CareerBangla User',
-        ship_add1: 'Dhaka',
-        ship_add2: 'Dhaka',
-        ship_city: 'Dhaka',
-        ship_state: 'Dhaka',
-        ship_postcode: 1000,
+        cus_phone: cusPhone,
+        cus_fax: cusPhone,
+        ship_name: cusName,
+        ship_add1: cusAddress,
+        ship_add2: cusAddress,
+        ship_city: cusCity,
+        ship_state: cusCity,
+        ship_postcode: parseInt(cusPostcode) || 1000,
         ship_country: 'Bangladesh',
     };
 
