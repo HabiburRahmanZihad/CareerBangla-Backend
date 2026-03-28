@@ -1073,16 +1073,16 @@ const getPaymentSubscriptionById = async (user: IRequestUser, subscriptionId: st
             referralCode: gatewayData?.referralCode,
         },
         customerInfo: {
-            name: customerInfo?.name,
-            phone: customerInfo?.phone,
-            address: customerInfo?.address,
-            city: customerInfo?.city,
-            postcode: customerInfo?.postcode,
+            name: (customerInfo?.name as string | null) ?? subscription.user.name,
+            phone: (customerInfo?.phone as string | null) ?? subscription.user.phone,
+            address: (customerInfo?.address as string | null) ?? null,
+            city: (customerInfo?.city as string | null) ?? null,
+            postcode: (customerInfo?.postcode as string | null) ?? null,
         },
         reminderLogs: subscription.reminderLogs.map((log) => ({
             id: log.id,
-            status: log.status,
-            createdAt: log.createdAt,
+            reminderInterval: log.reminderInterval,
+            sentAt: log.sentAt,
         })),
     };
 };
