@@ -4,17 +4,15 @@ model Application {
   status           ApplicationStatus @default(PENDING)
   interviewDate    DateTime?
   interviewNote    String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  userId           String
+  jobId            String
   hiredDate        DateTime?
   hiredCompany     String?
   hiredDesignation String?
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  jobId String
-  job   Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  job              Job               @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, jobId])
   @@index([userId])

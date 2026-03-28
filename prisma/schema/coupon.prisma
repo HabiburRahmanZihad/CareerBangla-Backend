@@ -1,34 +1,22 @@
 model Coupon {
-  id                String          @id @default(uuid(7))
-  code              String          @unique
-  type              CouponType
-  targetRole        CouponTargetRole @default(USER)
-  description       String?
-
-  // Discount fields (PERCENT_DISCOUNT, AMOUNT_DISCOUNT, REFERRAL)
-  discountPercent   Float?
-  discountAmount    Float?
-
-  // Subscription fields (FREE_DAYS, RECRUITER_DAYS)
-  freeDays          Int?
-  // Subscription fields (RECRUITER_MONTHS)
-  freeMonths        Int?
-  // Lifetime flag (LIFETIME_FREE)
-  isLifetime        Boolean         @default(false)
-
-  // Referral coupon: recruiter earns commission per user redemption
-  commissionAmount  Float?
-  linkedRecruiterId String?         // Recruiter.id (plain ref, no formal relation)
-
-  maxUsage          Int             @default(1)
-  usageCount        Int             @default(0)
-
-  status            CouponStatus    @default(ACTIVE)
+  id                String           @id @default(uuid(7))
+  code              String           @unique
+  status            CouponStatus     @default(ACTIVE)
   expiresAt         DateTime?
-
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
-
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  maxUsage          Int              @default(1)
+  usageCount        Int              @default(0)
+  discountAmount    Float?
+  discountPercent   Float?
+  commissionAmount  Float?
+  description       String?
+  freeDays          Int?
+  freeMonths        Int?
+  isLifetime        Boolean          @default(false)
+  linkedRecruiterId String?
+  targetRole        CouponTargetRole @default(USER)
+  type              CouponType
   usages            CouponUsage[]
 
   @@index([code])
@@ -38,11 +26,11 @@ model Coupon {
 }
 
 model CouponUsage {
-  id        String   @id @default(uuid(7))
-  couponId  String
-  coupon    Coupon   @relation(fields: [couponId], references: [id], onDelete: Cascade)
-  userId    String
-  usedAt    DateTime @default(now())
+  id       String   @id @default(uuid(7))
+  couponId String
+  userId   String
+  usedAt   DateTime @default(now())
+  coupon   Coupon   @relation(fields: [couponId], references: [id], onDelete: Cascade)
 
   @@unique([couponId, userId])
   @@index([couponId])

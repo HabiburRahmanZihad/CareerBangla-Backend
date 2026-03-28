@@ -1,39 +1,36 @@
 model User {
-  id                 String     @id
-  name               String
-  email              String
-  emailVerified      Boolean    @default(false)
-  role               Role       @default(USER)
-  status             UserStatus @default(ACTIVE)
-  needPasswordChange Boolean    @default(false)
-  isDeleted          Boolean    @default(false)
-  deletedAt          DateTime?
-  image              String?
-  phone              String?    @unique
-  country            String?
-  createdAt          DateTime   @default(now())
-  updatedAt          DateTime   @updatedAt
-
-  isPremium    Boolean   @default(false)
-  premiumUntil DateTime?
-  referralCode String?   @unique
-  referredBy   String?
-
-  sessions                 Session[]
+  id                       String                    @id
+  name                     String
+  email                    String                    @unique
+  emailVerified            Boolean                   @default(false)
+  role                     Role                      @default(USER)
+  status                   UserStatus                @default(ACTIVE)
+  needPasswordChange       Boolean                   @default(false)
+  isDeleted                Boolean                   @default(false)
+  deletedAt                DateTime?
+  image                    String?
+  createdAt                DateTime                  @default(now())
+  updatedAt                DateTime                  @updatedAt
+  isPremium                Boolean                   @default(false)
+  premiumUntil             DateTime?
+  referralCode             String?                   @unique
+  referredBy               String?
+  phone                    String?                   @unique
+  country                  String?
   accounts                 Account[]
-  recruiter                Recruiter?
   admin                    Admin?
-  resume                   Resume?
   applications             Application[]
+  candidateDownloads       CvDownload[]              @relation("candidateDownloads")
+  recruitedDownloads       CvDownload[]              @relation("recruitedDownloads")
   notifications            Notification[]
+  recruiter                Recruiter?
+  referralsReceived        ReferralHistory?          @relation("ReferredUser")
+  referralsMade            ReferralHistory[]         @relation("ReferredBy")
+  resume                   Resume?
+  sessions                 Session[]
   subscriptions            Subscription[]
   subscriptionReminderLogs SubscriptionReminderLog[]
-  referralsMade            ReferralHistory[]         @relation("ReferredBy")
-  referralsReceived        ReferralHistory[]         @relation("ReferredUser")
-  recruitedDownloads       CvDownload[]              @relation("recruitedDownloads")
-  candidateDownloads       CvDownload[]              @relation("candidateDownloads")
 
-  @@unique([email])
   @@index([role])
   @@index([status])
   @@index([isDeleted])
@@ -46,19 +43,18 @@ model User {
 model Session {
   id                    String    @id
   expiresAt             DateTime
-  token                 String
+  token                 String    @unique
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
   ipAddress             String?
   userAgent             String?
   userId                String
-  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   accessToken           String?
   accessTokenExpiresAt  DateTime?
   refreshToken          String?
   refreshTokenExpiresAt DateTime?
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([token])
   @@index([userId])
   @@map("session")
 }
@@ -68,7 +64,6 @@ model Account {
   accountId             String
   providerId            String
   userId                String
-  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   accessToken           String?
   refreshToken          String?
   idToken               String?
@@ -78,6 +73,7 @@ model Account {
   password              String?
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@map("account")
@@ -98,12 +94,12 @@ model Verification {
 model ReferralHistory {
   id             String    @id @default(uuid(7))
   referrerId     String
-  referrer       User      @relation("ReferredBy", fields: [referrerId], references: [id], onDelete: Cascade)
   referredUserId String    @unique
-  referredUser   User      @relation("ReferredUser", fields: [referredUserId], references: [id], onDelete: Cascade)
   hasPaid        Boolean   @default(false)
   paidAt         DateTime?
   createdAt      DateTime  @default(now())
+  referredUser   User      @relation("ReferredUser", fields: [referredUserId], references: [id], onDelete: Cascade)
+  referrer       User      @relation("ReferredBy", fields: [referrerId], references: [id], onDelete: Cascade)
 
   @@index([referrerId])
   @@index([referrerId, hasPaid])

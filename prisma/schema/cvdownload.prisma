@@ -1,16 +1,13 @@
 model CvDownload {
-  id           String   @id @default(uuid(7))
-  downloadedAt DateTime @default(now())
-
-  recruiterId String
-  recruiter   User   @relation("recruitedDownloads", fields: [recruiterId], references: [id], onDelete: Cascade)
-
-  candidateId String
-  candidate   User   @relation("candidateDownloads", fields: [candidateId], references: [id], onDelete: Cascade)
-
+  id            String   @id @default(uuid(7))
+  downloadedAt  DateTime @default(now())
+  recruiterId   String
+  candidateId   String
   applicationId String?
+  candidate     User     @relation("candidateDownloads", fields: [candidateId], references: [id], onDelete: Cascade)
+  recruiter     User     @relation("recruitedDownloads", fields: [recruiterId], references: [id], onDelete: Cascade)
 
-  @@unique([recruiterId, candidateId]) // Track unique downloads per recruiter-candidate pair
+  @@unique([recruiterId, candidateId])
   @@index([recruiterId])
   @@index([candidateId])
   @@index([downloadedAt])

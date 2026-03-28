@@ -1,53 +1,38 @@
 model Resume {
-  id String @id @default(uuid(7))
-
-  // Personal Information
-  fullName          String?
-  email             String?
-  professionalTitle String?
-  contactNumber     String?
-  dateOfBirth       DateTime?
-  gender            Gender?
-  nationality       String?
-  address           String?
-
-  // URLs
-  linkedinUrl  String?
-  githubUrl    String?
-  portfolioUrl String?
-  websiteUrl   String?
-  profilePhoto String? // URL to uploaded photo
-
-  // Professional Summary
-  professionalSummary String? @db.Text
-
-  // Skills (stored as JSON with categories)
-  technicalSkills      String[]
-  softSkills           String[]
-  toolsAndTechnologies String[]
-
-  // Nested data stored as JSON
-  workExperience WorkExperience[]
-  education      Education[]
-  certifications Certification[]
-  projects       Project[]
-  languages      Language[]
-  awards         Award[]
-  interests      String[]
-  references     Reference[]
-
-  // Legacy fields (for backward compatibility)
+  id                    String           @id @default(uuid(7))
   skills                String[]
   experience            Json[]
+  linkedinUrl           String?
+  portfolioUrl          String?
+  gender                Gender?
+  dateOfBirth           DateTime?
+  contactNumber         String?
+  address               String?
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+  userId                String           @unique
+  profileCompletedAt    DateTime?
+  email                 String?
+  fullName              String?
+  githubUrl             String?
+  interests             String[]
+  nationality           String?
+  professionalSummary   String?
+  professionalTitle     String?
+  profilePhoto          String?
+  softSkills            String[]
+  technicalSkills       String[]
+  toolsAndTechnologies  String[]
+  websiteUrl            String?
   certifications_legacy Json[]
-
-  // Metadata
-  profileCompletedAt DateTime?
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
-
-  userId String @unique
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  awards                Award[]
+  certifications        Certification[]
+  education             Education[]
+  languages             Language[]
+  projects              Project[]
+  references            Reference[]
+  user                  User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workExperience        WorkExperience[]
 
   @@map("resume")
 }
@@ -56,7 +41,7 @@ model WorkExperience {
   id               String    @id @default(uuid(7))
   jobTitle         String
   companyName      String
-  employmentType   String? // Full-time, Part-time, Contract, etc.
+  employmentType   String?
   location         String?
   startDate        DateTime
   endDate          DateTime?
@@ -64,12 +49,10 @@ model WorkExperience {
   responsibilities String[]
   achievements     String[]
   technologiesUsed String[]
-
-  resumeId String
-  resume   Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  resumeId         String
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  resume           Resume    @relation(fields: [resumeId], references: [id], onDelete: Cascade)
 
   @@map("work_experience")
 }
@@ -84,13 +67,11 @@ model Education {
   endDate           DateTime?
   currentlyStudying Boolean   @default(false)
   cgpaOrResult      String?
-  description       String?   @db.Text
-
-  resumeId String
-  resume   Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  description       String?
+  resumeId          String
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  resume            Resume    @relation(fields: [resumeId], references: [id], onDelete: Cascade)
 
   @@map("education")
 }
@@ -103,12 +84,10 @@ model Certification {
   expiryDate          DateTime?
   credentialId        String?
   credentialUrl       String?
-
-  resumeId String
-  resume   Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  resumeId            String
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  resume              Resume    @relation(fields: [resumeId], references: [id], onDelete: Cascade)
 
   @@map("certification")
 }
@@ -117,33 +96,29 @@ model Project {
   id               String    @id @default(uuid(7))
   projectName      String
   role             String?
-  description      String    @db.Text
+  description      String
   technologiesUsed String[]
   liveUrl          String?
   githubUrl        String?
   startDate        DateTime?
   endDate          DateTime?
   highlights       String[]
-
-  resumeId String
-  resume   Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  resumeId         String
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  resume           Resume    @relation(fields: [resumeId], references: [id], onDelete: Cascade)
 
   @@map("project")
 }
 
 model Language {
-  id               String @id @default(uuid(7))
+  id               String   @id @default(uuid(7))
   language         String
-  proficiencyLevel String // Native, Fluent, Intermediate, Beginner
-
-  resumeId String
-  resume   Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  proficiencyLevel String
+  resumeId         String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  resume           Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
 
   @@map("language")
 }
@@ -153,31 +128,27 @@ model Award {
   title       String
   issuer      String
   date        DateTime
-  description String?  @db.Text
-
-  resumeId String
-  resume   Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  description String?
+  resumeId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  resume      Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
 
   @@map("award")
 }
 
 model Reference {
-  id           String  @id @default(uuid(7))
+  id           String   @id @default(uuid(7))
   name         String
   designation  String?
   company      String?
   email        String?
   phone        String?
   relationship String?
-
-  resumeId String
-  resume   Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  resumeId     String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  resume       Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
 
   @@map("reference")
 }

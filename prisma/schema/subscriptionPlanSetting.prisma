@@ -1,18 +1,17 @@
 model SubscriptionPlanSetting {
-    id            String  @id @default(uuid(7))
-    planKey       String  @unique
-    name          String
-    amount        Float
-    description   String
-    durationDays  Int?
-    features      Json
-    recruiterOnly Boolean @default(false)
-    isActive      Boolean @default(true)
+  id            String   @id @default(uuid(7))
+  planKey       String   @unique
+  name          String
+  amount        Float
+  description   String
+  durationDays  Int?
+  features      Json
+  recruiterOnly Boolean  @default(false)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
-
-    @@index([planKey])
-    @@index([recruiterOnly])
-    @@map("subscription_plan_setting")
+  @@index([planKey])
+  @@index([recruiterOnly])
+  @@map("subscription_plan_setting")
 }
