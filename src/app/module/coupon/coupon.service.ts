@@ -221,8 +221,9 @@ const applyCoupon = async (user: IRequestUser, code: string) => {
         }
     });
 
-    // Invalidate user cache so isPremium/premiumUntil changes are reflected immediately
+    // Invalidate user and recruiter caches so isPremium/premiumUntil changes are reflected immediately
     cacheManager.user.delete(user.userId);
+    cacheManager.recruiter.deleteByUser(user.userId);
 
     await prisma.notification.create({
         data: { userId: user.userId, type: "GENERAL", title: "Coupon Applied", message: result.message },

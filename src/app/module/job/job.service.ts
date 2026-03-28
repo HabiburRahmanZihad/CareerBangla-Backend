@@ -12,7 +12,7 @@ import { QueryBuilder } from "../../utils/QueryBuilder";
 import { jobFilterableFields, jobSearchableFields } from "./job.constant";
 import { ICreateJobPayload, IUpdateJobPayload } from "./job.interface";
 
-// Helper function to check if recruiter has active subscription
+// Helper function to check if recruiter has active subscription or premium (via coupon)
 const hasActiveRecruiterSubscription = async (userId: string): Promise<boolean> => {
     const subscription = await prisma.subscription.findFirst({
         where: {
@@ -25,14 +25,23 @@ const hasActiveRecruiterSubscription = async (userId: string): Promise<boolean> 
         }
     });
 
-    if (!subscription) return false;
-
-    // Check if subscription is still active (not expired)
-    if (subscription.currentPeriodEnd) {
-        return new Date() < new Date(subscription.currentPeriodEnd);
+    if (subscription) {
+        // Check if subscription is still active (not expired)
+        if (subscription.currentPeriodEnd) {
+            return new Date() < new Date(subscription.currentPeriodEnd);
+        }
+        return true;
     }
 
-    return true;
+    // Also accept premium granted via coupon (RECRUITER_DAYS / RECRUITER_MONTHS / LIFETIME_FREE)
+    const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { isPremium: true, premiumUntil: true },
+    });
+
+    if (!user || !user.isPremium) return false;
+    // Lifetime premium has no expiry; time-limited premium must not be expired
+    return !user.premiumUntil || new Date() < new Date(user.premiumUntil);
 };
 
 const createJob = async (user: IRequestUser, payload: ICreateJobPayload) => {

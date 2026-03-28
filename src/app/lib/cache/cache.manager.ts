@@ -59,6 +59,8 @@ class CacheManager {
             cacheService.set(CACHE_KEYS.RECRUITER_BY_USER(userId), data, CACHE_TTL.LONG),
         getOrSetByUser: (userId: string, fetchFn: () => Promise<any>) =>
             this.getOrSet(CACHE_KEYS.RECRUITER_BY_USER(userId), fetchFn, CACHE_TTL.LONG),
+        deleteByUser: (userId: string) =>
+            cacheService.delete(CACHE_KEYS.RECRUITER_BY_USER(userId)),
         getJobs: (recruiterId: string) =>
             cacheService.get(CACHE_KEYS.RECRUITER_JOBS(recruiterId)),
         setJobs: (recruiterId: string, data: any) =>
