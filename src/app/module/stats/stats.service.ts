@@ -162,7 +162,7 @@ const getRecruiterStatsData = async (user: IRequestUser) => {
 }
 
 const getUserStatsData = async (user: IRequestUser) => {
-    const [applicationCount, applicationStatusDistribution] = await Promise.all([
+    const [applicationCount, applicationStatusDistribution, applicationsByMonth] = await Promise.all([
         prisma.application.count({
             where: { userId: user.userId }
         }),
@@ -170,7 +170,15 @@ const getUserStatsData = async (user: IRequestUser) => {
             by: ["status"],
             _count: { id: true },
             where: { userId: user.userId }
-        })
+        }),
+        prisma.$queryRaw<Array<{ month: Date; count: bigint }>>`
+            SELECT DATE_TRUNC('month', "createdAt") AS month,
+            CAST(COUNT(*) AS INTEGER) AS count
+            FROM "application"
+            WHERE "userId" = ${user.userId}
+            GROUP BY month
+            ORDER BY month ASC
+        `
     ]);
 
     const formattedStatusDistribution = applicationStatusDistribution.map(({ _count, status }) => ({
@@ -180,7 +188,8 @@ const getUserStatsData = async (user: IRequestUser) => {
 
     return {
         applicationCount,
-        applicationStatusDistribution: formattedStatusDistribution
+        applicationStatusDistribution: formattedStatusDistribution,
+        applicationsByMonth
     }
 }
 
