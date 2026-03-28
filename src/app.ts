@@ -32,6 +32,16 @@ app.set("views", path.resolve(process.cwd(), `src/app/templates`))
 // EXTERNAL WEBHOOK/IPN ROUTES — must be registered BEFORE CORS
 import { SubscriptionController } from "./app/module/subscription/subscription.controller";
 app.post("/api/v1/subscriptions/ipn", express.urlencoded({ extended: true }), SubscriptionController.handleIpn);
+// Browser redirect endpoints after SSLCommerz payment (POST redirects from payment gateway)
+app.post("/api/v1/subscriptions/success", express.urlencoded({ extended: true }), (_req, res) => {
+    res.redirect(`${envVars.FRONTEND_URL}/dashboard/subscriptions?payment=success`);
+});
+app.post("/api/v1/subscriptions/fail", express.urlencoded({ extended: true }), (_req, res) => {
+    res.redirect(`${envVars.FRONTEND_URL}/dashboard/subscriptions?payment=failed`);
+});
+app.post("/api/v1/subscriptions/cancel", express.urlencoded({ extended: true }), (_req, res) => {
+    res.redirect(`${envVars.FRONTEND_URL}/dashboard/subscriptions?payment=cancelled`);
+});
 
 // CORS Configuration - Production Ready
 const allowedOrigins = [

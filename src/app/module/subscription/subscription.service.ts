@@ -280,6 +280,16 @@ const initiatePayment = async (user: IRequestUser, payload: { planKey?: string; 
         referralId = payload.referralCode;
     }
 
+    // Cancel any existing UNPAID subscriptions for the same user+plan to prevent duplicates
+    await prisma.subscription.updateMany({
+        where: {
+            userId: user.userId,
+            plan: planEnum,
+            status: PaymentStatus.UNPAID,
+        },
+        data: { status: PaymentStatus.FAILED },
+    });
+
     // Calculate subscription period dates
     const currentPeriodStart = new Date();
     const currentPeriodEnd = plan.durationDays
@@ -332,9 +342,9 @@ const initiatePayment = async (user: IRequestUser, payload: { planKey?: string; 
         total_amount: finalAmount,
         currency: 'BDT',
         tran_id: transactionId,
-        success_url: `${envVars.BACKEND_URL}/api/v1/subscriptions/ipn`,
-        fail_url: `${envVars.BACKEND_URL}/api/v1/subscriptions/ipn`,
-        cancel_url: `${envVars.BACKEND_URL}/api/v1/subscriptions/ipn`,
+        success_url: `${envVars.BACKEND_URL}/api/v1/subscriptions/success`,
+        fail_url: `${envVars.BACKEND_URL}/api/v1/subscriptions/fail`,
+        cancel_url: `${envVars.BACKEND_URL}/api/v1/subscriptions/cancel`,
         ipn_url: `${envVars.BACKEND_URL}/api/v1/subscriptions/ipn`,
         shipping_method: 'No',
         product_name: plan.name,
@@ -519,8 +529,8 @@ const processSuccessfulPayment = async (
         }
     }
 
-    // 5. Notification for user
-    await tx.notification.create({
+    // 5. Notification for user (fire-and-forget — not atomic with payment)
+    prisma.notification.create({
         data: {
             userId: subscription.userId,
             type: "GENERAL",
@@ -530,30 +540,31 @@ const processSuccessfulPayment = async (
                 : `Your ${planConfig.name} has been activated until ${currentPeriodEnd?.toDateString()}.`,
             metadata: { subscriptionId: subscription.id },
         }
-    });
+    }).catch((err) => logger.error("User notification failed", err));
 
-    // 6. Admin notifications (batch insert)
-    const admins = await tx.user.findMany({
+    // 6. Admin notifications (fire-and-forget — not atomic with payment)
+    prisma.user.findMany({
         where: { role: { in: ["ADMIN", "SUPER_ADMIN"] } },
         select: { id: true },
-    });
-    if (admins.length > 0) {
-        await tx.notification.createMany({
-            data: admins.map((admin: { id: string }) => ({
-                userId: admin.id,
-                type: "GENERAL" as const,
-                title: "New Subscription Purchase",
-                message: `${subscription.user.name} (${subscription.user.email}) purchased ${planConfig.name} for ৳${subscription.amount} via ${gatewayLabel || "Payment Gateway"}.`,
-                metadata: {
-                    subscriptionId: subscription.id,
-                    userId: subscription.userId,
-                    plan: planConfig.planKey,
-                    amount: subscription.amount,
-                    transactionId: subscription.transactionId,
-                },
-            })),
-        });
-    }
+    }).then((admins) => {
+        if (admins.length > 0) {
+            return prisma.notification.createMany({
+                data: admins.map((admin: { id: string }) => ({
+                    userId: admin.id,
+                    type: "GENERAL" as const,
+                    title: "New Subscription Purchase",
+                    message: `${subscription.user.name} (${subscription.user.email}) purchased ${planConfig.name} for ৳${subscription.amount} via ${gatewayLabel || "Payment Gateway"}.`,
+                    metadata: {
+                        subscriptionId: subscription.id,
+                        userId: subscription.userId,
+                        plan: planConfig.planKey,
+                        amount: subscription.amount,
+                        transactionId: subscription.transactionId,
+                    },
+                })),
+            });
+        }
+    }).catch((err) => logger.error("Admin notifications failed", err));
 };
 
 // Send invoice email (fire and forget, non-blocking)
@@ -658,7 +669,7 @@ const handleIpn = async (payload: ISSLCommerzIpnPayload) => {
                     "SSLCommerz",
                     { val_id, bank_tran_id, card_type },
                 );
-            });
+            }, { timeout: 30000 });
 
             sendInvoiceEmail(subscription.id).catch((err) => logger.error("Invoice email failed", err));
 
