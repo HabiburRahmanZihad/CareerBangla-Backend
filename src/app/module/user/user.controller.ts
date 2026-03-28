@@ -7,7 +7,6 @@ import { UserService } from "./user.service";
 const createRecruiter = catchAsync(
     async (req: Request, res: Response) => {
         const payload = req.body;
-
         const result = await UserService.createRecruiter(payload);
 
         sendResponse(res, {

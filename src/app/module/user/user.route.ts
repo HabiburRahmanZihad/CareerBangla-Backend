@@ -2,6 +2,7 @@
 import { Router } from "express";
 import multer from "multer";
 import { Role } from "../../../generated/prisma/enums";
+import { uploadFileToCloudinary } from "../../config/cloudinary.config";
 import { checkAuth } from "../../middleware/checkAuth";
 import { validateRequest } from "../../middleware/validateRequest";
 import { UserController } from "./user.controller";
@@ -12,40 +13,58 @@ const router = Router();
 // Configure multer for handling multipart/form-data (in-memory storage)
 const upload = multer({ storage: multer.memoryStorage() });
 
-// Middleware to transform multipart/form-data to JSON structure
-const transformFormDataToJson = (req: any, _res: any, next: any) => {
-    if (req.is('multipart/form-data') || (req.body && typeof req.body === 'object' && Object.keys(req.body).length > 0)) {
-        // FormData fields come as flat properties, we need to restructure them
+// Upload files to Cloudinary then restructure FormData to nested JSON
+const transformAndUpload = async (req: any, _res: any, next: any) => {
+    try {
         const body = req.body || {};
+        const files: Express.Multer.File[] = req.files || [];
 
-        // Check if this looks like FormData that needs restructuring
+        // Upload images to Cloudinary before validation
+        let profilePhotoUrl: string | undefined;
+        let companyLogoUrl: string | undefined;
+
+        const profilePhotoFile = files.find(f => f.fieldname === "profilePhotoFile");
+        const companyLogoFile = files.find(f => f.fieldname === "companyLogoFile");
+
+        if (profilePhotoFile) {
+            const result = await uploadFileToCloudinary(profilePhotoFile.buffer, profilePhotoFile.originalname);
+            profilePhotoUrl = result.secure_url;
+        }
+        if (companyLogoFile) {
+            const result = await uploadFileToCloudinary(companyLogoFile.buffer, companyLogoFile.originalname);
+            companyLogoUrl = result.secure_url;
+        }
+
+        // Restructure flat FormData to nested object expected by Zod schema
         if (body.name || body.companyName) {
-            // Transform flat FormData structure to nested structure
             req.body = {
                 password: body.password,
                 recruiter: {
                     name: body.name,
                     email: body.email,
-                    contactNumber: body.contactNumber,
+                    ...(body.contactNumber ? { contactNumber: body.contactNumber } : {}),
                     companyName: body.companyName,
-                    companyLogo: body.companyLogo,
-                    companyWebsite: body.companyWebsite,
-                    companyAddress: body.companyAddress,
-                    designation: body.designation,
-                    industry: body.industry,
-                    companySize: body.companySize,
-                    description: body.description,
-                    profilePhoto: body.profilePhoto,
-                }
+                    ...(companyLogoUrl ? { companyLogo: companyLogoUrl } : {}),
+                    ...(body.companyWebsite ? { companyWebsite: body.companyWebsite } : {}),
+                    ...(body.companyAddress ? { companyAddress: body.companyAddress } : {}),
+                    ...(body.designation ? { designation: body.designation } : {}),
+                    ...(body.industry ? { industry: body.industry } : {}),
+                    ...(body.companySize ? { companySize: body.companySize } : {}),
+                    ...(body.description ? { description: body.description } : {}),
+                    ...(profilePhotoUrl ? { profilePhoto: profilePhotoUrl } : {}),
+                },
             };
         }
+
+        next();
+    } catch (err) {
+        next(err);
     }
-    next();
 };
 
 router.post("/create-recruiter",
     upload.any(),
-    transformFormDataToJson,
+    transformAndUpload,
     validateRequest(createRecruiterZodSchema),
     UserController.createRecruiter);
 
