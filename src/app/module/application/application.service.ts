@@ -285,20 +285,35 @@ const updateApplicationStatus = async (
         throw new AppError(status.FORBIDDEN, "You are not authorized to update this application");
     }
 
-    // Validate application status lifecycle transitions
-    const validTransitions: Record<string, ApplicationStatus[]> = {
+    // Validate application status lifecycle transitions (role-based)
+    const isAdmin = user.role === "ADMIN" || user.role === "SUPER_ADMIN";
+
+    // Recruiters can only move forward: PENDING → SHORTLISTED → INTERVIEW (no reverting, no HIRED/REJECTED)
+    const recruiterTransitions: Record<string, ApplicationStatus[]> = {
+        PENDING: [ApplicationStatus.SHORTLISTED],
+        SHORTLISTED: [ApplicationStatus.INTERVIEW],
+        INTERVIEW: [],
+        HIRED: [],
+        REJECTED: [],
+    };
+
+    // Admins handle final verification: can set HIRED or REJECTED from INTERVIEW/SHORTLISTED
+    const adminTransitions: Record<string, ApplicationStatus[]> = {
         PENDING: [ApplicationStatus.SHORTLISTED, ApplicationStatus.REJECTED],
-        SHORTLISTED: [ApplicationStatus.INTERVIEW, ApplicationStatus.REJECTED],
+        SHORTLISTED: [ApplicationStatus.INTERVIEW, ApplicationStatus.HIRED, ApplicationStatus.REJECTED],
         INTERVIEW: [ApplicationStatus.HIRED, ApplicationStatus.REJECTED],
         HIRED: [],
         REJECTED: [],
     };
 
+    const validTransitions = isAdmin ? adminTransitions : recruiterTransitions;
     const allowedNextStatuses = validTransitions[application.status];
+
     if (!allowedNextStatuses || !allowedNextStatuses.includes(payload.status)) {
+        const roleLabel = isAdmin ? "Admin" : "Recruiter";
         throw new AppError(
             status.BAD_REQUEST,
-            `Cannot transition from ${application.status} to ${payload.status}. Allowed transitions: ${allowedNextStatuses?.join(", ") || "none (terminal state)"}`
+            `${roleLabel} cannot transition from ${application.status} to ${payload.status}. Allowed transitions: ${allowedNextStatuses?.join(", ") || "none"}`
         );
     }
 
@@ -365,7 +380,18 @@ const updateApplicationStatus = async (
         REJECTED: "Unfortunately, your application was not selected at this time.",
     };
 
-    const templateData: any = {
+    const templateData: {
+        name: string;
+        jobTitle: string;
+        companyName: string;
+        status: string;
+        message: string;
+        interviewDate?: string;
+        interviewNote?: string;
+        hiredCompany?: string;
+        hiredDesignation?: string;
+        hiredDate?: string;
+    } = {
         name: application.user.name,
         jobTitle: application.job.title,
         companyName: application.job.recruiter.companyName,

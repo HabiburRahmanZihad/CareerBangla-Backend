@@ -676,23 +676,27 @@ const updateUserHiredStatus = async (user: IRequestUser, userId: string, isHired
     await prisma.user.findUniqueOrThrow({ where: { id: userId } });
 
     if (isHired) {
-        const latestApp = await prisma.application.findFirst({
-            where: { userId },
-            orderBy: { createdAt: "desc" }
+        // Admin can only hire a candidate who has reached INTERVIEW or SHORTLISTED stage
+        const eligibleApp = await prisma.application.findFirst({
+            where: { userId, status: { in: ["INTERVIEW", "SHORTLISTED"] } },
+            orderBy: { updatedAt: "desc" }
         });
 
-        if (!latestApp) {
-            throw new AppError(status.BAD_REQUEST, "User has no applications. Cannot mark as hired.");
+        if (!eligibleApp) {
+            throw new AppError(
+                status.BAD_REQUEST,
+                "Cannot mark as hired. User must have an application at INTERVIEW or SHORTLISTED stage."
+            );
         }
 
         await prisma.application.update({
-            where: { id: latestApp.id },
+            where: { id: eligibleApp.id },
             data: { status: "HIRED", hiredDate: new Date() }
         });
     } else {
         await prisma.application.updateMany({
             where: { userId, status: "HIRED" },
-            data: { status: "PENDING", hiredDate: null }
+            data: { status: "INTERVIEW", hiredDate: null }
         });
     }
 
