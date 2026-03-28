@@ -665,6 +665,55 @@ const updateJob = async (jobId: string, payload: Record<string, any>) => {
     return updatedJob;
 }
 
+const updateUserHiredStatus = async (user: IRequestUser, userId: string, isHired: boolean) => {
+    logger.update(`User hired status update → userId: ${userId}, isHired: ${isHired}`);
+
+    await prisma.admin.findUniqueOrThrow({
+        where: { email: user.email },
+        include: { user: true }
+    });
+
+    await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+
+    if (isHired) {
+        const latestApp = await prisma.application.findFirst({
+            where: { userId },
+            orderBy: { createdAt: "desc" }
+        });
+
+        if (!latestApp) {
+            throw new AppError(status.BAD_REQUEST, "User has no applications. Cannot mark as hired.");
+        }
+
+        await prisma.application.update({
+            where: { id: latestApp.id },
+            data: { status: "HIRED", hiredDate: new Date() }
+        });
+    } else {
+        await prisma.application.updateMany({
+            where: { userId, status: "HIRED" },
+            data: { status: "PENDING", hiredDate: null }
+        });
+    }
+
+    const updatedUser = await prisma.user.findUniqueOrThrow({
+        where: { id: userId },
+        include: {
+            applications: {
+                where: { status: "HIRED" },
+                select: { id: true }
+            }
+        }
+    });
+
+    logger.update(`User hired status updated → userId: ${userId}`);
+    return {
+        ...updatedUser,
+        isHired: updatedUser.applications.length > 0,
+        applications: undefined
+    };
+}
+
 const updateSubscriptionPlan = async (planKey: string, payload: IUpdateSubscriptionPlanPayload) => {
     logger.update(`Admin subscription plan update requested → planKey: ${planKey}`);
     return SubscriptionService.updateSubscriptionPlanConfig(planKey, payload);
@@ -682,6 +731,7 @@ export const AdminService = {
     getAllUsersWithDetails,
     getAllRecruitersWithDetails,
     updateUser,
+    updateUserHiredStatus,
     updateRecruiterData,
     deleteUser,
     updateJob,

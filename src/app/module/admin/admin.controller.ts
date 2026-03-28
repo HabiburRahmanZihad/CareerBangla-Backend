@@ -229,6 +229,22 @@ const updateJob = catchAsync(
     }
 );
 
+const updateUserHiredStatus = catchAsync(
+    async (req: Request, res: Response) => {
+        const user = req.user;
+        const { userId } = req.params;
+        const { isHired } = req.body;
+
+        const result = await AdminService.updateUserHiredStatus(user, userId as string, isHired);
+        sendResponse(res, {
+            httpStatusCode: status.OK,
+            success: true,
+            message: "User hired status updated successfully",
+            data: result,
+        })
+    }
+);
+
 const updateSubscriptionPlan = catchAsync(
     async (req: Request, res: Response) => {
         const { planKey } = req.params;
@@ -256,6 +272,7 @@ export const AdminController = {
     getAllUsersWithDetails,
     getAllRecruitersWithDetails,
     updateUser,
+    updateUserHiredStatus,
     updateRecruiterData,
     deleteUser,
     updateJob,
