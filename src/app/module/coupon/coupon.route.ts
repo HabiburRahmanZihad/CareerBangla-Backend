@@ -3,11 +3,22 @@ import { Role } from "../../../generated/prisma/enums";
 import { checkAuth } from "../../middleware/checkAuth";
 import { validateRequest } from "../../middleware/validateRequest";
 import { CouponController } from "./coupon.controller";
-import { createCouponZodSchema, validateCouponZodSchema } from "./coupon.validation";
+import { applyCouponZodSchema, createCouponZodSchema, validateCouponZodSchema } from "./coupon.validation";
 
 const router = Router();
 
-// Admin operations
+// User/Recruiter routes (must be before /:id to avoid param conflict)
+router.post("/validate",
+    checkAuth(Role.USER, Role.RECRUITER),
+    validateRequest(validateCouponZodSchema),
+    CouponController.validateCoupon);
+
+router.post("/apply",
+    checkAuth(Role.USER, Role.RECRUITER),
+    validateRequest(applyCouponZodSchema),
+    CouponController.applyCoupon);
+
+// Admin routes
 router.post("/",
     checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
     validateRequest(createCouponZodSchema),
@@ -17,14 +28,12 @@ router.get("/",
     checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
     CouponController.getAllCoupons);
 
+router.get("/:id",
+    checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
+    CouponController.getCouponById);
+
 router.delete("/:id",
     checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
     CouponController.deleteCoupon);
-
-// Use during checkout to validate
-router.post("/validate",
-    checkAuth(Role.USER, Role.RECRUITER),
-    validateRequest(validateCouponZodSchema),
-    CouponController.validateCoupon);
 
 export const CouponRoutes = router;

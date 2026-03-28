@@ -66,6 +66,22 @@ enum CouponStatus {
   EXPIRED
 }
 
+enum CouponType {
+  FREE_DAYS
+  LIFETIME_FREE
+  PERCENT_DISCOUNT
+  AMOUNT_DISCOUNT
+  RECRUITER_DAYS
+  RECRUITER_MONTHS
+  REFERRAL
+}
+
+enum CouponTargetRole {
+  USER
+  RECRUITER
+  BOTH
+}
+
 enum NotificationType {
   APPLICATION_SUBMITTED
   APPLICATION_SHORTLISTED
