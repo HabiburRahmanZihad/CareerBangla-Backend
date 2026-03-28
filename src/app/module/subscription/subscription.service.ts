@@ -871,6 +871,222 @@ const getInvoice = async (user: IRequestUser, subscriptionId: string) => {
     return generateInvoicePdf(invoiceData);
 };
 
+// Super Admin: Get all payment-subscription details for full admin view
+interface IGetAllPaymentSubscriptionsOptions {
+    page: number;
+    limit: number;
+    status?: string;
+    plan?: string;
+    search?: string;
+    sortBy: string;
+    sortOrder: "asc" | "desc";
+}
+
+const getAllPaymentSubscriptions = async (user: IRequestUser, options: IGetAllPaymentSubscriptionsOptions) => {
+    // Verify super admin role
+    if (user.role !== Role.SUPER_ADMIN) {
+        throw new AppError(status.FORBIDDEN, "Only Super Admin can access all payment subscriptions.");
+    }
+
+    logger.read(`Super Admin fetching all payment subscriptions → page: ${options.page}, limit: ${options.limit}`);
+
+    const skip = (options.page - 1) * options.limit;
+
+    // Build filter conditions
+    const whereConditions: Prisma.SubscriptionWhereInput = {};
+
+    if (options.status) {
+        whereConditions.status = options.status as PaymentStatus;
+    }
+
+    if (options.plan) {
+        whereConditions.plan = options.plan as SubscriptionPlan;
+    }
+
+    if (options.search) {
+        whereConditions.OR = [
+            { user: { name: { contains: options.search, mode: "insensitive" } } },
+            { user: { email: { contains: options.search, mode: "insensitive" } } },
+            { transactionId: { contains: options.search, mode: "insensitive" } },
+            { id: { contains: options.search, mode: "insensitive" } },
+        ];
+    }
+
+    // Fetch subscriptions with complete user details
+    const subscriptions = await prisma.subscription.findMany({
+        where: whereConditions,
+        include: {
+            user: {
+                select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    phone: true,
+                    role: true,
+                    status: true,
+                    createdAt: true,
+                    isPremium: true,
+                    premiumUntil: true,
+                },
+            },
+            reminderLogs: {
+                select: {
+                    id: true,
+                    reminderInterval: true,
+                    sentAt: true,
+                },
+                orderBy: { sentAt: "desc" },
+                take: 1,
+            },
+        },
+        orderBy: { [options.sortBy]: options.sortOrder },
+        skip,
+        take: options.limit,
+    });
+
+    // Get total count for pagination
+    const total = await prisma.subscription.count({ where: whereConditions });
+
+    // Format response with complete payment details
+    const formattedSubscriptions = subscriptions.map((sub) => ({
+        id: sub.id,
+        transactionId: sub.transactionId,
+        bankTransactionId: sub.bank_tran_id,
+        plan: sub.plan,
+        amount: sub.amount,
+        status: sub.status,
+        isRecruiterSubscription: sub.isRecruiterSubscription,
+        currentPeriodStart: sub.currentPeriodStart,
+        currentPeriodEnd: sub.currentPeriodEnd,
+        createdAt: sub.createdAt,
+        updatedAt: sub.updatedAt,
+        cardType: sub.card_type,
+        paymentGatewayData: sub.paymentGatewayData,
+        couponId: sub.couponId,
+        referralId: sub.referralId,
+        storeAmount: sub.store_amount,
+        validationId: sub.val_id,
+        user: {
+            id: sub.user.id,
+            name: sub.user.name,
+            email: sub.user.email,
+            phone: sub.user.phone,
+            role: sub.user.role,
+            status: sub.user.status,
+            isPremium: sub.user.isPremium,
+            premiumUntil: sub.user.premiumUntil,
+            createdAt: sub.user.createdAt,
+        },
+        lastReminderLog: sub.reminderLogs[0] || null,
+    }));
+
+    return {
+        data: formattedSubscriptions,
+        pagination: {
+            page: options.page,
+            limit: options.limit,
+            total,
+            totalPages: Math.ceil(total / options.limit),
+        },
+    };
+};
+
+// Super Admin: Get specific payment-subscription details by ID
+const getPaymentSubscriptionById = async (user: IRequestUser, subscriptionId: string) => {
+    // Verify super admin role
+    if (user.role !== Role.SUPER_ADMIN) {
+        throw new AppError(status.FORBIDDEN, "Only Super Admin can access payment subscription details.");
+    }
+
+    logger.read(`Super Admin fetching payment subscription → subscriptionId: ${subscriptionId}`);
+
+    const subscription = await prisma.subscription.findUnique({
+        where: { id: subscriptionId },
+        include: {
+            user: {
+                select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    phone: true,
+                    role: true,
+                    status: true,
+                    createdAt: true,
+                    isPremium: true,
+                    premiumUntil: true,
+                    referralCode: true,
+                    referredBy: true,
+                    country: true,
+                },
+            },
+            reminderLogs: {
+                orderBy: { sentAt: "desc" },
+            },
+        },
+    });
+
+    if (!subscription) {
+        throw new AppError(status.NOT_FOUND, "Subscription not found.");
+    }
+
+    // Parse gateway data for complete payment information
+    const gatewayData = subscription.paymentGatewayData as Record<string, unknown> | null;
+    const customerInfo = gatewayData?.customerInfo as Record<string, unknown> | null;
+
+    return {
+        id: subscription.id,
+        transactionId: subscription.transactionId,
+        bankTransactionId: subscription.bank_tran_id,
+        validationId: subscription.val_id,
+        plan: subscription.plan,
+        amount: subscription.amount,
+        storeAmount: subscription.store_amount,
+        status: subscription.status,
+        isRecruiterSubscription: subscription.isRecruiterSubscription,
+        currentPeriodStart: subscription.currentPeriodStart,
+        currentPeriodEnd: subscription.currentPeriodEnd,
+        createdAt: subscription.createdAt,
+        updatedAt: subscription.updatedAt,
+        cardType: subscription.card_type,
+        couponId: subscription.couponId,
+        referralId: subscription.referralId,
+        paymentHolder: {
+            userId: subscription.user.id,
+            name: subscription.user.name,
+            email: subscription.user.email,
+            phone: subscription.user.phone,
+            role: subscription.user.role,
+            status: subscription.user.status,
+            country: subscription.user.country,
+            isPremium: subscription.user.isPremium,
+            premiumUntil: subscription.user.premiumUntil,
+            referralCode: subscription.user.referralCode,
+            referredBy: subscription.user.referredBy,
+            userCreatedAt: subscription.user.createdAt,
+        },
+        paymentDetails: {
+            gateway: gatewayData?.gateway,
+            originalAmount: gatewayData?.originalAmount,
+            discountAmount: gatewayData?.discountAmount,
+            planKey: gatewayData?.planKey,
+            couponCode: gatewayData?.couponCode,
+            referralCode: gatewayData?.referralCode,
+        },
+        customerInfo: {
+            name: customerInfo?.name,
+            phone: customerInfo?.phone,
+            address: customerInfo?.address,
+            city: customerInfo?.city,
+            postcode: customerInfo?.postcode,
+        },
+        reminderLogs: subscription.reminderLogs.map((log) => ({
+            id: log.id,
+            status: log.status,
+            createdAt: log.createdAt,
+        })),
+    };
+};
+
 export const SubscriptionService = {
     initiatePayment,
     handleIpn,
@@ -879,4 +1095,6 @@ export const SubscriptionService = {
     updateSubscriptionPlanConfig,
     getMySubscriptions,
     getInvoice,
+    getAllPaymentSubscriptions,
+    getPaymentSubscriptionById,
 }

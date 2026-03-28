@@ -26,4 +26,14 @@ router.get("/invoice/:subscriptionId",
     checkAuth(Role.USER, Role.RECRUITER),
     SubscriptionController.getInvoice);
 
+// Super Admin: View all payment subscriptions with full details
+router.get("/admin/all-payments",
+    checkAuth(Role.SUPER_ADMIN),
+    SubscriptionController.getAllPaymentSubscriptions);
+
+// Super Admin: View specific subscription payment details
+router.get("/admin/payment-details/:subscriptionId",
+    checkAuth(Role.SUPER_ADMIN),
+    SubscriptionController.getPaymentSubscriptionById);
+
 export const SubscriptionRoutes = router;

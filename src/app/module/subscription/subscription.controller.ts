@@ -91,6 +91,45 @@ const getInvoice = catchAsync(
     }
 )
 
+const getAllPaymentSubscriptions = catchAsync(
+    async (req: Request, res: Response) => {
+        const user = req.user;
+        const { page = "1", limit = "10", status: statusFilter, plan, search, sortBy = "createdAt", sortOrder = "desc" } = req.query;
+
+        const result = await SubscriptionService.getAllPaymentSubscriptions(user, {
+            page: parseInt(page as string, 10),
+            limit: parseInt(limit as string, 10),
+            status: statusFilter as string | undefined,
+            plan: plan as string | undefined,
+            search: search as string | undefined,
+            sortBy: sortBy as string,
+            sortOrder: sortOrder as "asc" | "desc",
+        });
+
+        sendResponse(res, {
+            httpStatusCode: status.OK,
+            success: true,
+            message: "All payment subscriptions fetched successfully",
+            data: result,
+        })
+    }
+)
+
+const getPaymentSubscriptionById = catchAsync(
+    async (req: Request, res: Response) => {
+        const user = req.user;
+        const { subscriptionId } = req.params;
+        const result = await SubscriptionService.getPaymentSubscriptionById(user, subscriptionId as string);
+
+        sendResponse(res, {
+            httpStatusCode: status.OK,
+            success: true,
+            message: "Payment subscription details fetched successfully",
+            data: result,
+        })
+    }
+)
+
 export const SubscriptionController = {
     initiatePayment,
     handleIpn,
@@ -98,4 +137,6 @@ export const SubscriptionController = {
     getSubscriptionPlans,
     getMySubscriptions,
     getInvoice,
+    getAllPaymentSubscriptions,
+    getPaymentSubscriptionById,
 }
