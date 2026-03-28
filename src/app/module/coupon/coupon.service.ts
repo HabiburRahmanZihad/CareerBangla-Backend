@@ -2,6 +2,7 @@ import status from "http-status";
 import { CouponStatus, CouponTargetRole, CouponType } from "../../../generated/prisma/enums";
 import AppError from "../../errorHelpers/AppError";
 import { IRequestUser } from "../../interfaces/requestUser.interface";
+import { cacheManager } from "../../lib/cache/cache.manager";
 import { prisma } from "../../lib/prisma";
 import { logger } from "../../utils/logger";
 
@@ -219,6 +220,9 @@ const applyCoupon = async (user: IRequestUser, code: string) => {
                 return { message: "Coupon applied successfully", type: coupon.type };
         }
     });
+
+    // Invalidate user cache so isPremium/premiumUntil changes are reflected immediately
+    cacheManager.user.delete(user.userId);
 
     await prisma.notification.create({
         data: { userId: user.userId, type: "GENERAL", title: "Coupon Applied", message: result.message },

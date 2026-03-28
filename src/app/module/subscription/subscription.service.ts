@@ -6,6 +6,7 @@ import { PaymentStatus, Role, SubscriptionPlan } from "../../../generated/prisma
 import { envVars } from "../../config/env";
 import AppError from "../../errorHelpers/AppError";
 import { IRequestUser } from "../../interfaces/requestUser.interface";
+import { cacheManager } from "../../lib/cache/cache.manager";
 import { prisma } from "../../lib/prisma";
 import { sendEmail } from "../../utils/email";
 import { generateInvoicePdf } from "../../utils/invoice";
@@ -417,6 +418,7 @@ const processSuccessfulPayment = async (
             premiumUntil: isLifetimePlan ? null : currentPeriodEnd,
         }
     });
+    cacheManager.user.delete(subscription.userId);
 
     // 3. Mark coupon used
     if (subscription.couponId) {
@@ -503,6 +505,7 @@ const processSuccessfulPayment = async (
                         where: { id: referrer.id },
                         data: { isPremium: true, premiumUntil: rewardUntil },
                     });
+                    cacheManager.user.delete(referrer.id);
                     await tx.notification.create({
                         data: {
                             userId: referrer.id,
