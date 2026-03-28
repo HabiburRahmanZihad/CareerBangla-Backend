@@ -218,6 +218,7 @@ const getAllJobs = async (query: IQueryParams) => {
                         name: true,
                         companyName: true,
                         companyLogo: true,
+                        profilePhoto: true,
                         industry: true,
                     },
                 },
