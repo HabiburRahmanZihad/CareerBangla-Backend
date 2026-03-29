@@ -16,6 +16,10 @@ router.get("/my-applications",
     checkAuth(Role.USER),
     ApplicationController.getMyApplications);
 
+router.get("/check/:jobId",
+    checkAuth(Role.USER),
+    ApplicationController.checkIfApplied);
+
 router.get("/all",
     checkAuth(Role.ADMIN, Role.SUPER_ADMIN),
     ApplicationController.getAllApplications);

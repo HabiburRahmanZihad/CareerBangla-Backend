@@ -130,6 +130,21 @@ const getHiredCandidates = catchAsync(
     }
 )
 
+const checkIfApplied = catchAsync(
+    async (req: Request, res: Response) => {
+        const user = req.user as IRequestUser;
+        const { jobId } = req.params;
+        const result = await ApplicationService.checkIfApplied(user, jobId);
+
+        sendResponse(res, {
+            httpStatusCode: status.OK,
+            success: true,
+            message: "Application check successful",
+            data: result,
+        });
+    }
+)
+
 export const ApplicationController = {
     applyJob,
     getMyApplications,
@@ -139,4 +154,5 @@ export const ApplicationController = {
     getApplicantsForJob,
     getUserDirectory,
     getHiredCandidates,
+    checkIfApplied,
 }

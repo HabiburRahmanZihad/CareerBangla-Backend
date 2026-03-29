@@ -788,6 +788,14 @@ const getHiredCandidates = async (user: IRequestUser | undefined, query?: IQuery
     };
 }
 
+const checkIfApplied = async (user: IRequestUser, jobId: string) => {
+    const existing = await prisma.application.findUnique({
+        where: { userId_jobId: { userId: user.userId, jobId } },
+        select: { id: true, status: true, createdAt: true },
+    });
+    return { hasApplied: !!existing, application: existing ?? null };
+};
+
 export const ApplicationService = {
     applyJob,
     getMyApplications,
@@ -797,4 +805,5 @@ export const ApplicationService = {
     getApplicantsForJob,
     getUserDirectory,
     getHiredCandidates,
+    checkIfApplied,
 }
