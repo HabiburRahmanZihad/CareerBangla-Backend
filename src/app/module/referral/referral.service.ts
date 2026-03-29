@@ -79,6 +79,56 @@ const getMyReferralStats = async (user: IRequestUser) => {
     };
 };
 
+const searchReferrals = async (user: IRequestUser, search: string) => {
+    logger.read(`Searching referrals → userId: ${user.userId}, search: ${search}`);
+
+    const searchQuery = search.trim().toLowerCase();
+
+    const referrals = await prisma.referralHistory.findMany({
+        where: {
+            referrerId: user.userId,
+            OR: [
+                {
+                    referredUser: {
+                        name: {
+                            contains: searchQuery,
+                            mode: "insensitive",
+                        },
+                    },
+                },
+                {
+                    referredUser: {
+                        email: {
+                            contains: searchQuery,
+                            mode: "insensitive",
+                        },
+                    },
+                },
+            ],
+        },
+        orderBy: { createdAt: "desc" },
+        take: 50,
+        include: {
+            referredUser: {
+                select: { name: true, email: true, createdAt: true },
+            },
+        },
+    });
+
+    return {
+        results: referrals.map((r) => ({
+            id: r.id,
+            referredUserName: r.referredUser.name,
+            referredUserEmail: r.referredUser.email,
+            hasPaid: r.hasPaid,
+            paidAt: r.paidAt,
+            createdAt: r.createdAt,
+        })),
+        count: referrals.length,
+    };
+};
+
 export const ReferralService = {
     getMyReferralStats,
+    searchReferrals,
 };

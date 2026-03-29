@@ -18,6 +18,22 @@ const getMyReferralStats = catchAsync(
     }
 );
 
+const searchReferrals = catchAsync(
+    async (req: Request, res: Response) => {
+        const user = req.user;
+        const { search } = req.query;
+        const result = await ReferralService.searchReferrals(user, (search as string) || "");
+
+        sendResponse(res, {
+            httpStatusCode: status.OK,
+            success: true,
+            message: "Referrals search results fetched successfully",
+            data: result,
+        });
+    }
+);
+
 export const ReferralController = {
     getMyReferralStats,
+    searchReferrals,
 };
