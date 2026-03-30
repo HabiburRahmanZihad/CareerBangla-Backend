@@ -134,7 +134,7 @@ const checkIfApplied = catchAsync(
     async (req: Request, res: Response) => {
         const user = req.user as IRequestUser;
         const { jobId } = req.params;
-        const result = await ApplicationService.checkIfApplied(user, jobId);
+        const result = await ApplicationService.checkIfApplied(user, Array.isArray(jobId) ? jobId[0] : jobId);
 
         sendResponse(res, {
             httpStatusCode: status.OK,

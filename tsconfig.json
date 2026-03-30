@@ -3,7 +3,7 @@
     "module": "esnext",
     "moduleResolution": "bundler",
     "target": "es2023",
-    "rootDir": "./",
+    "rootDir": "./src",
     "outDir": "./dist",
     "strict": true,
     "esModuleInterop": true,
@@ -12,11 +12,11 @@
     "ignoreDeprecations": "5.0"
   },
   "include": [
-    "src",
-    "prisma.config.ts"
+    "src"
   ],
   "exclude": [
     "node_modules",
-    "dist"
+    "dist",
+    "prisma.config.ts"
   ]
 }
