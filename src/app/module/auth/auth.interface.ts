@@ -25,4 +25,5 @@ export interface IChangePasswordPayload {
 export interface IUpdateProfilePayload {
     name?: string;
     phone?: string;
+    country?: string;
 }

@@ -759,6 +759,10 @@ const updateProfile = async (user: IRequestUser, payload: IUpdateProfilePayload)
         updateData.phone = payload.phone;
     }
 
+    if (payload.country !== undefined) {
+        updateData.country = payload.country;
+    }
+
     if (Object.keys(updateData).length === 0) {
         throw new AppError(status.BAD_REQUEST, "No valid fields to update");
     }

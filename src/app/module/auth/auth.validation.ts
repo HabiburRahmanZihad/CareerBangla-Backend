@@ -65,6 +65,7 @@ export const updateProfileZodSchema = z.object({
         .string()
         .regex(BD_PHONE_REGEX, "Enter a valid 11-digit phone number starting with 01")
         .optional(),
+    country: z.string().optional(),
 });
 
 export type IRegisterUserPayload = z.infer<typeof registerUserZodSchema>;
