@@ -49,6 +49,12 @@ export const uploadFileToCloudinary = async (
             },
             (error, result) => {
                 if(error){
+                    logger.error("Cloudinary upload failed", {
+                        fileName,
+                        message: error.message,
+                        http_code: error.http_code,
+                        name: error.name,
+                    });
                     return reject(new AppError(status.INTERNAL_SERVER_ERROR, "Failed to upload file to Cloudinary"));
                 }
                 resolve(result as UploadApiResponse);

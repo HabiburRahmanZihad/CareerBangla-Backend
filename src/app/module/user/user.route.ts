@@ -5,6 +5,7 @@ import { Role } from "../../../generated/prisma/enums";
 import { uploadFileToCloudinary } from "../../config/cloudinary.config";
 import { checkAuth } from "../../middleware/checkAuth";
 import { validateRequest } from "../../middleware/validateRequest";
+import { logger } from "../../utils/logger";
 import { UserController } from "./user.controller";
 import { createAdminZodSchema, createRecruiterZodSchema } from "./user.validation";
 
@@ -12,6 +13,24 @@ const router = Router();
 
 // Configure multer for handling multipart/form-data (in-memory storage)
 const upload = multer({ storage: multer.memoryStorage() });
+
+const tryUploadOptionalRecruiterImage = async (file?: Express.Multer.File) => {
+    if (!file) {
+        return undefined;
+    }
+
+    try {
+        const result = await uploadFileToCloudinary(file.buffer, file.originalname);
+        return result.secure_url;
+    } catch (error: any) {
+        logger.error("Recruiter image upload failed; continuing without image", {
+            fieldName: file.fieldname,
+            originalName: file.originalname,
+            message: error?.message,
+        });
+        return undefined;
+    }
+};
 
 // Upload files to Cloudinary then restructure FormData to nested JSON
 const transformAndUpload = async (req: any, _res: any, next: any) => {
@@ -26,14 +45,8 @@ const transformAndUpload = async (req: any, _res: any, next: any) => {
         const profilePhotoFile = files.find(f => f.fieldname === "profilePhotoFile");
         const companyLogoFile = files.find(f => f.fieldname === "companyLogoFile");
 
-        if (profilePhotoFile) {
-            const result = await uploadFileToCloudinary(profilePhotoFile.buffer, profilePhotoFile.originalname);
-            profilePhotoUrl = result.secure_url;
-        }
-        if (companyLogoFile) {
-            const result = await uploadFileToCloudinary(companyLogoFile.buffer, companyLogoFile.originalname);
-            companyLogoUrl = result.secure_url;
-        }
+        profilePhotoUrl = await tryUploadOptionalRecruiterImage(profilePhotoFile);
+        companyLogoUrl = await tryUploadOptionalRecruiterImage(companyLogoFile);
 
         // Restructure flat FormData to nested object expected by Zod schema
         if (body.name || body.companyName) {
