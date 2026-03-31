@@ -14,6 +14,10 @@ import { IndexRoutes } from "./app/routes";
 
 const app: Application = express();
 
+// Render sits behind a reverse proxy and forwards client IP information.
+// express-rate-limit relies on this to identify users correctly in production.
+app.set("trust proxy", 1);
+
 // Security headers
 app.use((_req, res, next) => {
     res.setHeader("X-Content-Type-Options", "nosniff");
