@@ -542,15 +542,15 @@ const processSuccessfulPayment = async (
         }
     }).catch((err) => logger.error("User notification failed", err));
 
-    // 6. Admin notifications (fire-and-forget — not atomic with payment)
+    // 6. Super admin notifications (fire-and-forget — not atomic with payment)
     prisma.user.findMany({
-        where: { role: { in: ["ADMIN", "SUPER_ADMIN"] } },
+        where: { role: Role.SUPER_ADMIN },
         select: { id: true },
-    }).then((admins) => {
-        if (admins.length > 0) {
+    }).then((superAdmins) => {
+        if (superAdmins.length > 0) {
             return prisma.notification.createMany({
-                data: admins.map((admin: { id: string }) => ({
-                    userId: admin.id,
+                data: superAdmins.map((superAdmin: { id: string }) => ({
+                    userId: superAdmin.id,
                     type: "GENERAL" as const,
                     title: "New Subscription Purchase",
                     message: `${subscription.user.name} (${subscription.user.email}) purchased ${planConfig.name} for ৳${subscription.amount} via ${gatewayLabel || "Payment Gateway"}.`,
@@ -564,7 +564,7 @@ const processSuccessfulPayment = async (
                 })),
             });
         }
-    }).catch((err) => logger.error("Admin notifications failed", err));
+    }).catch((err) => logger.error("Super admin notifications failed", err));
 };
 
 // Send invoice email (fire and forget, non-blocking)
