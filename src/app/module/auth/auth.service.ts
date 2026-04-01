@@ -15,6 +15,51 @@ import { IChangePasswordPayload, IForgetPasswordPayload, ILoginUserPayload, IReg
 
 const MAX_DEVICES = 2;
 
+const getErrorText = (error: unknown): string => {
+    if (!error || typeof error !== "object") return "";
+
+    const maybeError = error as {
+        message?: unknown;
+        body?: { message?: unknown };
+        response?: { data?: { message?: unknown } };
+    };
+
+    const messageCandidates = [
+        maybeError.message,
+        maybeError.body?.message,
+        maybeError.response?.data?.message,
+    ];
+
+    for (const candidate of messageCandidates) {
+        if (typeof candidate === "string" && candidate.trim()) {
+            return candidate.trim();
+        }
+    }
+
+    return "";
+};
+
+const mapBetterAuthLoginError = (error: unknown) => {
+    const errorText = getErrorText(error);
+    const normalized = errorText.toLowerCase();
+
+    if (
+        /invalid credentials|invalid email|invalid password|invalid email or password|incorrect password|wrong password|password does not matched|user not found|no user found|no account found|account not found/.test(normalized)
+    ) {
+        return new AppError(status.UNAUTHORIZED, "Invalid credentials");
+    }
+
+    if (/email not verified/.test(normalized)) {
+        return new AppError(status.UNAUTHORIZED, "Email not verified");
+    }
+
+    if (/blocked|banned|suspended/.test(normalized)) {
+        return new AppError(status.FORBIDDEN, "User is blocked");
+    }
+
+    return new AppError(status.INTERNAL_SERVER_ERROR, "Login failed. Please try again later.");
+};
+
 /** Build the token payload from a user record — single source of truth */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const buildTokenPayload = (user: { id: string; role: string; name: string; email: string; status: string; isDeleted: boolean; emailVerified: boolean } & Record<string, any>) => ({
@@ -246,7 +291,7 @@ const loginUser = async (payload: ILoginUserPayload) => {
             select: { email: true },
         });
         if (!userByPhone) {
-            throw new AppError(status.NOT_FOUND, "No account found with this phone number");
+            throw new AppError(status.UNAUTHORIZED, "Invalid credentials");
         }
         email = userByPhone.email;
     } else {
@@ -278,12 +323,18 @@ const loginUser = async (payload: ILoginUserPayload) => {
         }
     }
 
-    const data = await auth.api.signInEmail({
-        body: {
-            email,
-            password,
-        }
-    })
+    let data: Awaited<ReturnType<typeof auth.api.signInEmail>>;
+    try {
+        data = await auth.api.signInEmail({
+            body: {
+                email,
+                password,
+            }
+        });
+    } catch (error) {
+        logger.error("better-auth signInEmail failed", { identifier, message: getErrorText(error) });
+        throw mapBetterAuthLoginError(error);
+    }
 
     logger.read(`Login successful → userId: ${data.user?.id}`);
 
