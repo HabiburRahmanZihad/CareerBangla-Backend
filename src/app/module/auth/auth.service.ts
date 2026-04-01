@@ -247,7 +247,7 @@ const registerUser = async (payload: IRegisterUserPayload) => {
                     userId: data.user.id,
                     type: "GENERAL",
                     title: "Welcome to CareerBangla!",
-                    message: "Your account has been created successfully. You've earned 50 coins! Note down your referral code to invite friends and earn Premium!",
+                    message: "Your account has been created successfully. Save your referral code to invite friends and unlock premium rewards.",
                 }
             })
         });

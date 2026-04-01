@@ -243,7 +243,7 @@ const getResumeByUserId = async (userId: string, requestUser: IRequestUser) => {
         throw new AppError(status.FORBIDDEN, "You are not authorized to view this resume");
     }
 
-    // Validate resume exists BEFORE charging coins
+    // Validate resume exists before applying premium-only resume rules
     const resume = await prisma.resume.findUnique({
         where: { userId },
         include: {
